@@ -1,0 +1,6 @@
+{
+  "name": "Werewolf: Dark Forest",
+  "description": "Real-time multiplayer Werewolf social deduction game with immersive dark fantasy visuals, secret roles, and night/day phases.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

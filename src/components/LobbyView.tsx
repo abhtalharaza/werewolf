@@ -1,0 +1,353 @@
+import React, { useState } from 'react';
+import {
+  Copy,
+  Check,
+  Crown,
+  Bot,
+  UserPlus,
+  Play,
+  LogOut,
+  Sliders,
+  Shield,
+  Clock,
+  Sparkles,
+  Users,
+} from 'lucide-react';
+import { ClientGameState, ChatMessage } from '../types/game.js';
+import { getAvatar } from '../utils/avatars.js';
+import { AudioControls } from './AudioControls.js';
+
+interface LobbyViewProps {
+  gameState: ClientGameState;
+  onToggleReady: () => void;
+  onAddBot: () => void;
+  onRemoveBot: (botId?: string) => void;
+  onStartGame: () => Promise<boolean>;
+  onLeaveRoom: () => void;
+  onSendChat: (text: string) => void;
+  chatMessages: ChatMessage[];
+}
+
+export const LobbyView: React.FC<LobbyViewProps> = ({
+  gameState,
+  onToggleReady,
+  onAddBot,
+  onRemoveBot,
+  onStartGame,
+  onLeaveRoom,
+  onSendChat,
+  chatMessages,
+}) => {
+  const [copied, setCopied] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [starting, setStarting] = useState(false);
+
+  const isHost = gameState.isHost;
+  const me = gameState.players.find((p) => p.id === gameState.myPlayerId);
+  const playerCount = gameState.players.length;
+  const canStart = playerCount >= 4;
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(gameState.roomCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleStart = async () => {
+    if (starting) return;
+    setStarting(true);
+    await onStartGame();
+    setStarting(false);
+  };
+
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    onSendChat(chatInput);
+    setChatInput('');
+  };
+
+  return (
+    <div className="relative min-h-screen flex flex-col p-3 sm:p-4 md:p-8 z-10 max-w-6xl mx-auto w-full justify-between">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 bg-zinc-950/70 border border-zinc-800/80 rounded-2xl p-3.5 sm:p-4 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-purple-950/70 border border-purple-800/50 text-purple-300 shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold font-cinzel text-zinc-100">{gameState.settings.roomName}</h2>
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <span>Village Gathering</span>
+              <span>•</span>
+              <span className="text-purple-300 font-semibold">{playerCount} / {gameState.settings.maxPlayers} Villagers</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Room Code Badge & Top Actions */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 border-t sm:border-t-0 border-zinc-800/60 pt-2.5 sm:pt-0">
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2">
+            <div className="text-[11px] sm:text-xs text-zinc-400 uppercase tracking-widest font-mono">Code:</div>
+            <div className="font-mono font-bold tracking-widest text-base sm:text-lg text-purple-400">
+              {gameState.roomCode}
+            </div>
+            <button
+              id="copy-room-code-btn"
+              onClick={copyCode}
+              className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition ml-0.5 min-w-[32px] min-h-[32px] flex items-center justify-center"
+              title="Copy Code"
+            >
+              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <AudioControls />
+
+            <button
+              id="leave-lobby-btn"
+              onClick={onLeaveRoom}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900/90 hover:bg-red-950/40 border border-zinc-800 hover:border-red-800/50 text-zinc-400 hover:text-red-300 text-xs transition min-h-[38px]"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Leave</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Grid: Player list + Settings & Chat */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 my-6 flex-1">
+        {/* Left 2 Cols: Player Roster */}
+        <div className="lg:col-span-2 flex flex-col bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-4 border-b border-zinc-800/60 pb-3">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-purple-400" />
+              <h3 className="font-cinzel font-bold text-zinc-200 text-base">Villagers in Square</h3>
+            </div>
+
+            {/* Host quick actions: Add bot / Fill room */}
+            {isHost && (
+              <div className="flex items-center gap-2">
+                <button
+                  id="add-bot-btn"
+                  onClick={onAddBot}
+                  disabled={playerCount >= gameState.settings.maxPlayers}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-purple-950/50 border border-zinc-800 hover:border-purple-800/60 text-xs text-zinc-300 hover:text-purple-300 transition disabled:opacity-40"
+                  title="Add an AI Bot Villager for quick testing"
+                >
+                  <Bot className="w-3.5 h-3.5 text-purple-400" />
+                  <span>+ Add Bot</span>
+                </button>
+                {gameState.players.some((p) => p.isBot) && (
+                  <button
+                    id="remove-bot-btn"
+                    onClick={() => onRemoveBot()}
+                    className="px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-zinc-400 hover:text-zinc-200 transition"
+                  >
+                    Remove Bot
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Grid of Players */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 overflow-y-auto max-h-[480px] pr-1">
+            {gameState.players.map((p) => {
+              const avatarInfo = getAvatar(p.avatar);
+              const isMe = p.id === gameState.myPlayerId;
+
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center justify-between p-3.5 rounded-xl border transition ${
+                    isMe
+                      ? 'bg-purple-950/30 border-purple-600/50 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                      : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-md border border-white/10"
+                      style={{ backgroundColor: avatarInfo.color + '33', color: avatarInfo.color }}
+                    >
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 font-semibold text-sm text-zinc-100">
+                        <span>{p.name}</span>
+                        {p.isHost && (
+                          <span title="Host">
+                            <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                          </span>
+                        )}
+                        {p.isBot && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 font-mono">
+                            BOT
+                          </span>
+                        )}
+                        {isMe && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-900/70 text-purple-200">
+                            YOU
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">{avatarInfo.title}</div>
+                    </div>
+                  </div>
+
+                  {/* Ready State */}
+                  <div>
+                    {p.isHost ? (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-amber-950/60 text-amber-300 border border-amber-800/40 font-mono">
+                        Host
+                      </span>
+                    ) : p.isReady ? (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-800/40 font-mono flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Ready
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 font-mono">
+                        Waiting
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Player Count Guidance */}
+          {!canStart && (
+            <div className="mt-4 p-3 rounded-xl bg-purple-950/20 border border-purple-900/30 text-purple-300 text-xs flex items-center justify-between">
+              <span>A minimum of <strong>4 players</strong> are required to begin the hunt.</span>
+              {isHost && (
+                <button
+                  id="lobby-quick-add-bots-btn"
+                  onClick={onAddBot}
+                  className="font-bold underline hover:text-white transition ml-2 cursor-pointer"
+                >
+                  + Add Villager Bot
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right Col: Settings & Chat */}
+        <div className="flex flex-col gap-4">
+          {/* Settings Card */}
+          <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-5 backdrop-blur-md">
+            <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              <Clock className="w-3.5 h-3.5 text-purple-400" />
+              <span>Village Rules & Timers</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="p-2 rounded-lg bg-zinc-900/70 border border-zinc-800">
+                <div className="text-zinc-500 text-[10px]">NIGHT</div>
+                <div className="font-bold text-zinc-200 mt-0.5">{gameState.settings.nightTime}s</div>
+              </div>
+              <div className="p-2 rounded-lg bg-zinc-900/70 border border-zinc-800">
+                <div className="text-zinc-500 text-[10px]">DISCUSSION</div>
+                <div className="font-bold text-zinc-200 mt-0.5">{gameState.settings.discussionTime}s</div>
+              </div>
+              <div className="p-2 rounded-lg bg-zinc-900/70 border border-zinc-800">
+                <div className="text-zinc-500 text-[10px]">VOTING</div>
+                <div className="font-bold text-zinc-200 mt-0.5">{gameState.settings.votingTime}s</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Lobby Chat */}
+          <div className="flex-1 flex flex-col bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-4 backdrop-blur-md min-h-[220px]">
+            <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+              Lobby Chatter
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-2 max-h-[200px] pr-1 text-xs">
+              {chatMessages.length === 0 ? (
+                <div className="text-zinc-600 italic text-center my-6">No words spoken yet in the tavern...</div>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div key={msg.id} className="p-2 rounded-lg bg-zinc-900/50 border border-zinc-800/50">
+                    <div className="flex items-center justify-between text-[10px] text-zinc-400 mb-0.5">
+                      <span className="font-semibold text-purple-300">{msg.senderName}</span>
+                      <span className="text-zinc-600">
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="text-zinc-200 break-words">{msg.text}</div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={handleSendChat} className="mt-3 flex gap-2">
+              <input
+                id="lobby-chat-input"
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Converse with the villagers..."
+                maxLength={140}
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-purple-500 focus:outline-none text-base sm:text-xs text-zinc-100 placeholder-zinc-500 min-h-[44px]"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2.5 rounded-xl bg-purple-900/60 hover:bg-purple-800 border border-purple-700/40 text-xs text-white font-medium transition min-h-[44px] min-w-[54px]"
+              >
+                Send
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Controls: Start Game (Host) / Ready (Player) */}
+      <footer className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 backdrop-blur-md">
+        <div className="text-xs text-zinc-400 text-center sm:text-left">
+          {isHost ? (
+            <span>You are the Host. When all villagers are prepared, signal the town horn to begin.</span>
+          ) : (
+            <span>Ready up so the host knows you are ready for the dark descent.</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          {!isHost && (
+            <button
+              id="lobby-ready-toggle-btn"
+              onClick={onToggleReady}
+              className={`w-full sm:w-auto px-6 py-3.5 min-h-[48px] rounded-xl font-semibold text-sm transition font-cinzel ${
+                me?.isReady
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
+              }`}
+            >
+              {me?.isReady ? 'Ready for the Hunt' : 'Mark Ready'}
+            </button>
+          )}
+
+          {isHost && (
+            <button
+              id="lobby-start-game-btn"
+              onClick={handleStart}
+              disabled={starting}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 min-h-[48px] rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 disabled:opacity-40 text-white font-bold font-cinzel text-sm tracking-wider shadow-xl shadow-purple-950/60 border border-purple-500/40 transition cursor-pointer active:scale-98"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              <span>
+                {starting
+                  ? 'Summoning...'
+                  : playerCount < 4
+                  ? 'Add Bots & Commence Hunt'
+                  : 'Commence The Hunt'}
+              </span>
+            </button>
+          )}
+        </div>
+      </footer>
+    </div>
+  );
+};
