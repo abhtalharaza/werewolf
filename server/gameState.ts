@@ -9,6 +9,7 @@ import {
   GameDeathRecord,
   SeerResult,
   WitchPotions,
+  WerewolfVoteRecord,
 } from '../src/types/game.js';
 import { ServerRoom, ServerPlayer, ServerNightAction } from './types.js';
 import { assignRoles, getRoleTeam, resolveNightActions, checkWinCondition } from './roleEngine.js';
@@ -37,8 +38,8 @@ export class GameRoom {
       roomName: name || 'Whispering Pines',
       maxPlayers: 10,
       discussionTime: 40,
-      votingTime: 25,
-      nightTime: 25,
+      votingTime: 15,
+      nightTime: 15,
       revealRoleOnDeath: true,
       roleDistribution: {
         WEREWOLF: 2,
@@ -202,6 +203,30 @@ export class GameRoom {
     }
   }
 
+  public kickPlayer(requesterId: string, targetPlayerId: string): { success: boolean; error?: string } {
+    if (this.room.phase !== 'LOBBY') {
+      return { success: false, error: 'Players can only be removed while in the gathering' };
+    }
+    const requester = this.getPlayer(requesterId);
+    if (!requester || !requester.isHost) {
+      return { success: false, error: 'Only the village host can banish players' };
+    }
+    if (requesterId === targetPlayerId) {
+      return { success: false, error: 'Host cannot banish themselves' };
+    }
+
+    const idx = this.room.players.findIndex((p) => p.id === targetPlayerId);
+    if (idx === -1) {
+      return { success: false, error: 'Player not found in this village' };
+    }
+
+    const removed = this.room.players.splice(idx, 1)[0];
+    this.addEvent('SYSTEM', `${removed.name} was banished from the village by the host.`);
+    this.notify();
+
+    return { success: true };
+  }
+
   public toggleReady(playerId: string) {
     const player = this.getPlayer(playerId);
     if (player && this.room.phase === 'LOBBY') {
@@ -232,7 +257,7 @@ export class GameRoom {
       this.addEvent('SYSTEM', `${needed} AI Villagers were summoned so the hunt could commence.`);
     }
 
-    const assigned = assignRoles(this.room.players.length);
+    const assigned = assignRoles(this.room.players.length, this.room.settings.roleDistribution);
     this.room.players.forEach((player, idx) => {
       player.role = assigned[idx];
       player.team = getRoleTeam(assigned[idx]);
@@ -582,6 +607,16 @@ export class GameRoom {
     if (type === 'INVESTIGATE' && player.role !== 'SEER') {
       return { success: false, error: 'Only the seer can investigate' };
     }
+
+    // Seer restriction: only 1 player inspection per night
+    if (type === 'INVESTIGATE') {
+      const alreadyInvestigated = this.room.nightActions.some(
+        (a) => a.actorId === playerId && a.type === 'INVESTIGATE'
+      );
+      if (alreadyInvestigated || this.seerResults.has(playerId)) {
+        return { success: false, error: 'The Seer may only inspect one soul per night' };
+      }
+    }
     if (type === 'PROTECT' && player.role !== 'DOCTOR') {
       return { success: false, error: 'Only the doctor can heal/protect' };
     }
@@ -660,13 +695,9 @@ export class GameRoom {
     this.notify();
 
     if (voteCount >= aliveCount) {
-      // All votes in! Advance early for snappy responsiveness
-      setTimeout(() => {
-        if (this.room.phase === 'VOTING') {
-          this.clearTimer();
-          this.resolveVotes();
-        }
-      }, 800);
+      // All votes in! Advance immediately, no waiting for the remaining timer
+      this.clearTimer();
+      this.resolveVotes();
     }
 
     return { success: true };
@@ -706,7 +737,7 @@ export class GameRoom {
         }, 4000);
       }
     } else if (phase === 'VOTING') {
-      // Bots cast votes after 2-6 seconds
+      // Bots cast votes quickly within 1.5 seconds
       setTimeout(() => {
         if (this.room.phase === 'VOTING') {
           const botVotes = getBotVotes(this.room.players);
@@ -723,15 +754,24 @@ export class GameRoom {
           // Check if all votes in
           const aliveCount = this.room.players.filter((p) => p.isAlive).length;
           if (Object.keys(this.room.votes).length >= aliveCount) {
-            setTimeout(() => {
-              if (this.room.phase === 'VOTING') {
-                this.clearTimer();
-                this.resolveVotes();
-              }
-            }, 600);
+            this.clearTimer();
+            this.resolveVotes();
           }
         }
-      }, 3500);
+      }, 1500);
+    } else if (phase === 'HUNTER_ACTION') {
+      const hunter = this.room.hunterPendingId ? this.getPlayer(this.room.hunterPendingId) : null;
+      if (hunter && hunter.isBot) {
+        setTimeout(() => {
+          if (this.room.phase === 'HUNTER_ACTION') {
+            const aliveTargets = this.room.players.filter((p) => p.isAlive && p.id !== hunter.id);
+            if (aliveTargets.length > 0) {
+              const target = aliveTargets[Math.floor(Math.random() * aliveTargets.length)];
+              this.hunterShoot(hunter.id, target.id);
+            }
+          }
+        }, 2500);
+      }
     }
   }
 
@@ -763,21 +803,28 @@ export class GameRoom {
     }
 
     const isSeer = requester?.role === 'SEER';
+    const isWerewolf = requester?.role === 'WEREWOLF';
     const seerKnown = isSeer ? this.seerHistory.get(forPlayerId) : undefined;
 
     const clientPlayers: ClientPlayer[] = this.room.players.map((p) => {
       let roleToReveal: Role | undefined = undefined;
+      const isWolfTeammate = isWerewolf && p.role === 'WEREWOLF';
 
       if (isGameOver) {
         roleToReveal = p.role;
       } else if (p.id === forPlayerId) {
         roleToReveal = p.role;
+      } else if (isWolfTeammate) {
+        roleToReveal = 'WEREWOLF';
       } else if (!p.isAlive && this.room.settings.revealRoleOnDeath) {
         roleToReveal = p.role;
       } else if (isSeer && seerKnown && seerKnown.has(p.id)) {
         // The seer has investigated this player! Reveal their true role to the seer
         roleToReveal = p.role;
       }
+
+      // Werewolves can see what each werewolf teammate is targeting at night
+      const canSeeTargetId = p.id === forPlayerId || isWolfTeammate;
 
       return {
         id: p.id,
@@ -789,18 +836,32 @@ export class GameRoom {
         isBot: p.isBot,
         connected: p.connected,
         role: roleToReveal,
-        targetId: p.id === forPlayerId ? p.targetId : undefined,
+        targetId: canSeeTargetId ? p.targetId : undefined,
         votesReceived: voteCounts[p.id] || 0,
         hasVoted: p.hasVoted,
       };
     });
 
-    // Werewolf teammate knowledge
+    // Werewolf teammate knowledge & night votes (ONLY shared among werewolves)
     let werewolfTeammates: { id: string; name: string }[] | undefined = undefined;
-    if (requester && requester.role === 'WEREWOLF') {
+    let werewolfVotes: WerewolfVoteRecord[] | undefined = undefined;
+    if (isWerewolf) {
       werewolfTeammates = this.room.players
         .filter((p) => p.role === 'WEREWOLF')
         .map((p) => ({ id: p.id, name: p.name }));
+
+      werewolfVotes = this.room.nightActions
+        .filter((a) => a.type === 'KILL')
+        .map((a) => {
+          const wolf = this.getPlayer(a.actorId);
+          const victim = this.getPlayer(a.targetId);
+          return {
+            werewolfId: a.actorId,
+            werewolfName: wolf?.name || 'Werewolf',
+            targetId: a.targetId,
+            targetName: victim?.name || 'Unknown',
+          };
+        });
     }
 
     // Witch potion knowledge
@@ -829,6 +890,7 @@ export class GameRoom {
       myTeam: requester?.team,
       isHost: requester?.isHost || false,
       werewolfTeammates,
+      werewolfVotes,
       seerResult: this.seerResults.get(forPlayerId) || null,
       seerHistory:
         isSeer && seerKnown ? Array.from(seerKnown.values()) : undefined,

@@ -51,6 +51,7 @@ export const VotingPanel: React.FC<VotingPanelProps> = ({
 
         <div className="text-xs font-mono text-zinc-400">
           Votes: <span className="text-purple-300 font-bold">{totalVotesCast}</span> / {totalAlive}
+          <span className="text-[10px] text-zinc-500 ml-1.5 hidden sm:inline">(Ends early if all vote)</span>
         </div>
       </div>
 

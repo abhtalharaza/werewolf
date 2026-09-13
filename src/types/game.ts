@@ -109,6 +109,13 @@ export interface GameDeathRecord {
   round: number;
 }
 
+export interface WerewolfVoteRecord {
+  werewolfId: string;
+  werewolfName: string;
+  targetId: string;
+  targetName: string;
+}
+
 export interface ClientGameState {
   roomId: string;
   roomCode: string;
@@ -122,6 +129,7 @@ export interface ClientGameState {
   myTeam?: Team;
   isHost: boolean;
   werewolfTeammates?: { id: string; name: string }[];
+  werewolfVotes?: WerewolfVoteRecord[];
   seerResult?: SeerResult | null;
   seerHistory?: SeerResult[];
   witchPotions?: WitchPotions;

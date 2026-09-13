@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, LogIn, Users } from 'lucide-react';
-import { AVATARS } from '../utils/avatars.js';
+
+const DEFAULT_AVATARS = ['blacksmith', 'elder', 'herbalist', 'hunter', 'innkeeper', 'knight', 'apprentice', 'gravedigger'];
 
 interface JoinRoomModalProps {
   isOpen: boolean;
@@ -21,7 +22,6 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
 }) => {
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [playerName, setPlayerName] = useState('Villager');
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[1].id);
 
   if (!isOpen) return null;
 
@@ -29,7 +29,11 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
     e.preventDefault();
     if (!roomCode.trim() || !playerName.trim()) return;
 
-    const success = await onJoinRoom(roomCode.trim(), playerName.trim(), selectedAvatar);
+    // Deterministically pick avatar based on name
+    const charCodeSum = playerName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const assignedAvatar = DEFAULT_AVATARS[charCodeSum % DEFAULT_AVATARS.length];
+
+    const success = await onJoinRoom(roomCode.trim(), playerName.trim(), assignedAvatar);
     if (success) {
       onClose();
     }
@@ -103,36 +107,6 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
             />
           </div>
 
-          {/* Avatar Selector */}
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">
-              Choose Your Persona
-            </label>
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-              {AVATARS.map((av) => (
-                <button
-                  type="button"
-                  key={av.id}
-                  id={`join-avatar-${av.id}`}
-                  onClick={() => setSelectedAvatar(av.id)}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl border transition min-h-[58px] ${
-                    selectedAvatar === av.id
-                      ? 'border-purple-500 bg-purple-950/40 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
-                      : 'border-zinc-800/80 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-                  }`}
-                >
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1"
-                    style={{ backgroundColor: av.color + '33', color: av.color }}
-                  >
-                    {av.name.charAt(0)}
-                  </div>
-                  <span className="text-[10px] font-medium truncate w-full text-center">{av.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Submit */}
           <div className="pt-3 border-t border-zinc-800 flex justify-end gap-3">
             <button
@@ -146,7 +120,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
               id="submit-join-room-btn"
               type="submit"
               disabled={loading || !roomCode.trim()}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold text-sm transition shadow-lg shadow-purple-900/40 font-cinzel"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold text-sm transition shadow-lg shadow-purple-900/40 font-cinzel min-h-[44px]"
             >
               <Users className="w-4 h-4" />
               {loading ? 'Entering...' : 'Join Gathering'}

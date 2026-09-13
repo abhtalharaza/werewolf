@@ -6,16 +6,76 @@ export function getRoleTeam(role: Role): Team {
 }
 
 export function assignRoles(playerCount: number, customDistribution?: Record<Role, number>): Role[] {
-  // If custom distribution is specified and matches player count, use it
+  // If custom distribution is specified, faithfully allocate requested roles
   if (customDistribution) {
-    const list: Role[] = [];
+    const pool: Role[] = [];
     for (const [roleKey, count] of Object.entries(customDistribution)) {
+      const role = roleKey as Role;
       for (let i = 0; i < count; i++) {
-        list.push(roleKey as Role);
+        pool.push(role);
       }
     }
-    if (list.length === playerCount) {
-      return shuffleArray(list);
+
+    if (pool.length > 0) {
+      // Guarantee at least 1 Werewolf is present so the game functions
+      if (!pool.includes('WEREWOLF')) {
+        pool.unshift('WEREWOLF');
+      }
+
+      // If pool matches player count exactly, distribute directly
+      if (pool.length === playerCount) {
+        return shuffleArray(pool);
+      }
+
+      // If pool is larger than playerCount, prioritize wolves then active specials
+      if (pool.length > playerCount) {
+        const wolves = pool.filter((r) => r === 'WEREWOLF');
+        const specials = pool.filter((r) => r !== 'WEREWOLF' && r !== 'VILLAGER');
+        const villagers = pool.filter((r) => r === 'VILLAGER');
+
+        const maxWolves = Math.max(1, Math.min(wolves.length, Math.floor(playerCount / 3)));
+        const selected: Role[] = [];
+
+        for (let i = 0; i < maxWolves; i++) {
+          selected.push('WEREWOLF');
+        }
+
+        // Add special roles chosen by the host
+        for (const spec of specials) {
+          if (selected.length < playerCount) {
+            selected.push(spec);
+          }
+        }
+
+        // Add villagers if slots remain
+        for (const v of villagers) {
+          if (selected.length < playerCount) {
+            selected.push(v);
+          }
+        }
+
+        while (selected.length < playerCount) {
+          selected.push('VILLAGER');
+        }
+
+        return shuffleArray(selected.slice(0, playerCount));
+      }
+
+      // If pool is smaller than playerCount, allocate all pool roles and pad with Villagers
+      const selected = [...pool];
+      if (
+        playerCount >= 6 &&
+        selected.filter((r) => r === 'WEREWOLF').length < 2 &&
+        (customDistribution.WEREWOLF ?? 1) >= 2
+      ) {
+        selected.push('WEREWOLF');
+      }
+
+      while (selected.length < playerCount) {
+        selected.push('VILLAGER');
+      }
+
+      return shuffleArray(selected.slice(0, playerCount));
     }
   }
 
@@ -35,9 +95,9 @@ export function assignRoles(playerCount: number, customDistribution?: Record<Rol
   // Special roles based on player count
   if (playerCount >= 4) roles.push('SEER');
   if (playerCount >= 5) roles.push('DOCTOR');
-  if (playerCount >= 7) roles.push('HUNTER');
-  if (playerCount >= 8) roles.push('WITCH');
-  if (playerCount >= 9) roles.push('BODYGUARD');
+  if (playerCount >= 6) roles.push('HUNTER');
+  if (playerCount >= 7) roles.push('WITCH');
+  if (playerCount >= 8) roles.push('BODYGUARD');
 
   // Fill remainder with Villagers
   while (roles.length < playerCount) {

@@ -10,6 +10,7 @@ interface PlayerCardProps {
   myRole?: Role;
   isSelectedTarget: boolean;
   isWerewolfTeammate: boolean;
+  wolfVotesTargetingThisPlayer?: number;
   onSelect: (playerId: string) => void;
   canTarget: boolean;
 }
@@ -21,6 +22,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   myRole,
   isSelectedTarget,
   isWerewolfTeammate,
+  wolfVotesTargetingThisPlayer = 0,
   onSelect,
   canTarget,
 }) => {
@@ -83,6 +85,17 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           title="Pack Teammate"
         >
           <Moon className="w-3.5 h-3.5" />
+        </div>
+      )}
+
+      {/* Werewolf Night Pack Target Indicator (Visible only to Werewolves) */}
+      {wolfVotesTargetingThisPlayer > 0 && !isDead && (
+        <div
+          className="absolute -top-2.5 -right-2.5 px-2 py-0.5 rounded-full bg-red-900 border border-red-500 text-red-100 text-[10px] font-mono font-bold flex items-center gap-1 shadow-xl z-20 animate-pulse"
+          title={`${wolfVotesTargetingThisPlayer} werewolf vote(s) targeting this player tonight`}
+        >
+          <Moon className="w-3 h-3 text-red-400 fill-red-400" />
+          <span>{wolfVotesTargetingThisPlayer} 🐺</span>
         </div>
       )}
 

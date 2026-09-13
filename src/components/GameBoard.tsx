@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Eye, Sparkles, Moon, Sun, Vote, Skull, HelpCircle, LogOut } from 'lucide-react';
+import { Shield, Eye, Sparkles, Moon, Sun, Vote, Skull, HelpCircle, LogOut, MessageSquare } from 'lucide-react';
 import { ClientGameState, ChatMessage, ChatChannel } from '../types/game.js';
 import { PhaseBanner } from './PhaseBanner.js';
 import { PlayerCard } from './PlayerCard.js';
@@ -34,6 +34,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [dismissedDeaths, setDismissedDeaths] = useState<string[]>([]);
+  const [mobileTab, setMobileTab] = useState<'arena' | 'chat'>('arena');
 
   // Reset target selection when phase changes
   React.useEffect(() => {
@@ -54,7 +55,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         // Wolves can target any living player
         return true;
       }
-      if (gameState.myRole === 'SEER') return playerId !== gameState.myPlayerId;
+      if (gameState.myRole === 'SEER') {
+        if (gameState.seerResult) return false; // Seer restricted to 1 check per night
+        return playerId !== gameState.myPlayerId;
+      }
       if (gameState.myRole === 'DOCTOR') return true;
       if (gameState.myRole === 'BODYGUARD') return playerId !== gameState.myPlayerId;
       if (gameState.myRole === 'WITCH') return true;
@@ -161,10 +165,38 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         }
       />
 
+      {/* Mobile Navigation Tabs for Responsive Phone Play (lg:hidden) */}
+      <div className="lg:hidden flex items-center bg-zinc-950/80 border border-zinc-800 rounded-xl p-1 mb-3">
+        <button
+          id="mobile-tab-arena-btn"
+          onClick={() => setMobileTab('arena')}
+          className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[44px] ${
+            mobileTab === 'arena'
+              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5" />
+          <span>Village Arena</span>
+        </button>
+        <button
+          id="mobile-tab-chat-btn"
+          onClick={() => setMobileTab('chat')}
+          className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[44px] ${
+            mobileTab === 'chat'
+              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>Village Chat ({chatMessages.length})</span>
+        </button>
+      </div>
+
       {/* Main Board Layout: Left/Center Circle Grid + Right Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 my-2">
         {/* Left 2 Cols: Player Circle / Grid + Phase Action Panel */}
-        <div className="lg:col-span-2 flex flex-col justify-between space-y-4">
+        <div className={`lg:col-span-2 flex flex-col justify-between space-y-4 ${mobileTab === 'arena' ? 'flex' : 'hidden lg:flex'}`}>
           {/* Players Arena */}
           <div
             id="players-arena"
@@ -177,6 +209,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 const isWolfTeammate =
                   gameState.myRole === 'WEREWOLF' &&
                   (gameState.werewolfTeammates || []).some((w) => w.id === p.id);
+                const wolfVotesOnPlayer =
+                  gameState.myRole === 'WEREWOLF' && gameState.phase === 'NIGHT'
+                    ? (gameState.werewolfVotes || []).filter((w) => w.targetId === p.id).length
+                    : 0;
 
                 return (
                   <PlayerCard
@@ -187,6 +223,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     myRole={gameState.myRole}
                     isSelectedTarget={isSelected}
                     isWerewolfTeammate={isWolfTeammate}
+                    wolfVotesTargetingThisPlayer={wolfVotesOnPlayer}
                     onSelect={handleSelectPlayer}
                     canTarget={canTargetPlayer(p.id)}
                   />
@@ -255,7 +292,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
 
         {/* Right Col: Chat Panel & Event Chronicle */}
-        <div className="flex flex-col justify-start">
+        <div className={`flex flex-col justify-start ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
           <ChatPanel
             gameState={gameState}
             chatMessages={chatMessages}

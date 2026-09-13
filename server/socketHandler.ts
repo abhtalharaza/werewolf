@@ -137,6 +137,27 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
+    // 5.5 KICK PLAYER (HOST ONLY)
+    socket.on('room:kick_player', ({ roomCode, requesterId, targetPlayerId }) => {
+      const room = gameManager.getRoom(roomCode);
+      if (!room) return;
+
+      const targetPlayer = room.getPlayer(targetPlayerId);
+      const targetSocketId = targetPlayer?.socketId;
+
+      const result = room.kickPlayer(requesterId, targetPlayerId);
+      if (result.success) {
+        if (targetSocketId && io.sockets.sockets.get(targetSocketId)) {
+          const targetSocket = io.sockets.sockets.get(targetSocketId);
+          targetSocket?.leave(room.getCode());
+          targetSocket?.emit('room:kicked', {
+            reason: 'You were banished from the village by the host.',
+          });
+        }
+        broadcastRoomState(io, room);
+      }
+    });
+
     // 6. UPDATE SETTINGS
     socket.on('room:settings', ({ roomCode, settings }) => {
       const room = gameManager.getRoom(roomCode);

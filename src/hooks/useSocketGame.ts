@@ -102,6 +102,14 @@ export function useSocketGame() {
       sounds.playChatPing();
     });
 
+    s.on('room:kicked', ({ reason }: { reason?: string }) => {
+      currentRoomCodeRef.current = null;
+      myPlayerIdRef.current = null;
+      setGameState(null);
+      setChatMessages([]);
+      setError(reason || 'You were banished from the village by the host.');
+    });
+
     setSocket(s);
 
     return () => {
@@ -200,6 +208,18 @@ export function useSocketGame() {
     (botId?: string) => {
       if (!socket || !gameState) return;
       socket.emit('room:remove_bot', { roomCode: gameState.roomCode, botId });
+    },
+    [socket, gameState]
+  );
+
+  const kickPlayer = useCallback(
+    (targetPlayerId: string) => {
+      if (!socket || !gameState) return;
+      socket.emit('room:kick_player', {
+        roomCode: gameState.roomCode,
+        requesterId: gameState.myPlayerId,
+        targetPlayerId,
+      });
     },
     [socket, gameState]
   );
@@ -344,6 +364,7 @@ export function useSocketGame() {
     toggleReady,
     addBot,
     removeBot,
+    kickPlayer,
     updateSettings,
     startGame,
     submitNightAction,

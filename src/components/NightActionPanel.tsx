@@ -68,8 +68,41 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           </div>
 
           <p className="text-xs text-zinc-300">
-            Click any living villager on the board above to mark them for death tonight.
+            Click any living villager on the board above to mark them for death tonight. You have 15 seconds to strike.
           </p>
+
+          {/* Werewolf Pack Voting Coordination (Shared in Real Time Among Werewolves) */}
+          {gameState.werewolfVotes && gameState.werewolfVotes.length > 0 && (
+            <div className="p-3 rounded-xl bg-red-950/40 border border-red-800/60 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-red-300 font-cinzel">
+                <div className="flex items-center gap-1.5">
+                  <Crosshair className="w-3.5 h-3.5 text-red-400" />
+                  <span>Pack Night Votes (Visible only to Werewolves):</span>
+                </div>
+                <span className="text-[10px] text-red-400/80 font-mono">
+                  {gameState.werewolfVotes.length} {gameState.werewolfVotes.length === 1 ? 'Vote' : 'Votes'} Cast
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
+                {gameState.werewolfVotes.map((wv) => {
+                  const isMyVote = wv.werewolfId === gameState.myPlayerId;
+                  return (
+                    <div
+                      key={wv.werewolfId}
+                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-[11px] font-mono ${
+                        isMyVote
+                          ? 'bg-red-900/50 border-red-500 text-red-200 font-bold'
+                          : 'bg-zinc-900/80 border-zinc-800 text-zinc-300'
+                      }`}
+                    >
+                      <span>🐺 {wv.werewolfName}{isMyVote ? ' (You)' : ''}</span>
+                      <span className="text-red-400 font-bold">→ {wv.targetName}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
             <div className="text-xs">
@@ -114,12 +147,12 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               <span>Seer's Divination</span>
             </div>
             <span className="text-[11px] text-indigo-300/80 font-mono">
-              Immediate Insight
+              Limit: 1 Player / Night
             </span>
           </div>
 
           <p className="text-xs text-zinc-300">
-            Select any player on the board to instantly peer into their true nature and uncover their exact secret role.
+            Select one player to uncover their exact secret role. You can only inspect 1 player each night.
           </p>
 
           {/* Immediate Investigation Report Card */}
@@ -181,33 +214,40 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
-            <div className="text-xs">
-              {targetPlayer ? (
-                <span>
-                  Target:{' '}
-                  <strong className="text-indigo-400 font-semibold">{targetPlayer.name}</strong>
-                  {targetPlayer.role && (
-                    <span className="ml-2 text-zinc-400 font-mono text-[11px]">
-                      (Known: {targetPlayer.role})
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-zinc-500 italic">Select a player card on the board to gaze into their soul</span>
-              )}
+          {/* If already investigated this night, show complete badge; otherwise show action button */}
+          {gameState.seerResult ? (
+            <div className="p-3 rounded-xl bg-indigo-950/30 border border-indigo-800/40 text-center text-xs text-indigo-200 font-mono">
+              ✨ Divination complete for tonight. You can only inspect 1 player per night. Rest your sight until dawn.
             </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+              <div className="text-xs">
+                {targetPlayer ? (
+                  <span>
+                    Target:{' '}
+                    <strong className="text-indigo-400 font-semibold">{targetPlayer.name}</strong>
+                    {targetPlayer.role && (
+                      <span className="ml-2 text-zinc-400 font-mono text-[11px]">
+                        (Known: {targetPlayer.role})
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-zinc-500 italic">Select a player card on the board to gaze into their soul</span>
+                )}
+              </div>
 
-            <button
-              id="confirm-seer-investigate-btn"
-              onClick={() => targetPlayer && handleConfirm('INVESTIGATE', targetPlayer.id)}
-              disabled={!targetPlayer || submitting}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-indigo-950/50 min-h-[44px]"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>{submitting ? 'Divining...' : 'Reveal Role Now'}</span>
-            </button>
-          </div>
+              <button
+                id="confirm-seer-investigate-btn"
+                onClick={() => targetPlayer && handleConfirm('INVESTIGATE', targetPlayer.id)}
+                disabled={!targetPlayer || submitting}
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-indigo-950/50 min-h-[44px]"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>{submitting ? 'Divining...' : 'Reveal Role Now'}</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

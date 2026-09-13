@@ -1,7 +1,21 @@
 import React, { useState } from 'react';
-import { X, Shield, Eye, HeartPulse, Crosshair, Sparkles, Sliders, Play } from 'lucide-react';
-import { AVATARS } from '../utils/avatars.js';
-import { GameSettings } from '../types/game.js';
+import {
+  X,
+  Shield,
+  Eye,
+  HeartPulse,
+  Crosshair,
+  Sparkles,
+  Sliders,
+  Play,
+  Moon,
+  Users,
+  Plus,
+  Minus,
+  Check,
+  Flame,
+} from 'lucide-react';
+import { Role, Team, GameSettings } from '../types/game.js';
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -9,6 +23,82 @@ interface CreateRoomModalProps {
   onCreateRoom: (name: string, hostName: string, avatar: string, settings: Partial<GameSettings>) => Promise<boolean>;
   loading: boolean;
 }
+
+interface RoleConfigMeta {
+  role: Role;
+  name: string;
+  team: Team;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  badgeClass: string;
+  description: string;
+}
+
+const ALL_ROLES_META: RoleConfigMeta[] = [
+  {
+    role: 'WEREWOLF',
+    name: 'Werewolf',
+    team: 'WEREWOLVES',
+    icon: Moon,
+    color: 'text-red-400',
+    badgeClass: 'bg-red-950/80 text-red-300 border-red-800/50',
+    description: 'Each night, agree with your pack to hunt and eliminate a villager.',
+  },
+  {
+    role: 'VILLAGER',
+    name: 'Villager',
+    team: 'VILLAGERS',
+    icon: Users,
+    color: 'text-blue-400',
+    badgeClass: 'bg-blue-950/80 text-blue-300 border-blue-800/50',
+    description: 'Use your sharp wits, deduction, and vote to ferret out the wolves before sunset.',
+  },
+  {
+    role: 'SEER',
+    name: 'Seer',
+    team: 'VILLAGERS',
+    icon: Eye,
+    color: 'text-indigo-400',
+    badgeClass: 'bg-indigo-950/80 text-indigo-300 border-indigo-800/50',
+    description: 'Each night, choose one player to peer into their soul and learn their true nature.',
+  },
+  {
+    role: 'DOCTOR',
+    name: 'Doctor',
+    team: 'VILLAGERS',
+    icon: HeartPulse,
+    color: 'text-emerald-400',
+    badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/50',
+    description: 'Each night, choose one player to protect from werewolf assault.',
+  },
+  {
+    role: 'HUNTER',
+    name: 'Hunter',
+    team: 'VILLAGERS',
+    icon: Crosshair,
+    color: 'text-amber-400',
+    badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-800/50',
+    description: 'If you are slain, you may take one final shot to take another down with you.',
+  },
+  {
+    role: 'WITCH',
+    name: 'Witch',
+    team: 'VILLAGERS',
+    icon: Sparkles,
+    color: 'text-pink-400',
+    badgeClass: 'bg-pink-950/80 text-pink-300 border-pink-800/50',
+    description: 'Possesses one Elixir of Life to save a victim, and one Vial of Poison to eliminate someone.',
+  },
+  {
+    role: 'BODYGUARD',
+    name: 'Bodyguard',
+    team: 'VILLAGERS',
+    icon: Shield,
+    color: 'text-cyan-400',
+    badgeClass: 'bg-cyan-950/80 text-cyan-300 border-cyan-800/50',
+    description: 'Each night, choose one player to protect from harm.',
+  },
+];
 
 export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   isOpen,
@@ -18,25 +108,99 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 }) => {
   const [roomName, setRoomName] = useState('Whispering Hollow');
   const [hostName, setHostName] = useState('MasterOfWolves');
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].id);
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [discussionTime, setDiscussionTime] = useState(40);
-  const [votingTime, setVotingTime] = useState(25);
-  const [nightTime, setNightTime] = useState(25);
+  const [votingTime, setVotingTime] = useState(15);
+  const [nightTime, setNightTime] = useState(15);
   const [revealRoleOnDeath, setRevealRoleOnDeath] = useState(true);
-
-  // Special roles toggles
-  const [includeSeer, setIncludeSeer] = useState(true);
-  const [includeDoctor, setIncludeDoctor] = useState(true);
-  const [includeHunter, setIncludeHunter] = useState(true);
-  const [includeWitch, setIncludeWitch] = useState(false);
-  const [includeBodyguard, setIncludeBodyguard] = useState(false);
   const [autoPopulateBots, setAutoPopulateBots] = useState(true);
+
+  // Dedicated role configuration for all 7 roles
+  const [roleCounts, setRoleCounts] = useState<Record<Role, number>>({
+    WEREWOLF: 2,
+    VILLAGER: 2,
+    SEER: 1,
+    DOCTOR: 1,
+    HUNTER: 1,
+    WITCH: 1,
+    BODYGUARD: 1,
+  });
 
   if (!isOpen) return null;
 
+  const totalDeckCount = Object.values(roleCounts).reduce((sum, c) => sum + c, 0);
+
+  const updateRoleCount = (role: Role, delta: number) => {
+    setRoleCounts((prev) => {
+      const current = prev[role] || 0;
+      const next = Math.max(0, current + delta);
+      // Werewolf minimum 1 for functioning game
+      if (role === 'WEREWOLF' && next < 1) {
+        return { ...prev, WEREWOLF: 1 };
+      }
+      return { ...prev, [role]: next };
+    });
+  };
+
+  const toggleRoleInclusion = (role: Role) => {
+    setRoleCounts((prev) => {
+      const current = prev[role] || 0;
+      if (current > 0) {
+        if (role === 'WEREWOLF') return prev; // Cannot disable werewolves
+        return { ...prev, [role]: 0 };
+      } else {
+        return { ...prev, [role]: 1 };
+      }
+    });
+  };
+
+  // Preset handlers
+  const applyPreset = (preset: 'ALL_ROLES' | 'BALANCED' | 'MYSTIC') => {
+    if (preset === 'ALL_ROLES') {
+      setRoleCounts({
+        WEREWOLF: 1,
+        VILLAGER: 1,
+        SEER: 1,
+        DOCTOR: 1,
+        HUNTER: 1,
+        WITCH: 1,
+        BODYGUARD: 1,
+      });
+      setMaxPlayers(7);
+    } else if (preset === 'BALANCED') {
+      setRoleCounts({
+        WEREWOLF: 2,
+        VILLAGER: 3,
+        SEER: 1,
+        DOCTOR: 1,
+        HUNTER: 1,
+        WITCH: 0,
+        BODYGUARD: 0,
+      });
+      setMaxPlayers(8);
+    } else if (preset === 'MYSTIC') {
+      setRoleCounts({
+        WEREWOLF: 2,
+        VILLAGER: 2,
+        SEER: 1,
+        DOCTOR: 1,
+        HUNTER: 1,
+        WITCH: 1,
+        BODYGUARD: 1,
+      });
+      setMaxPlayers(9);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Ensure at least 1 werewolf is in the deck
+    const safeCounts = {
+      ...roleCounts,
+      WEREWOLF: Math.max(1, roleCounts.WEREWOLF || 1),
+    };
+
     const settings: Partial<GameSettings> = {
       roomName: roomName.trim() || 'Whispering Hollow',
       maxPlayers,
@@ -45,18 +209,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       nightTime,
       revealRoleOnDeath,
       autoPopulateBots,
-      roleDistribution: {
-        WEREWOLF: maxPlayers >= 6 ? 2 : 1,
-        VILLAGER: 3,
-        SEER: includeSeer ? 1 : 0,
-        DOCTOR: includeDoctor ? 1 : 0,
-        HUNTER: includeHunter ? 1 : 0,
-        WITCH: includeWitch ? 1 : 0,
-        BODYGUARD: includeBodyguard ? 1 : 0,
-      },
+      roleDistribution: safeCounts,
     };
 
-    const success = await onCreateRoom(roomName, hostName, selectedAvatar, settings);
+    const success = await onCreateRoom(roomName, hostName, 'elder', settings);
     if (success) {
       onClose();
     }
@@ -65,12 +221,12 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   return (
     <div
       id="create-room-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
         id="create-room-modal-content"
-        className="relative w-full max-w-xl bg-zinc-950 border border-zinc-800 rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl text-zinc-100 my-4 sm:my-8 max-h-[92vh] overflow-y-auto"
+        className="relative w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl p-3 sm:p-6 md:p-8 shadow-2xl text-zinc-100 my-2 sm:my-8 max-h-[94vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -83,12 +239,17 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
         <div className="flex items-center gap-3 mb-5 sm:mb-6 border-b border-zinc-800/80 pb-3 sm:pb-4 pr-10">
           <Sliders className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400 shrink-0" />
-          <h2 className="text-xl sm:text-2xl font-bold font-cinzel text-zinc-100 tracking-wider">
-            Establish Village Sanctum
-          </h2>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold font-cinzel text-zinc-100 tracking-wider">
+              Establish Village Sanctum
+            </h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Configure room parameters and select secret roles assigned to players.
+            </p>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Room Name & Host Name */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
@@ -121,187 +282,223 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
             </div>
           </div>
 
-          {/* Avatar Selector */}
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">
-              Select Your Archetype / Avatar
-            </label>
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-              {AVATARS.map((av) => (
-                <button
-                  type="button"
-                  key={av.id}
-                  id={`create-avatar-${av.id}`}
-                  onClick={() => setSelectedAvatar(av.id)}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl border transition min-h-[58px] ${
-                    selectedAvatar === av.id
-                      ? 'border-purple-500 bg-purple-950/40 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
-                      : 'border-zinc-800/80 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-                  }`}
-                >
+          {/* Player Capacity & Timers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <div>
+              <div className="flex justify-between items-center mb-1 text-xs">
+                <span className="text-zinc-400 font-semibold uppercase tracking-wider">Max Village Capacity</span>
+                <span className="text-purple-300 font-bold text-sm">{maxPlayers} Players</span>
+              </div>
+              <input
+                id="create-max-players-slider"
+                type="range"
+                min="4"
+                max="16"
+                value={maxPlayers}
+                onChange={(e) => setMaxPlayers(parseInt(e.target.value))}
+                className="w-full accent-purple-500 cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
+                <span>4 Min</span>
+                <span>16 Max</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-1 text-xs">
+                <span className="text-zinc-400 font-semibold uppercase tracking-wider">Discussion Phase</span>
+                <span className="text-amber-300 font-bold text-sm">{discussionTime}s</span>
+              </div>
+              <input
+                id="create-discussion-time-slider"
+                type="range"
+                min="20"
+                max="90"
+                step="5"
+                value={discussionTime}
+                onChange={(e) => setDiscussionTime(parseInt(e.target.value))}
+                className="w-full accent-amber-500 cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
+                <span>20s Rapid</span>
+                <span>90s Extended</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ROLES SELECTION HEADER & PRESETS */}
+          <div className="border border-purple-900/40 bg-purple-950/15 rounded-xl p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-3 border-b border-purple-900/30">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-purple-400" />
+                  <h3 className="text-sm font-bold font-cinzel text-zinc-100 uppercase tracking-wider">
+                    Game Roles & Player Assignment
+                  </h3>
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  Choose which roles will be dealt out to players.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-purple-900/50 text-purple-200 border border-purple-700/50 font-mono font-bold">
+                  {totalDeckCount} Roles Selected
+                </span>
+              </div>
+            </div>
+
+            {/* Presets */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => applyPreset('ALL_ROLES')}
+                className="px-2.5 py-1 rounded-lg text-xs bg-purple-900/40 hover:bg-purple-800/60 border border-purple-700/40 text-purple-200 transition cursor-pointer"
+              >
+                ✨ All 7 Roles (Every Role Assigned)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('MYSTIC')}
+                className="px-2.5 py-1 rounded-lg text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition cursor-pointer"
+              >
+                🔮 Arcane Council (All Specials)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('BALANCED')}
+                className="px-2.5 py-1 rounded-lg text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition cursor-pointer"
+              >
+                ⚖️ Classic Pack
+              </button>
+            </div>
+
+            {/* LIST OF ALL 7 ROLES (MATCHING CODEX SCREENSHOT) */}
+            <div className="space-y-2.5 max-h-[320px] overflow-y-auto overflow-x-hidden pr-1">
+              {ALL_ROLES_META.map((r) => {
+                const IconComponent = r.icon;
+                const count = roleCounts[r.role] || 0;
+                const isIncluded = count > 0;
+
+                return (
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1"
-                    style={{ backgroundColor: av.color + '33', color: av.color }}
+                    key={r.role}
+                    id={`role-config-${r.role}`}
+                    className={`p-2.5 sm:p-3 rounded-xl border transition ${
+                      isIncluded
+                        ? 'bg-zinc-900/90 border-zinc-700/80 shadow-sm'
+                        : 'bg-zinc-950/40 border-zinc-900 text-zinc-500 opacity-60'
+                    }`}
                   >
-                    {av.name.charAt(0)}
+                    {/* Header Row: Checkbox, Icon, Name, Badge + Quantity Controls */}
+                    <div className="flex items-center justify-between gap-2">
+                      {/* Left info */}
+                      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                        {/* Checkbox toggle */}
+                        <button
+                          type="button"
+                          onClick={() => toggleRoleInclusion(r.role)}
+                          disabled={r.role === 'WEREWOLF'} // Wolves are mandatory
+                          className={`w-5 h-5 rounded shrink-0 flex items-center justify-center border transition ${
+                            isIncluded
+                              ? 'bg-purple-600 border-purple-500 text-white'
+                              : 'border-zinc-700 bg-zinc-900 text-transparent'
+                          } ${r.role === 'WEREWOLF' ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
+                          title={isIncluded ? 'Disable role' : 'Enable role'}
+                        >
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </button>
+
+                        {/* Role Icon */}
+                        <div className={`p-1.5 sm:p-2 rounded-lg bg-zinc-800/80 ${r.color} shrink-0`}>
+                          <IconComponent className="w-4 h-4" />
+                        </div>
+
+                        {/* Title & Team Badge */}
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span className="font-bold text-sm text-zinc-100 font-cinzel leading-none">
+                            {r.name}
+                          </span>
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono border whitespace-nowrap leading-none ${r.badgeClass}`}
+                          >
+                            {r.team}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right: Quantity Selector - Always fully visible, never pushed out */}
+                      <div className="flex items-center gap-1 shrink-0 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                        <button
+                          type="button"
+                          onClick={() => updateRoleCount(r.role, -1)}
+                          disabled={count <= (r.role === 'WEREWOLF' ? 1 : 0)}
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 disabled:opacity-25 text-zinc-200 flex items-center justify-center transition cursor-pointer active:scale-95"
+                          title="Decrease count"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+
+                        <span
+                          className={`w-5 sm:w-6 text-center text-xs font-mono font-bold ${
+                            count > 0 ? 'text-purple-300' : 'text-zinc-600'
+                          }`}
+                        >
+                          {count}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => updateRoleCount(r.role, 1)}
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-200 flex items-center justify-center transition cursor-pointer active:scale-95"
+                          title="Increase count"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Full-width Description Row */}
+                    <p className="text-[11px] sm:text-xs text-zinc-400 mt-2 pl-7 sm:pl-9 leading-relaxed">
+                      {r.description}
+                    </p>
                   </div>
-                  <span className="text-[10px] font-medium truncate w-full text-center">{av.name}</span>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* Timers & Player Limits */}
-          <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 space-y-4">
-            <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
-              Phase Timing & Village Capacity
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div>
-                <label className="text-zinc-400 block mb-1">Max Players: <span className="text-zinc-100 font-bold">{maxPlayers}</span></label>
-                <input
-                  id="create-max-players-slider"
-                  type="range"
-                  min="4"
-                  max="16"
-                  value={maxPlayers}
-                  onChange={(e) => setMaxPlayers(parseInt(e.target.value))}
-                  className="w-full accent-purple-500"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 block mb-1">Night: <span className="text-zinc-100 font-bold">{nightTime}s</span></label>
-                <input
-                  id="create-night-time-slider"
-                  type="range"
-                  min="15"
-                  max="60"
-                  step="5"
-                  value={nightTime}
-                  onChange={(e) => setNightTime(parseInt(e.target.value))}
-                  className="w-full accent-purple-500"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 block mb-1">Discussion: <span className="text-zinc-100 font-bold">{discussionTime}s</span></label>
-                <input
-                  id="create-discussion-time-slider"
-                  type="range"
-                  min="20"
-                  max="90"
-                  step="5"
-                  value={discussionTime}
-                  onChange={(e) => setDiscussionTime(parseInt(e.target.value))}
-                  className="w-full accent-purple-500"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 block mb-1">Voting: <span className="text-zinc-100 font-bold">{votingTime}s</span></label>
-                <input
-                  id="create-voting-time-slider"
-                  type="range"
-                  min="15"
-                  max="60"
-                  step="5"
-                  value={votingTime}
-                  onChange={(e) => setVotingTime(parseInt(e.target.value))}
-                  className="w-full accent-purple-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Special Roles Checklist */}
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">
-              Special Roles in Deck
+          {/* Game Rules & Bot Auto Populate Options */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 p-2.5 rounded-xl bg-purple-950/30 border border-purple-900/40 text-purple-200 text-xs cursor-pointer hover:bg-purple-950/50 transition">
+              <input
+                id="create-auto-populate-bots"
+                type="checkbox"
+                checked={autoPopulateBots}
+                onChange={(e) => setAutoPopulateBots(e.target.checked)}
+                className="rounded text-purple-600 focus:ring-0"
+              />
+              <span className="font-medium">Populate with AI Villagers if short on players (Instant Solo/Group Play)</span>
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 text-xs">
-                <input
-                  type="checkbox"
-                  checked={includeSeer}
-                  onChange={(e) => setIncludeSeer(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-0"
-                />
-                <Eye className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Seer</span>
-              </label>
 
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 text-xs">
-                <input
-                  type="checkbox"
-                  checked={includeDoctor}
-                  onChange={(e) => setIncludeDoctor(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-0"
-                />
-                <HeartPulse className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Doctor</span>
-              </label>
-
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 text-xs">
-                <input
-                  type="checkbox"
-                  checked={includeHunter}
-                  onChange={(e) => setIncludeHunter(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-0"
-                />
-                <Crosshair className="w-3.5 h-3.5 text-amber-400" />
-                <span>Hunter</span>
-              </label>
-
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 text-xs">
-                <input
-                  type="checkbox"
-                  checked={includeWitch}
-                  onChange={(e) => setIncludeWitch(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-0"
-                />
-                <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-                <span>Witch</span>
-              </label>
-
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 text-xs">
-                <input
-                  type="checkbox"
-                  checked={includeBodyguard}
-                  onChange={(e) => setIncludeBodyguard(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-0"
-                />
-                <Shield className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Bodyguard</span>
-              </label>
-
-              <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 text-xs">
-                <input
-                  type="checkbox"
-                  checked={revealRoleOnDeath}
-                  onChange={(e) => setRevealRoleOnDeath(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-0"
-                />
-                <span>Reveal on Death</span>
-              </label>
-            </div>
+            <label className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs cursor-pointer hover:border-zinc-700 transition">
+              <input
+                id="create-reveal-role-on-death"
+                type="checkbox"
+                checked={revealRoleOnDeath}
+                onChange={(e) => setRevealRoleOnDeath(e.target.checked)}
+                className="rounded text-purple-600 focus:ring-0"
+              />
+              <span>Reveal True Role in Announcement When a Player is Slain</span>
+            </label>
           </div>
 
-          {/* Quick Start AI Bots Option */}
-          <label className="flex items-center gap-2 p-2.5 rounded-xl bg-purple-950/30 border border-purple-900/40 text-purple-200 text-xs cursor-pointer hover:bg-purple-950/50 transition">
-            <input
-              id="create-auto-populate-bots"
-              type="checkbox"
-              checked={autoPopulateBots}
-              onChange={(e) => setAutoPopulateBots(e.target.checked)}
-              className="rounded text-purple-600 focus:ring-0"
-            />
-            <span className="font-medium">Populate with AI Villagers (Ready to start hunt immediately)</span>
-          </label>
-
-          {/* Submit */}
+          {/* Submit Action */}
           <div className="pt-3 border-t border-zinc-800 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white text-sm transition"
+              className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white text-sm transition cursor-pointer"
             >
               Cancel
             </button>
@@ -309,7 +506,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               id="submit-create-room-btn"
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold text-sm transition shadow-lg shadow-purple-900/40 font-cinzel cursor-pointer"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold text-sm transition shadow-lg shadow-purple-900/40 font-cinzel cursor-pointer min-h-[44px]"
             >
               <Play className="w-4 h-4 fill-current" />
               {loading ? 'Creating...' : 'Create & Enter Village'}

@@ -29,6 +29,8 @@ export default function App() {
     toggleReady,
     addBot,
     removeBot,
+    kickPlayer,
+    updateSettings,
     startGame,
     submitNightAction,
     submitVote,
@@ -133,6 +135,8 @@ export default function App() {
           onToggleReady={toggleReady}
           onAddBot={addBot}
           onRemoveBot={removeBot}
+          onKickPlayer={kickPlayer}
+          onUpdateSettings={updateSettings}
           onStartGame={startGame}
           onLeaveRoom={leaveRoom}
           onSendChat={(text) => sendChatMessage('PUBLIC', text)}
