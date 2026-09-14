@@ -1,5 +1,5 @@
 import React from 'react';
-import { Skull, Crown, Check, Crosshair, Shield, Eye, Moon } from 'lucide-react';
+import { Skull, Crown, Check, Crosshair, Shield, Eye, Moon, Heart } from 'lucide-react';
 import { ClientPlayer, Role, GamePhase } from '../types/game.js';
 import { getAvatar } from '../utils/avatars.js';
 
@@ -9,7 +9,10 @@ interface PlayerCardProps {
   phase: GamePhase;
   myRole?: Role;
   isSelectedTarget: boolean;
+  cupidLoverOrder?: 1 | 2;
   isWerewolfTeammate: boolean;
+  isLittleGirlSpottedWolf?: boolean;
+  isLittleGirlSpottedTarget?: boolean;
   wolfVotesTargetingThisPlayer?: number;
   onSelect: (playerId: string) => void;
   canTarget: boolean;
@@ -21,7 +24,10 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   phase,
   myRole,
   isSelectedTarget,
+  cupidLoverOrder,
   isWerewolfTeammate,
+  isLittleGirlSpottedWolf,
+  isLittleGirlSpottedTarget,
   wolfVotesTargetingThisPlayer = 0,
   onSelect,
   canTarget,
@@ -44,6 +50,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       className={`relative group flex flex-col items-center p-2 sm:p-3 rounded-2xl border transition-all duration-300 select-none w-full max-w-[150px] min-h-[115px] sm:min-h-[125px] justify-between ${
         isDead
           ? 'bg-zinc-950/40 border-zinc-900 opacity-40 grayscale pointer-events-none'
+          : cupidLoverOrder
+          ? 'bg-rose-950/60 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.45)] ring-2 ring-rose-400 scale-102 sm:scale-105'
           : isSelectedTarget
           ? 'bg-purple-950/50 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)] scale-102 sm:scale-105 ring-2 ring-purple-400'
           : isWerewolfTeammate
@@ -57,8 +65,16 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700'
       } ${canTarget && !isDead ? 'cursor-pointer hover:scale-102 active:scale-95 hover:border-purple-500/80' : ''}`}
     >
-      {/* Target Marker Overlay */}
-      {isSelectedTarget && (
+      {/* Cupid Lover Target Indicator */}
+      {cupidLoverOrder && (
+        <div className="absolute -top-2.5 -right-2.5 px-2 py-0.5 rounded-full bg-rose-600 border border-rose-300 text-white text-[10px] font-bold flex items-center gap-1 shadow-lg z-20 animate-pulse">
+          <Heart className="w-3 h-3 fill-white" />
+          <span>{cupidLoverOrder === 1 ? '1st Lover' : '2nd Lover'}</span>
+        </div>
+      )}
+
+      {/* Target Marker Overlay (for non-cupid selections) */}
+      {!cupidLoverOrder && isSelectedTarget && (
         <div className="absolute -top-2 -right-2 p-1 rounded-full bg-purple-600 text-white shadow-lg animate-bounce z-20">
           <Crosshair className="w-3.5 h-3.5" />
         </div>
@@ -85,6 +101,28 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           title="Pack Teammate"
         >
           <Moon className="w-3.5 h-3.5" />
+        </div>
+      )}
+
+      {/* Little Girl Spotted Werewolf Badge */}
+      {isLittleGirlSpottedWolf && !isDead && (
+        <div
+          className="absolute -top-2.5 -left-2.5 px-2 py-0.5 rounded-full bg-red-950 border border-red-500 text-red-200 text-[10px] font-bold flex items-center gap-1 shadow-xl z-20 animate-pulse"
+          title="Little Girl spotted this player as a Werewolf!"
+        >
+          <Moon className="w-3 h-3 text-red-400 fill-red-400" />
+          <span>Wolf</span>
+        </div>
+      )}
+
+      {/* Little Girl Spotted Wolf Target Badge */}
+      {isLittleGirlSpottedTarget && !isDead && (
+        <div
+          className="absolute -bottom-2 -left-2 px-2 py-0.5 rounded-full bg-amber-950 border border-amber-500 text-amber-200 text-[10px] font-bold flex items-center gap-1 shadow-xl z-20 animate-bounce"
+          title="Little Girl sees the wolves hunting this player!"
+        >
+          <Crosshair className="w-3 h-3 text-amber-400" />
+          <span>Wolf Prey</span>
         </div>
       )}
 

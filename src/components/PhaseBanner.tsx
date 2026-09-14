@@ -62,11 +62,11 @@ export const PhaseBanner: React.FC<PhaseBannerProps> = ({
         };
       case 'HUNTER_ACTION':
         return {
-          title: "HUNTER'S LAST BREATH",
-          subtitle: 'The fallen hunter has drawn their bow. A final arrow will fly!',
-          icon: <Crosshair className="w-5 h-5 text-red-400 animate-pulse" />,
-          accent: 'border-red-500/60 bg-red-950/50 text-red-200',
-          barColor: 'bg-red-500',
+          title: "HUNTER'S PARTING SHOT",
+          subtitle: 'The fallen Hunter draws their rifle for their final bullet. One player will fall with them!',
+          icon: <Crosshair className="w-5 h-5 text-amber-400 animate-pulse" />,
+          accent: 'border-amber-500/60 bg-amber-950/50 text-amber-200',
+          barColor: 'bg-amber-500',
         };
       case 'GAME_OVER':
         return {

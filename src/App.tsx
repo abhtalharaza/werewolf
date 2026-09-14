@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { X, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AtmosphereBackground } from './components/AtmosphereBackground.js';
 import { LandingView } from './components/LandingView.js';
@@ -23,6 +24,7 @@ export default function App() {
     connected,
     loading,
     error,
+    clearError,
     gameState,
     chatMessages,
     createRoom,
@@ -121,10 +123,20 @@ export default function App() {
       {error && (
         <div
           id="global-error-banner"
-          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-red-950/90 border border-red-700/80 text-red-200 text-xs shadow-xl backdrop-blur-md flex items-center gap-2 animate-bounce"
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-red-950/95 border border-red-600/90 text-red-200 text-xs shadow-2xl backdrop-blur-md flex items-center gap-2.5 max-w-[90vw] animate-in fade-in slide-in-from-top-4 duration-300"
         >
-          <span className="w-2 h-2 rounded-full bg-red-500" />
-          <span>{error}</span>
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-ping flex-shrink-0" />
+          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <span className="font-medium leading-relaxed">{error}</span>
+          <button
+            id="dismiss-global-error-btn"
+            type="button"
+            onClick={clearError}
+            className="ml-2 p-1 rounded-lg hover:bg-red-900/60 text-red-400 hover:text-white transition cursor-pointer flex-shrink-0"
+            title="Dismiss error"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 

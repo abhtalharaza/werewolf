@@ -8,6 +8,7 @@ import { VotingPanel } from './VotingPanel.js';
 import { ChatPanel } from './ChatPanel.js';
 import { HunterActionModal } from './HunterActionModal.js';
 import { EliminationModal } from './EliminationModal.js';
+import { MorningProtectionCard } from './MorningProtectionCard.js';
 import { AudioControls } from './AudioControls.js';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
 
@@ -38,19 +39,37 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onOpenHowToPlay,
 }) => {
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [cupidLover1Id, setCupidLover1Id] = useState<string | null>(null);
+  const [cupidLover2Id, setCupidLover2Id] = useState<string | null>(null);
+  const [isCupidBoundLocal, setIsCupidBoundLocal] = useState<boolean>(false);
   const [dismissedDeaths, setDismissedDeaths] = useState<string[]>([]);
   const [mobileTab, setMobileTab] = useState<'arena' | 'chat'>('arena');
-
-  // Reset target selection when phase changes
-  React.useEffect(() => {
-    setSelectedTargetId(null);
-  }, [gameState.phase, gameState.round]);
 
   const me = gameState.players.find((p) => p.id === gameState.myPlayerId);
   const isMeAlive = me?.isAlive ?? false;
   const isNight = gameState.phase === 'NIGHT';
   const isVoting = gameState.phase === 'VOTING';
   const roleInfo = gameState.myRole ? ROLE_DEFINITIONS[gameState.myRole] : null;
+
+  const isCupidBound = Boolean(gameState.cupidLovers || isCupidBoundLocal);
+  const effectiveCupidLover1Id = gameState.cupidLovers?.lover1Id || cupidLover1Id;
+  const effectiveCupidLover2Id = gameState.cupidLovers?.lover2Id || cupidLover2Id;
+
+  const isCupidActive =
+    gameState.myRole === 'CUPID' &&
+    gameState.phase === 'NIGHT' &&
+    gameState.round === 1 &&
+    isMeAlive;
+
+  // Reset target selection when phase changes
+  React.useEffect(() => {
+    setSelectedTargetId(null);
+    if (gameState.phase !== 'NIGHT') {
+      setCupidLover1Id(null);
+      setCupidLover2Id(null);
+      setIsCupidBoundLocal(false);
+    }
+  }, [gameState.phase, gameState.round]);
 
   // Determine if a card can be targeted right now
   const canTargetPlayer = (playerId: string) => {
@@ -73,7 +92,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (gameState.myRole === 'DOCTOR') return true;
       if (gameState.myRole === 'BODYGUARD') return playerId !== gameState.myPlayerId;
       if (gameState.myRole === 'WITCH') return true;
-      if (gameState.myRole === 'CUPID' && gameState.round === 1) return true;
+      if (gameState.myRole === 'CUPID' && gameState.round === 1) {
+        // If already bound, Cupid cannot target or change anyone!
+        return !isCupidBound;
+      }
       if (gameState.myRole === 'DOPPELGANGER' && gameState.round === 1) {
         return playerId !== gameState.myPlayerId;
       }
@@ -87,7 +109,51 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   const handleSelectPlayer = (playerId: string) => {
+    if (isCupidActive) {
+      // Once lovers are bound, undo or modifications are STRICTLY FORBIDDEN!
+      if (isCupidBound) return;
+
+      // 1. If clicking on Lover 1 again -> UNSELECT Lover 1!
+      if (cupidLover1Id === playerId) {
+        setCupidLover1Id(cupidLover2Id);
+        setCupidLover2Id(null);
+        return;
+      }
+      // 2. If clicking on Lover 2 again -> UNSELECT Lover 2!
+      if (cupidLover2Id === playerId) {
+        setCupidLover2Id(null);
+        return;
+      }
+      // 3. If slot 1 is empty -> fill Lover 1
+      if (!cupidLover1Id) {
+        setCupidLover1Id(playerId);
+      } else if (!cupidLover2Id) {
+        // Slot 2 is empty -> fill Lover 2
+        setCupidLover2Id(playerId);
+      } else {
+        // Both were selected; clicking a 3rd player replaces Lover 2
+        setCupidLover2Id(playerId);
+      }
+      return;
+    }
+
     setSelectedTargetId((prev) => (prev === playerId ? null : playerId));
+  };
+
+  const handleUnselectCupidLover = (slot: 1 | 2) => {
+    if (isCupidBound) return; // Cannot undo once bound
+    if (slot === 1) {
+      setCupidLover1Id(cupidLover2Id);
+      setCupidLover2Id(null);
+    } else {
+      setCupidLover2Id(null);
+    }
+  };
+
+  const handleResetCupidLovers = () => {
+    if (isCupidBound) return; // Cannot undo once bound
+    setCupidLover1Id(null);
+    setCupidLover2Id(null);
   };
 
   // Check for recent deaths to show modal in DAY_ANNOUNCEMENT
@@ -221,6 +287,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               {gameState.players.map((p) => {
                 const isMe = p.id === gameState.myPlayerId;
                 const isSelected = selectedTargetId === p.id;
+                const cupidOrder: 1 | 2 | undefined = isCupidActive
+                  ? effectiveCupidLover1Id === p.id
+                    ? 1
+                    : effectiveCupidLover2Id === p.id
+                    ? 2
+                    : undefined
+                  : undefined;
                 const isWolfTeammate =
                   gameState.myRole === 'WEREWOLF' &&
                   (gameState.werewolfTeammates || []).some((w) => w.id === p.id);
@@ -229,6 +302,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     ? (gameState.werewolfVotes || []).filter((w) => w.targetId === p.id).length
                     : 0;
 
+                const isLittleGirl = gameState.myRole === 'LITTLE_GIRL';
+                const lgPeek = gameState.littleGirlPeekResult;
+                const isLittleGirlSpottedWolf = Boolean(
+                  isLittleGirl && lgPeek && !lgPeek.caught && lgPeek.werewolfNames?.includes(p.name)
+                );
+                const isLittleGirlSpottedTarget = Boolean(
+                  isLittleGirl && lgPeek && !lgPeek.caught && lgPeek.targetName === p.name
+                );
+
                 return (
                   <PlayerCard
                     key={p.id}
@@ -236,8 +318,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     isMe={isMe}
                     phase={gameState.phase}
                     myRole={gameState.myRole}
-                    isSelectedTarget={isSelected}
+                    isSelectedTarget={isCupidActive ? cupidOrder !== undefined : isSelected}
+                    cupidLoverOrder={cupidOrder}
                     isWerewolfTeammate={isWolfTeammate}
+                    isLittleGirlSpottedWolf={isLittleGirlSpottedWolf}
+                    isLittleGirlSpottedTarget={isLittleGirlSpottedTarget}
                     wolfVotesTargetingThisPlayer={wolfVotesOnPlayer}
                     onSelect={handleSelectPlayer}
                     canTarget={canTargetPlayer(p.id)}
@@ -252,6 +337,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <NightActionPanel
               gameState={gameState}
               selectedTargetId={selectedTargetId}
+              cupidLover1Id={effectiveCupidLover1Id}
+              cupidLover2Id={effectiveCupidLover2Id}
+              isCupidBound={isCupidBound}
+              onCupidBound={() => setIsCupidBoundLocal(true)}
+              onUnselectCupidLover={handleUnselectCupidLover}
+              onResetCupidLovers={handleResetCupidLovers}
               onSubmitAction={onSubmitNightAction}
             />
           )}
@@ -331,6 +422,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       {gameState.phase === 'HUNTER_ACTION' && (
         <HunterActionModal gameState={gameState} onShoot={onHunterShoot} />
       )}
+
+      {/* 3. Morning Protection Notification Card (2-second popup) */}
+      <MorningProtectionCard
+        protections={gameState.morningProtections}
+        round={gameState.round}
+        phase={gameState.phase}
+      />
     </div>
   );
 };

@@ -38,6 +38,14 @@ export interface ServerNightAction {
   chosenRole?: Role;
 }
 
+export interface ProtectionRecord {
+  role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+  protectorId: string;
+  targetId: string;
+  targetName: string;
+  wasAttackedAndSaved: boolean;
+}
+
 export interface ServerRoom {
   id: string;
   code: string;
@@ -55,7 +63,10 @@ export interface ServerRoom {
   votes: Record<string, string | null>; // voterId -> targetId
   events: GameEvent[];
   latestDeaths: GameDeathRecord[];
+  morningProtections: ProtectionRecord[];
   hunterPendingId: string | null;
+  hunterContext?: 'NIGHT' | 'DAY_VOTE' | null;
+  hunterEliminationReason?: string | null;
   winnerTeam: Team | null;
   winReason: string | null;
   createdAt: number;

@@ -19,6 +19,12 @@ import { ROLE_DEFINITIONS } from '../types/roles.js';
 interface NightActionPanelProps {
   gameState: ClientGameState;
   selectedTargetId: string | null;
+  cupidLover1Id?: string | null;
+  cupidLover2Id?: string | null;
+  isCupidBound?: boolean;
+  onCupidBound?: () => void;
+  onUnselectCupidLover?: (slot: 1 | 2) => void;
+  onResetCupidLovers?: () => void;
   onSubmitAction: (
     actionType: any,
     targetId: string,
@@ -30,19 +36,38 @@ interface NightActionPanelProps {
 export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   gameState,
   selectedTargetId,
+  cupidLover1Id,
+  cupidLover2Id,
+  isCupidBound = false,
+  onCupidBound,
+  onUnselectCupidLover,
+  onResetCupidLovers,
   onSubmitAction,
 }) => {
   const [submitting, setSubmitting] = useState(false);
   const [confirmedTargetId, setConfirmedTargetId] = useState<string | null>(null);
-
-  // Cupid state: 2 lovers selection
-  const [cupidFirstLoverId, setCupidFirstLoverId] = useState<string | null>(null);
 
   const me = gameState.players.find((p) => p.id === gameState.myPlayerId);
   const role = gameState.myRole;
   const isDead = me && !me.isAlive;
 
   const targetPlayer = gameState.players.find((p) => p.id === selectedTargetId);
+  const cupidLover1 = gameState.players.find((p) => p.id === cupidLover1Id);
+  const cupidLover2 = gameState.players.find((p) => p.id === cupidLover2Id);
+
+  const isLoversLocked = Boolean(
+    isCupidBound ||
+    gameState.cupidLovers ||
+    confirmedTargetId === 'CUPID_BOUND'
+  );
+
+  const canBindLovers = Boolean(
+    !isLoversLocked &&
+    cupidLover1 &&
+    cupidLover2 &&
+    cupidLover1.id !== cupidLover2.id &&
+    !submitting
+  );
 
   if (isDead) {
     return (
@@ -63,7 +88,12 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
     const ok = await onSubmitAction(type, targetId, secondaryTargetId, chosenRole);
     setSubmitting(false);
     if (ok) {
-      setConfirmedTargetId(targetId);
+      if (type === 'CUPID_LOVERS') {
+        setConfirmedTargetId('CUPID_BOUND');
+        onCupidBound?.();
+      } else {
+        setConfirmedTargetId(targetId);
+      }
     }
   };
 
@@ -485,51 +515,171 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 
       {/* 6. CUPID PANEL (Night 1: Bind Lovers) */}
       {role === 'CUPID' && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-rose-400 font-bold font-cinzel text-sm">
-            <Heart className="w-4 h-4 fill-rose-400" />
-            <span>Cupid's Golden Arrow</span>
+        <div className="space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-rose-400 font-bold font-cinzel text-sm">
+              <Heart className="w-4 h-4 fill-rose-400" />
+              <span>Cupid's Golden Arrow (Prem Dhanush)</span>
+            </div>
+            <div className="text-[10px] text-rose-300 font-mono bg-rose-950/60 px-2 py-0.5 rounded-md border border-rose-800/60">
+              Night 1 Only
+            </div>
           </div>
 
-          <p className="text-xs text-zinc-300">
+          <p className="text-xs text-zinc-300 leading-relaxed">
             {gameState.round === 1
-              ? 'Choose two players to bind in eternal love. If either lover dies, the other perishes of grief!'
+              ? isLoversLocked
+                ? 'Prem sutra bandh chuka hai! Yeh prem bandhan ab badla ya toda nahi ja sakta.'
+                : 'Board par pehle 1st Lover ko select karein, fir 2nd Lover ko select karein. Kisi ko unselect karne ke liye dobara uspar click karein ya Unselect dabayein.'
               : 'Your arrows were spent on the first night. You slumber alongside the village.'}
           </p>
 
           {gameState.round === 1 && (
-            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/60 space-y-2">
-              <div className="text-xs text-rose-200">
-                1st Lover:{' '}
-                <strong>
-                  {cupidFirstLoverId
-                    ? gameState.players.find((p) => p.id === cupidFirstLoverId)?.name
-                    : 'Click player on board & click Set Lover 1'}
-                </strong>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => targetPlayer && setCupidFirstLoverId(targetPlayer.id)}
-                  disabled={!targetPlayer}
-                  className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+            <div className="space-y-3">
+              {/* Lovers Selection Cards (Slot 1 & Slot 2) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Lover 1 Slot */}
+                <div
+                  className={`p-3 rounded-xl border transition-all duration-200 flex flex-col justify-between min-h-[76px] ${
+                    cupidLover1
+                      ? isLoversLocked
+                        ? 'bg-rose-950/40 border-emerald-600/70 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                        : 'bg-rose-950/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.25)]'
+                      : 'bg-zinc-900/40 border-dashed border-zinc-700 text-zinc-400'
+                  }`}
                 >
-                  Set as Lover 1 ({targetPlayer?.name || 'select player'})
-                </button>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[11px] font-bold font-cinzel text-rose-300 uppercase tracking-wider flex items-center gap-1">
+                      <Heart className="w-3 h-3 fill-rose-400 text-rose-400" />
+                      1st Lover
+                    </span>
+                    {!isLoversLocked && cupidLover1 && (
+                      <button
+                        type="button"
+                        onClick={() => onUnselectCupidLover?.(1)}
+                        className="text-[10px] font-semibold text-rose-200 hover:text-white bg-rose-900/70 hover:bg-rose-800 px-2 py-0.5 rounded border border-rose-600/60 transition cursor-pointer"
+                        title="Unselect Lover 1"
+                      >
+                        ✕ Unselect
+                      </button>
+                    )}
+                  </div>
+                  {cupidLover1 ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-7 h-7 rounded-full bg-rose-900 border border-rose-400 text-rose-100 text-xs font-bold flex items-center justify-center shrink-0">
+                        {cupidLover1.name.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="truncate">
+                        <div className="font-bold text-sm text-white truncate">{cupidLover1.name}</div>
+                        {isLoversLocked ? (
+                          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                            <Heart className="w-3 h-3 fill-emerald-400 text-emerald-400" />
+                            <span>Bound in Eternal Love • Locked</span>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-rose-300/80">Selected • Click again on board to unselect</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-400 italic py-1.5 flex items-center gap-1.5">
+                      <span>👆 Click 1st player on the board</span>
+                    </div>
+                  )}
+                </div>
 
+                {/* Lover 2 Slot */}
+                <div
+                  className={`p-3 rounded-xl border transition-all duration-200 flex flex-col justify-between min-h-[76px] ${
+                    cupidLover2
+                      ? isLoversLocked
+                        ? 'bg-rose-950/40 border-emerald-600/70 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                        : 'bg-rose-950/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.25)]'
+                      : 'bg-zinc-900/40 border-dashed border-zinc-700 text-zinc-400'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[11px] font-bold font-cinzel text-rose-300 uppercase tracking-wider flex items-center gap-1">
+                      <Heart className="w-3 h-3 fill-rose-400 text-rose-400" />
+                      2nd Lover
+                    </span>
+                    {!isLoversLocked && cupidLover2 && (
+                      <button
+                        type="button"
+                        onClick={() => onUnselectCupidLover?.(2)}
+                        className="text-[10px] font-semibold text-rose-200 hover:text-white bg-rose-900/70 hover:bg-rose-800 px-2 py-0.5 rounded border border-rose-600/60 transition cursor-pointer"
+                        title="Unselect Lover 2"
+                      >
+                        ✕ Unselect
+                      </button>
+                    )}
+                  </div>
+                  {cupidLover2 ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-7 h-7 rounded-full bg-rose-900 border border-rose-400 text-rose-100 text-xs font-bold flex items-center justify-center shrink-0">
+                        {cupidLover2.name.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="truncate">
+                        <div className="font-bold text-sm text-white truncate">{cupidLover2.name}</div>
+                        {isLoversLocked ? (
+                          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                            <Heart className="w-3 h-3 fill-emerald-400 text-emerald-400" />
+                            <span>Bound in Eternal Love • Locked</span>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-rose-300/80">Selected • Click again on board to unselect</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-400 italic py-1.5 flex items-center gap-1.5">
+                      <span>{cupidLover1 ? '👆 Click 2nd player on the board' : 'Awaiting 1st lover selection...'}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bind Lovers Action Button: Transforms into disabled confirmation once clicked! */}
+              {isLoversLocked ? (
                 <button
+                  id="cupid-bind-lovers-btn"
+                  type="button"
+                  disabled={true}
+                  className="w-full py-3 px-4 rounded-xl font-bold font-cinzel text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[46px] bg-emerald-950/60 border border-emerald-700/60 text-emerald-300 cursor-not-allowed opacity-90 shadow-lg select-none"
+                >
+                  <Heart className="w-4 h-4 fill-emerald-400 text-emerald-400 shrink-0" />
+                  <span>Cupid's arrow struck true! Lovers have been bound together.</span>
+                </button>
+              ) : (
+                <button
+                  id="cupid-bind-lovers-btn"
                   type="button"
                   onClick={() =>
-                    cupidFirstLoverId &&
-                    targetPlayer &&
-                    handleConfirm('CUPID_LOVERS', cupidFirstLoverId, targetPlayer.id)
+                    cupidLover1 &&
+                    cupidLover2 &&
+                    handleConfirm('CUPID_LOVERS', cupidLover1.id, cupidLover2.id)
                   }
-                  disabled={!cupidFirstLoverId || !targetPlayer || cupidFirstLoverId === targetPlayer.id || submitting}
-                  className="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-600 disabled:opacity-40 text-white text-xs font-bold"
+                  disabled={!canBindLovers}
+                  className={`w-full py-3 px-4 rounded-xl font-bold font-cinzel text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[46px] transition-all duration-300 ${
+                    canBindLovers
+                      ? 'bg-gradient-to-r from-rose-600 via-pink-600 to-rose-600 hover:from-rose-500 hover:to-pink-500 text-white shadow-[0_0_25px_rgba(244,63,94,0.45)] cursor-pointer scale-[1.01]'
+                      : 'bg-zinc-900 border border-zinc-800 text-zinc-500 cursor-not-allowed opacity-50'
+                  }`}
                 >
-                  Bind as Lovers!
+                  <Heart className={`w-4 h-4 ${canBindLovers ? 'fill-white animate-pulse' : ''}`} />
+                  <span>
+                    {submitting
+                      ? 'Binding Lovers in Eternal Fate...'
+                      : canBindLovers
+                      ? `Bind as Lovers! (${cupidLover1?.name} ❤️ ${cupidLover2?.name})`
+                      : !cupidLover1
+                      ? '1. Board par 1st Lover select karein'
+                      : !cupidLover2
+                      ? '2. Board par 2nd Lover select karein'
+                      : 'Bind as Lovers!'}
+                  </span>
                 </button>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -559,22 +709,97 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
       {/* 8. LITTLE GIRL SNEAK PEEK */}
       {role === 'LITTLE_GIRL' && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-yellow-400 font-bold font-cinzel text-sm">
-            <Eye className="w-4 h-4" />
-            <span>Little Girl's Peeping Window</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-yellow-400 font-bold font-cinzel text-sm">
+              <Eye className="w-4 h-4" />
+              <span>Little Girl's Peeping Window</span>
+            </div>
+            {gameState.littleGirlPeekResult && (
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                  gameState.littleGirlPeekResult.caught
+                    ? 'bg-red-950/80 text-red-300 border-red-700'
+                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-700'
+                }`}
+              >
+                {gameState.littleGirlPeekResult.caught ? '⚠️ CAUGHT!' : '✨ PEEK ACTIVE'}
+              </span>
+            )}
           </div>
-          <p className="text-xs text-zinc-300">
-            Peek through your fingers to spot the werewolves hunting. Beware: 30% chance the wolves notice you peeking!
+
+          <p className="text-xs text-zinc-300 leading-relaxed">
+            Peek through your fingers to secretly discover the Werewolf pack and see whom they are attacking tonight!
+            Beware: There is a 30% chance a twig snaps and the wolves catch you spying.
           </p>
-          <button
-            type="button"
-            onClick={() => me && handleConfirm('LITTLE_GIRL_PEEK', me.id)}
-            disabled={submitting}
-            className="px-4 py-2.5 rounded-xl bg-yellow-700 hover:bg-yellow-600 text-white text-xs font-bold flex items-center justify-center gap-2 min-h-[44px]"
-          >
-            <Eye className="w-4 h-4" />
-            <span>{submitting ? 'Peeking into the fog...' : 'Peek at Werewolves Tonight'}</span>
-          </button>
+
+          {/* Peek Result Display */}
+          {gameState.littleGirlPeekResult ? (
+            gameState.littleGirlPeekResult.caught ? (
+              <div className="p-3.5 rounded-xl bg-red-950/70 border border-red-700/80 text-red-200 text-xs space-y-2">
+                <div className="flex items-center gap-2 font-bold text-red-300 text-sm">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span>Snap! You were caught peeking!</span>
+                </div>
+                <p className="leading-relaxed text-zinc-300">
+                  A dry twig snapped under your boots. The wolves turned their glowing red eyes directly toward your hiding spot in the dark!
+                </p>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-amber-500/50 text-xs space-y-2.5 shadow-lg">
+                <div className="flex items-center gap-2 font-bold text-amber-300 text-sm">
+                  <Eye className="w-4 h-4 text-yellow-400 shrink-0" />
+                  <span>Successful Peek: Pack Intel Revealed!</span>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] uppercase tracking-wider text-zinc-400 font-mono">
+                    Werewolves Spotted in the Woods:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {gameState.littleGirlPeekResult.werewolfNames &&
+                    gameState.littleGirlPeekResult.werewolfNames.length > 0 ? (
+                      gameState.littleGirlPeekResult.werewolfNames.map((wName, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 rounded-lg bg-red-950/80 border border-red-700/70 text-red-200 font-bold flex items-center gap-1 text-xs"
+                        >
+                          <Moon className="w-3 h-3 text-red-400 fill-red-400" />
+                          <span>{wName}</span>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-zinc-400 italic">No wolves visible right now.</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-zinc-800 flex items-center gap-2">
+                  <span className="text-zinc-400">Current Wolf Target:</span>
+                  {gameState.littleGirlPeekResult.targetName ? (
+                    <span className="px-2 py-0.5 rounded bg-rose-950 border border-rose-600 text-rose-200 font-bold">
+                      🎯 {gameState.littleGirlPeekResult.targetName}
+                    </span>
+                  ) : (
+                    <span className="text-zinc-400 italic">The pack has not agreed on a prey yet...</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-amber-300/80 italic">
+                  💡 Note: Wolf markers and prey targets are also marked on the player arena cards!
+                </div>
+              </div>
+            )
+          ) : (
+            <button
+              id="little-girl-peek-btn"
+              type="button"
+              onClick={() => me && handleConfirm('LITTLE_GIRL_PEEK', me.id)}
+              disabled={submitting}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 min-h-[46px] shadow-[0_0_20px_rgba(245,158,11,0.3)] transition cursor-pointer"
+            >
+              <Eye className="w-4 h-4" />
+              <span>{submitting ? 'Peeking through the mist...' : 'Peek at Werewolves Tonight (30% Risk)'}</span>
+            </button>
+          )}
         </div>
       )}
 

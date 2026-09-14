@@ -12,6 +12,29 @@ export function useSocketGame() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const errorTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const setTimedError = useCallback((msg: string | null) => {
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+    setError(msg);
+    if (msg) {
+      errorTimerRef.current = setTimeout(() => {
+        setError(null);
+      }, 4500);
+    }
+  }, []);
+
+  const clearError = useCallback(() => {
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+    setError(null);
+  }, []);
+
   const prevPhaseRef = useRef<string | null>(null);
   const prevDeathsCountRef = useRef<number>(0);
   const currentRoomCodeRef = useRef<string | null>(null);
@@ -20,8 +43,8 @@ export function useSocketGame() {
 
   // Initialize socket connection
   useEffect(() => {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || window.location.origin;
-const s = io(backendUrl, {
+    const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || window.location.origin;
+    const s = io(backendUrl, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -59,6 +82,16 @@ const s = io(backendUrl, {
       currentRoomCodeRef.current = state.roomCode;
       myPlayerIdRef.current = state.myPlayerId;
       setGameState(state);
+
+      // Auto-clear error when moving out of lobby or when everyone is ready
+      if (state.phase !== 'LOBBY') {
+        clearError();
+      } else {
+        const unreadyCount = state.players.filter((p) => !p.isReady).length;
+        if (unreadyCount === 0) {
+          setError((prev) => (prev && prev.includes('Waiting for all players to mark ready') ? null : prev));
+        }
+      }
 
       // Sound triggers based on phase transitions
       if (prevPhaseRef.current !== state.phase) {
@@ -226,9 +259,9 @@ const s = io(backendUrl, {
   );
 
   const updateSettings = useCallback(
-    (settings: Partial<GameSettings>) => {
+    (settings: Partial<GameSettings>, hostName?: string) => {
       if (!socket || !gameState) return;
-      socket.emit('room:settings', { roomCode: gameState.roomCode, settings });
+      socket.emit('room:settings', { roomCode: gameState.roomCode, settings, hostName });
     },
     [socket, gameState]
   );
@@ -238,14 +271,15 @@ const s = io(backendUrl, {
     return new Promise((resolve) => {
       socket.emit('game:start', { roomCode: gameState.roomCode, playerId: gameState.myPlayerId }, (res: { success: boolean; error?: string }) => {
         if (!res.success) {
-          setError(res.error || 'Cannot start game');
+          setTimedError(res.error || 'Cannot start game');
           resolve(false);
         } else {
+          clearError();
           resolve(true);
         }
       });
     });
-  }, [socket, gameState]);
+  }, [socket, gameState, setTimedError, clearError]);
 
   const submitNightAction = useCallback(
     (

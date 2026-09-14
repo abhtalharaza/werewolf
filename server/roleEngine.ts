@@ -132,6 +132,13 @@ export interface NightResolutionResult {
   savedPlayerIds: string[];
   transformedPlayerIds: { id: string; newRole: Role; newTeam: Team }[];
   seerReport?: { seerId: string; targetId: string; isWerewolf: boolean; role: Role };
+  protections: {
+    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+    protectorId: string;
+    targetId: string;
+    targetName: string;
+    wasAttackedAndSaved: boolean;
+  }[];
 }
 
 export function resolveNightActions(
@@ -268,11 +275,58 @@ export function resolveNightActions(
     }
   }
 
+  // Gather protections from Doctor, Bodyguard, and Witch
+  const protections: {
+    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+    protectorId: string;
+    targetId: string;
+    targetName: string;
+    wasAttackedAndSaved: boolean;
+  }[] = [];
+
+  for (const action of actions) {
+    if (action.type === 'PROTECT') {
+      const target = players.find((p) => p.id === action.targetId);
+      if (target) {
+        protections.push({
+          role: 'DOCTOR',
+          protectorId: action.actorId,
+          targetId: target.id,
+          targetName: target.name,
+          wasAttackedAndSaved: chosenWolfVictimIds.includes(target.id) || whiteWolfKillTarget === target.id,
+        });
+      }
+    } else if (action.type === 'GUARD') {
+      const target = players.find((p) => p.id === action.targetId);
+      if (target) {
+        protections.push({
+          role: 'BODYGUARD',
+          protectorId: action.actorId,
+          targetId: target.id,
+          targetName: target.name,
+          wasAttackedAndSaved: chosenWolfVictimIds.includes(target.id) || whiteWolfKillTarget === target.id,
+        });
+      }
+    } else if (action.type === 'HEAL') {
+      const target = players.find((p) => p.id === action.targetId);
+      if (target) {
+        protections.push({
+          role: 'WITCH',
+          protectorId: action.actorId,
+          targetId: target.id,
+          targetName: target.name,
+          wasAttackedAndSaved: chosenWolfVictimIds.includes(target.id) || whiteWolfKillTarget === target.id,
+        });
+      }
+    }
+  }
+
   return {
     killedPlayerIds,
     savedPlayerIds,
     transformedPlayerIds,
     seerReport,
+    protections,
   };
 }
 

@@ -42,8 +42,8 @@ export const ROLE_DEFINITIONS: Record<Role, RoleInfo> = {
     name: 'Hunter',
     team: 'VILLAGERS',
     icon: 'Crosshair',
-    description: 'A master marksman with a hair-trigger temper.',
-    ability: 'If you are slain, you may take one final shot to take another down with you.',
+    description: 'Jab tak zinda ho gaonwale ki tarah khelte ho. Marte waqt bandook se kisi ko bhi sath le ja sakte ho!',
+    ability: 'Kisi bhi kaaran se eliminate (Raat me Bhediye, Witch ka zahar, ya Din me Gaonwalon ka vote) hone par marne se pehle apni bandook se kisi ek player ko goli maar kar sath le jane ka aakhri mauka milta hai.',
     nightPriority: 0,
   },
   WITCH: {

@@ -133,6 +133,12 @@ export interface WerewolfVoteRecord {
   targetName: string;
 }
 
+export interface ProtectionRecord {
+  role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+  targetName: string;
+  wasAttackedAndSaved: boolean;
+}
+
 export interface ClientGameState {
   roomId: string;
   roomCode: string;
@@ -153,6 +159,7 @@ export interface ClientGameState {
   witchPotions?: WitchPotions;
   lovers?: { partnerId: string; partnerName: string };
   loverPartner?: { id: string; name: string };
+  cupidLovers?: { lover1Id: string; lover1Name: string; lover2Id: string; lover2Name: string };
   masonTeammates?: { id: string; name: string }[];
   masonAllies?: { id: string; name: string }[];
   thiefReserveRoles?: Role[];
@@ -164,7 +171,13 @@ export interface ClientGameState {
   votes: Record<string, string | null>; // voterId -> targetId
   voteCounts?: Record<string, number>;
   latestDeaths?: GameDeathRecord[];
+  morningProtections?: {
+    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+    targetName: string;
+    wasAttackedAndSaved: boolean;
+  }[];
   hunterPendingId?: string | null;
+  hunterEliminationReason?: string | null;
   winnerTeam?: Team | null;
   winReason?: string;
   events: GameEvent[];

@@ -159,10 +159,10 @@ export function setupSocketHandlers(io: Server) {
     });
 
     // 6. UPDATE SETTINGS
-    socket.on('room:settings', ({ roomCode, settings }) => {
+    socket.on('room:settings', ({ roomCode, settings, hostName }: { roomCode: string; settings: any; hostName?: string }) => {
       const room = gameManager.getRoom(roomCode);
       if (room) {
-        room.updateSettings(settings);
+        room.updateSettings(settings, hostName);
       }
     });
 

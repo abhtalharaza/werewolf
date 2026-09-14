@@ -100,7 +100,10 @@ export class GameRoom {
         },
       ],
       latestDeaths: [],
+      morningProtections: [],
       hunterPendingId: null,
+      hunterContext: null,
+      hunterEliminationReason: null,
       winnerTeam: null,
       winReason: null,
       createdAt: Date.now(),
@@ -253,10 +256,19 @@ export class GameRoom {
     }
   }
 
-  public updateSettings(settings: Partial<GameSettings>) {
+  public updateSettings(settings: Partial<GameSettings>, newHostName?: string) {
     if (this.room.phase !== 'LOBBY') return;
     this.room.settings = { ...this.room.settings, ...settings };
-    if (settings.roomName) this.room.name = settings.roomName;
+    if (settings.roomName && settings.roomName.trim()) {
+      this.room.name = settings.roomName.trim();
+      this.room.settings.roomName = settings.roomName.trim();
+    }
+    if (newHostName && typeof newHostName === 'string' && newHostName.trim()) {
+      const host = this.room.players.find((p) => p.isHost);
+      if (host) {
+        host.name = newHostName.trim();
+      }
+    }
     this.notify();
   }
 
@@ -363,6 +375,21 @@ export class GameRoom {
         this.resolveNightAndStartDay();
         break;
       case 'DAY_ANNOUNCEMENT':
+        if (this.room.hunterPendingId) {
+          this.setPhase('HUNTER_ACTION', 15);
+          const hunter = this.getPlayer(this.room.hunterPendingId);
+          let reasonText = 'slain in the night';
+          if (this.room.hunterEliminationReason === 'WEREWOLF') {
+            reasonText = 'devoured by the Werewolves';
+          } else if (this.room.hunterEliminationReason === 'POISON') {
+            reasonText = 'poisoned by the Witch';
+          }
+          this.addEvent(
+            'HUNTER_SHOT',
+            `🎯 ${hunter?.name || 'The Hunter'} was ${reasonText}! With their dying breath, they raise their rifle for one final revenge shot!`
+          );
+          return;
+        }
         this.startDiscussionPhase();
         break;
       case 'DISCUSSION':
@@ -389,6 +416,7 @@ export class GameRoom {
     });
     this.seerResults.clear();
     this.room.littleGirlPeekResults = {};
+    this.room.morningProtections = [];
 
     if (this.room.wolfCubKilledByVote) {
       this.room.enragedWolvesThisNight = true;
@@ -416,6 +444,7 @@ export class GameRoom {
       caughtLittleGirlId,
     });
 
+    this.room.morningProtections = resolution.protections || [];
     this.room.enragedWolvesThisNight = false;
 
     // Handle role transformations (e.g., Cursed turns into Werewolf!)
@@ -478,6 +507,13 @@ export class GameRoom {
           }
         }
 
+        // Hunter elimination check: Werewolf attack, Witch poison, White Wolf, or heartbreak!
+        if (player.role === 'HUNTER') {
+          this.room.hunterPendingId = player.id;
+          this.room.hunterContext = 'NIGHT';
+          this.room.hunterEliminationReason = killed.reason;
+        }
+
         deaths.push({
           id: player.id,
           name: player.name,
@@ -504,11 +540,13 @@ export class GameRoom {
 
     this.room.latestDeaths = deaths;
 
-    // Check win condition
-    const win = checkWinCondition(this.room.players);
-    if (win.gameOver) {
-      this.endGame(win.winnerTeam!, win.reason);
-      return;
+    // Check win condition (defer if Hunter has a pending parting shot!)
+    if (!this.room.hunterPendingId) {
+      const win = checkWinCondition(this.room.players);
+      if (win.gameOver) {
+        this.endGame(win.winnerTeam!, win.reason);
+        return;
+      }
     }
 
     this.setPhase('DAY_ANNOUNCEMENT', 7);
@@ -636,12 +674,21 @@ export class GameRoom {
               'DEATH',
               `💔 ${partner.name} collapsed and died of heartbreak upon losing their beloved ${eliminated.name}!`
             );
+
+            // Check if heartbreak eliminated the Hunter
+            if (partner.role === 'HUNTER') {
+              this.room.hunterPendingId = partner.id;
+              this.room.hunterContext = 'DAY_VOTE';
+              this.room.hunterEliminationReason = 'HEARTBREAK';
+            }
           }
         }
 
         // Check if eliminated player is hunter
         if (eliminated.role === 'HUNTER') {
           this.room.hunterPendingId = eliminated.id;
+          this.room.hunterContext = 'DAY_VOTE';
+          this.room.hunterEliminationReason = 'VOTE';
         }
       }
     } else {
@@ -654,7 +701,10 @@ export class GameRoom {
     if (this.room.hunterPendingId) {
       this.setPhase('HUNTER_ACTION', 15);
       const hunter = this.getPlayer(this.room.hunterPendingId);
-      this.addEvent('HUNTER_SHOT', `${hunter?.name || 'The Hunter'} draws their final arrow in vengeance!`);
+      this.addEvent(
+        'HUNTER_SHOT',
+        `🎯 ${hunter?.name || 'The Hunter'} was condemned by the village vote! With their dying breath, they raise their rifle for one final revenge shot!`
+      );
       return;
     }
 
@@ -676,6 +726,7 @@ export class GameRoom {
   public hunterShoot(hunterId: string, targetId: string) {
     if (this.room.phase !== 'HUNTER_ACTION' || this.room.hunterPendingId !== hunterId) return;
 
+    const hunter = this.getPlayer(hunterId);
     const target = this.getPlayer(targetId);
     if (target && target.isAlive) {
       target.isAlive = false;
@@ -686,16 +737,63 @@ export class GameRoom {
         reason: 'HUNTER',
         round: this.room.round,
       });
-      this.addEvent('HUNTER_SHOT', `${target.name} was brought down by the Hunter's parting shot!`);
+      this.addEvent(
+        'HUNTER_SHOT',
+        `🎯 ${hunter?.name || 'The Hunter'} fired their parting bullet and eliminated ${target.name}!`
+      );
+
+      // Check if target was a Lover!
+      if (this.room.lovers && this.room.lovers.includes(target.id)) {
+        const partnerId = this.room.lovers.find((id) => id !== target.id);
+        const partner = partnerId ? this.getPlayer(partnerId) : null;
+        if (partner && partner.isAlive) {
+          partner.isAlive = false;
+          this.room.latestDeaths.push({
+            id: partner.id,
+            name: partner.name,
+            role: this.room.settings.revealRoleOnDeath ? partner.role : undefined,
+            reason: 'HEARTBREAK',
+            round: this.room.round,
+          });
+          this.addEvent(
+            'DEATH',
+            `💔 ${partner.name} collapsed and died of sheer heartbreak upon losing their beloved ${target.name}!`
+          );
+        }
+      }
+
+      // If Wolf Cub was eliminated by Hunter shot, enrage pack next night
+      if (target.role === 'WOLF_CUB') {
+        this.room.wolfCubKilledByVote = true;
+        this.addEvent(
+          'WOLF_CUB_ENRAGE',
+          'The Wolf Cub was struck down! The Werewolves howl in fury and will strike TWO victims next night!'
+        );
+      }
     }
 
+    const previousContext = this.room.hunterContext;
     this.room.hunterPendingId = null;
+    this.room.hunterContext = null;
+    this.room.hunterEliminationReason = null;
     this.clearTimer();
-    this.afterVoteResult();
+
+    // Check win condition after hunter's parting shot
+    const win = checkWinCondition(this.room.players);
+    if (win.gameOver) {
+      this.endGame(win.winnerTeam!, win.reason);
+      return;
+    }
+
+    if (previousContext === 'NIGHT') {
+      this.startDiscussionPhase();
+    } else {
+      this.afterVoteResult();
+    }
   }
 
   private resolveHunterAction() {
-    // If timer ran out without a shot, pick random alive player or forfeit
+    // If timer ran out without a shot, pick random alive player
     if (this.room.hunterPendingId) {
       const alive = this.room.players.filter((p) => p.isAlive && p.id !== this.room.hunterPendingId);
       if (alive.length > 0) {
@@ -705,7 +803,22 @@ export class GameRoom {
       }
       this.room.hunterPendingId = null;
     }
-    this.afterVoteResult();
+
+    const previousContext = this.room.hunterContext;
+    this.room.hunterContext = null;
+    this.room.hunterEliminationReason = null;
+
+    const win = checkWinCondition(this.room.players);
+    if (win.gameOver) {
+      this.endGame(win.winnerTeam!, win.reason);
+      return;
+    }
+
+    if (previousContext === 'NIGHT') {
+      this.startDiscussionPhase();
+    } else {
+      this.afterVoteResult();
+    }
   }
 
   private endGame(winnerTeam: Team, winReason: string) {
@@ -890,13 +1003,25 @@ export class GameRoom {
     // LITTLE GIRL
     if (type === 'LITTLE_GIRL_PEEK') {
       if (player.role !== 'LITTLE_GIRL') return { success: false, error: 'Only Little Girl can peek' };
+      
+      // If already peeked this night, retain status and refresh current wolf target
+      const existing = this.room.littleGirlPeekResults[playerId];
+      if (existing) {
+        if (!existing.caught) {
+          const wolfKillAction = this.room.nightActions.find((a) => a.type === 'KILL');
+          const target = wolfKillAction ? this.getPlayer(wolfKillAction.targetId) : null;
+          existing.targetName = target?.name;
+        }
+        this.notify();
+        return { success: true };
+      }
+
       const caught = Math.random() < 0.3;
       if (caught) {
         this.room.littleGirlPeekResults[playerId] = {
           werewolfNames: [],
           caught: true,
         };
-        this.addEvent('SYSTEM', 'A branch snapped in the darkness... The Little Girl was caught spying by the wolves!');
       } else {
         const wolfNames = this.room.players
           .filter(
@@ -1231,6 +1356,19 @@ export class GameRoom {
       };
     }
 
+    // Cupid knowledge: Cupid knows whom they have bound!
+    let cupidLovers: { lover1Id: string; lover1Name: string; lover2Id: string; lover2Name: string } | undefined = undefined;
+    if (requester?.role === 'CUPID' && this.room.lovers && this.room.lovers.length === 2) {
+      const p1 = this.getPlayer(this.room.lovers[0]);
+      const p2 = this.getPlayer(this.room.lovers[1]);
+      cupidLovers = {
+        lover1Id: this.room.lovers[0],
+        lover1Name: p1?.name || 'Lover 1',
+        lover2Id: this.room.lovers[1],
+        lover2Name: p2?.name || 'Lover 2',
+      };
+    }
+
     // Mason teammates knowledge: Masons recognize each other
     let masonTeammates: { id: string; name: string }[] | undefined = undefined;
     if (requester?.role === 'MASON') {
@@ -1250,7 +1388,15 @@ export class GameRoom {
     const whiteWolfCanKillTonight = requester?.role === 'WHITE_WOLF' && this.room.round % 2 === 0;
 
     // Little Girl peek results
-    const littleGirlPeekResult = this.room.littleGirlPeekResults[forPlayerId] || null;
+    let littleGirlPeekResult = this.room.littleGirlPeekResults[forPlayerId] || null;
+    if (requester?.role === 'LITTLE_GIRL' && littleGirlPeekResult && !littleGirlPeekResult.caught) {
+      const wolfKillAction = this.room.nightActions.find((a) => a.type === 'KILL');
+      const target = wolfKillAction ? this.getPlayer(wolfKillAction.targetId) : null;
+      littleGirlPeekResult = {
+        ...littleGirlPeekResult,
+        targetName: target?.name,
+      };
+    }
 
     // Unready players
     const unreadyPlayerNames = this.room.players.filter((p) => !p.isReady).map((p) => p.name);
@@ -1287,6 +1433,7 @@ export class GameRoom {
       seerHistory: isSeer && seerKnown ? Array.from(seerKnown.values()) : undefined,
       witchPotions,
       lovers,
+      cupidLovers,
       masonTeammates,
       thiefReserveRoles:
         requester?.role === 'THIEF' && this.room.round === 1 ? this.room.thiefReserveRoles : undefined,
@@ -1298,7 +1445,15 @@ export class GameRoom {
       votes: this.room.votes,
       voteCounts,
       latestDeaths: sanitizedLatestDeaths,
+      morningProtections: this.room.morningProtections
+        ? this.room.morningProtections.map((p) => ({
+            role: p.role,
+            targetName: p.targetName,
+            wasAttackedAndSaved: p.wasAttackedAndSaved,
+          }))
+        : [],
       hunterPendingId: this.room.hunterPendingId,
+      hunterEliminationReason: this.room.hunterEliminationReason || null,
       winnerTeam: this.room.winnerTeam,
       winReason: this.room.winReason || undefined,
       events: this.room.events,
