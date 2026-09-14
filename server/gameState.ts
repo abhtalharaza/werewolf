@@ -834,6 +834,10 @@ export class GameRoom {
       'GAME_WIN',
       winnerTeam === 'VILLAGERS'
         ? 'VICTORY FOR THE VILLAGERS! The darkness has been vanquished.'
+        : winnerTeam === 'JESTER'
+        ? 'THE JESTER WINS! The village has been duped into executing them!'
+        : winnerTeam === 'WHITE_WOLF'
+        ? 'VICTORY FOR THE WHITE WEREWOLF! The lone predator eliminated all packmates and villagers.'
         : 'VICTORY FOR THE WEREWOLVES! The village has been devoured.'
     );
 

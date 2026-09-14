@@ -77,9 +77,12 @@ export default function App() {
           particleCount: 80,
           spread: 70,
           origin: { y: 0.6 },
-          colors: gameState.winnerTeam === 'VILLAGERS'
-            ? ['#6366f1', '#a855f7', '#38bdf8']
-            : ['#ef4444', '#991b1b', '#f97316'],
+          colors:
+            gameState.winnerTeam === 'VILLAGERS'
+              ? ['#6366f1', '#a855f7', '#38bdf8']
+              : gameState.winnerTeam === 'JESTER'
+              ? ['#eab308', '#f59e0b', '#ec4899', '#a855f7']
+              : ['#ef4444', '#991b1b', '#f97316'],
         });
       } catch {
         // Safe fallback if canvas not available

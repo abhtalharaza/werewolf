@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Moon, Users, RotateCcw, Home, Skull } from 'lucide-react';
+import { Trophy, Moon, Users, RotateCcw, Home, Skull, Laugh } from 'lucide-react';
 import { ClientGameState } from '../types/game.js';
 import { getAvatar } from '../utils/avatars.js';
 import { AudioControls } from './AudioControls.js';
@@ -16,8 +16,49 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
   onLeave,
 }) => {
   const winnerTeam = gameState.winnerTeam;
-  const isVillagerWin = winnerTeam === 'VILLAGERS';
   const isHost = gameState.isHost;
+
+  const outcomeConfig = React.useMemo(() => {
+    if (winnerTeam === 'JESTER') {
+      return {
+        title: 'Jester Wins!',
+        glowColor: 'bg-yellow-500',
+        emblemStyle: 'bg-yellow-950 border-yellow-500 text-yellow-300',
+        titleStyle: 'text-yellow-300 drop-shadow-[0_0_25px_rgba(234,179,8,0.5)]',
+        icon: <Laugh className="w-8 h-8 sm:w-10 sm:h-10 text-yellow-300 drop-shadow" />,
+        defaultQuote: 'The village council fell right into the trickster’s trap! JESTER WINS!',
+      };
+    }
+    if (winnerTeam === 'VILLAGERS') {
+      return {
+        title: 'Villagers Triumph!',
+        glowColor: 'bg-indigo-600',
+        emblemStyle: 'bg-indigo-950 border-indigo-500 text-indigo-300',
+        titleStyle: 'text-indigo-200 drop-shadow-[0_0_20px_rgba(99,102,241,0.4)]',
+        icon: <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-amber-400 drop-shadow" />,
+        defaultQuote: 'The cursed beasts have been cleansed from the village.',
+      };
+    }
+    if (winnerTeam === 'WHITE_WOLF') {
+      return {
+        title: 'White Werewolf Wins!',
+        glowColor: 'bg-slate-300',
+        emblemStyle: 'bg-zinc-900 border-slate-400 text-slate-200',
+        titleStyle: 'text-slate-100 drop-shadow-[0_0_25px_rgba(255,255,255,0.5)]',
+        icon: <Moon className="w-8 h-8 sm:w-10 sm:h-10 text-slate-200 drop-shadow" />,
+        defaultQuote: 'The lone white beast outsmarted packmates and villagers alike!',
+      };
+    }
+    // Default WEREWOLVES
+    return {
+      title: 'Werewolves Devour!',
+      glowColor: 'bg-red-600',
+      emblemStyle: 'bg-red-950 border-red-500 text-red-400',
+      titleStyle: 'text-red-400 drop-shadow-[0_0_20px_rgba(239,68,68,0.4)]',
+      icon: <Moon className="w-8 h-8 sm:w-10 sm:h-10 text-red-400 drop-shadow" />,
+      defaultQuote: 'The darkness has swallowed the last breath of the hamlet.',
+    };
+  }, [winnerTeam]);
 
   return (
     <div
@@ -36,22 +77,12 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
       <div className="my-auto py-6 sm:py-8 text-center w-full max-w-3xl">
         <div className="relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-2xl border">
           <div
-            className={`absolute inset-0 rounded-full blur-xl opacity-60 ${
-              isVillagerWin ? 'bg-indigo-600' : 'bg-red-600'
-            }`}
+            className={`absolute inset-0 rounded-full blur-xl opacity-60 ${outcomeConfig.glowColor}`}
           />
           <div
-            className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center border ${
-              isVillagerWin
-                ? 'bg-indigo-950 border-indigo-500 text-indigo-300'
-                : 'bg-red-950 border-red-500 text-red-400'
-            }`}
+            className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center border ${outcomeConfig.emblemStyle}`}
           >
-            {isVillagerWin ? (
-              <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-amber-400 drop-shadow" />
-            ) : (
-              <Moon className="w-8 h-8 sm:w-10 sm:h-10 text-red-400 drop-shadow" />
-            )}
+            {outcomeConfig.icon}
           </div>
         </div>
 
@@ -60,15 +91,13 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
         </div>
 
         <h1
-          className={`text-2xl sm:text-4xl md:text-6xl font-black font-cinzel tracking-wider uppercase mb-3 sm:mb-4 px-2 ${
-            isVillagerWin ? 'text-indigo-200 drop-shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'text-red-400 drop-shadow-[0_0_20px_rgba(239,68,68,0.4)]'
-          }`}
+          className={`text-2xl sm:text-4xl md:text-6xl font-black font-cinzel tracking-wider uppercase mb-3 sm:mb-4 px-2 ${outcomeConfig.titleStyle}`}
         >
-          {isVillagerWin ? 'Villagers Triumph!' : 'Werewolves Devour!'}
+          {outcomeConfig.title}
         </h1>
 
         <p className="text-xs sm:text-sm md:text-base text-zinc-300 max-w-xl mx-auto mb-6 sm:mb-8 font-serif italic leading-relaxed px-2">
-          "{gameState.winReason || (isVillagerWin ? 'The cursed beasts have been cleansed from the village.' : 'The darkness has swallowed the last breath of the hamlet.')}"
+          "{gameState.winReason || outcomeConfig.defaultQuote}"
         </p>
 
         {/* Revealed Roles Roster */}
@@ -81,13 +110,17 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
             {gameState.players.map((p) => {
               const avatar = getAvatar(p.avatar);
-              const isWolf = p.role === 'WEREWOLF';
+              const isWolf = p.role === 'WEREWOLF' || p.role === 'WHITE_WOLF' || p.role === 'WOLF_CUB';
+              const isJester = p.role === 'JESTER';
+              const isJesterWinner = isJester && winnerTeam === 'JESTER';
 
               return (
                 <div
                   key={p.id}
-                  className={`p-2.5 sm:p-3 rounded-xl border flex items-center justify-between ${
-                    p.isAlive
+                  className={`p-2.5 sm:p-3 rounded-xl border flex items-center justify-between transition ${
+                    isJesterWinner
+                      ? 'bg-yellow-950/40 border-yellow-500/80 ring-1 ring-yellow-500/50'
+                      : p.isAlive
                       ? 'bg-zinc-900/80 border-zinc-700/80'
                       : 'bg-zinc-950/60 border-zinc-800 opacity-60'
                   }`}
@@ -101,14 +134,18 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
                     </div>
                     <div>
                       <div className="font-semibold text-xs text-zinc-100 flex items-center gap-1">
-                        <span className={!p.isAlive ? 'line-through text-zinc-500' : ''}>
+                        <span className={!p.isAlive && !isJesterWinner ? 'line-through text-zinc-500' : ''}>
                           {p.name}
                         </span>
                         {!p.isAlive && <Skull className="w-3 h-3 text-zinc-500" />}
                       </div>
                       <div
                         className={`text-[10px] font-bold font-cinzel ${
-                          isWolf ? 'text-red-400' : 'text-purple-300'
+                          isWolf
+                            ? 'text-red-400'
+                            : isJester
+                            ? 'text-yellow-400'
+                            : 'text-purple-300'
                         }`}
                       >
                         {p.role || 'Unknown'}
@@ -118,12 +155,14 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
 
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
-                      p.isAlive
+                      isJesterWinner
+                        ? 'bg-yellow-950 text-yellow-300 border border-yellow-600 font-bold'
+                        : p.isAlive
                         ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/50'
                         : 'bg-zinc-800 text-zinc-500'
                     }`}
                   >
-                    {p.isAlive ? 'Alive' : 'Dead'}
+                    {isJesterWinner ? 'Victor 🎭' : p.isAlive ? 'Alive' : 'Dead'}
                   </span>
                 </div>
               );
