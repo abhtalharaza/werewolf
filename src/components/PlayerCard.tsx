@@ -1,5 +1,5 @@
 import React from 'react';
-import { Skull, Crown, Check, Crosshair, Shield, Eye, Moon, Heart } from 'lucide-react';
+import { Skull, Crown, Check, Crosshair, Shield, Eye, Moon, Heart, UserCheck } from 'lucide-react';
 import { ClientPlayer, Role, GamePhase } from '../types/game.js';
 import { getAvatar } from '../utils/avatars.js';
 
@@ -14,6 +14,7 @@ interface PlayerCardProps {
   isLittleGirlSpottedWolf?: boolean;
   isLittleGirlSpottedTarget?: boolean;
   isGuardedByMe?: boolean;
+  isDoppelgangerBound?: boolean;
   wolfVotesTargetingThisPlayer?: number;
   onSelect: (playerId: string) => void;
   canTarget: boolean;
@@ -30,6 +31,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   isLittleGirlSpottedWolf,
   isLittleGirlSpottedTarget,
   isGuardedByMe,
+  isDoppelgangerBound,
   wolfVotesTargetingThisPlayer = 0,
   onSelect,
   canTarget,
@@ -149,6 +151,17 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         >
           <Shield className="w-3 h-3 text-cyan-400 fill-cyan-400/40" />
           <span>Guarded</span>
+        </div>
+      )}
+
+      {/* Doppelganger Bound Reflection Badge (Visible only to Doppelganger) */}
+      {isDoppelgangerBound && !isDead && (
+        <div
+          className="absolute -top-2.5 -left-2.5 px-2 py-0.5 rounded-full bg-teal-950 border border-teal-400 text-teal-200 text-[10px] font-bold flex items-center gap-1 shadow-xl z-20 animate-pulse"
+          title="Your soul reflection! You will inherit their role when they perish."
+        >
+          <UserCheck className="w-3 h-3 text-teal-300" />
+          <span>Reflection</span>
         </div>
       )}
 

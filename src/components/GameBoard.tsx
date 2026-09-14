@@ -318,6 +318,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   gameState.myNightAction?.targetId === p.id
                 );
 
+                const isDoppelganger = gameState.myRole === 'DOPPELGANGER';
+                const isDoppelgangerBound = Boolean(
+                  isDoppelganger &&
+                  (gameState.doppelgangerTargetId === p.id ||
+                   (gameState.doppelgangerTargetName && gameState.doppelgangerTargetName === p.name))
+                );
+
                 return (
                   <PlayerCard
                     key={p.id}
@@ -331,6 +338,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     isLittleGirlSpottedWolf={isLittleGirlSpottedWolf}
                     isLittleGirlSpottedTarget={isLittleGirlSpottedTarget}
                     isGuardedByMe={isGuardedByMe}
+                    isDoppelgangerBound={isDoppelgangerBound}
                     wolfVotesTargetingThisPlayer={wolfVotesOnPlayer}
                     onSelect={handleSelectPlayer}
                     canTarget={canTargetPlayer(p.id)}

@@ -1385,8 +1385,10 @@ export class GameRoom {
     }
 
     // Doppelganger target
+    let doppelgangerTargetId: string | undefined = undefined;
     let doppelgangerTargetName: string | undefined = undefined;
     if (requester?.role === 'DOPPELGANGER' && this.room.doppelgangerBinds[forPlayerId]) {
+      doppelgangerTargetId = this.room.doppelgangerBinds[forPlayerId];
       const boundTarget = this.getPlayer(this.room.doppelgangerBinds[forPlayerId]);
       doppelgangerTargetName = boundTarget?.name;
     }
@@ -1451,6 +1453,7 @@ export class GameRoom {
       masonTeammates,
       thiefReserveRoles:
         requester?.role === 'THIEF' && this.room.round === 1 ? this.room.thiefReserveRoles : undefined,
+      doppelgangerTargetId,
       doppelgangerTargetName,
       whiteWolfCanKillTonight,
       littleGirlPeekResult,

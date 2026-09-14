@@ -538,32 +538,25 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         </div>
       </div>
 
-      {/* Footer Controls: Start Game (Host) / Ready (Player) */}
+      {/* Footer Controls: Start Game (Host only) */}
       <footer className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 backdrop-blur-md">
         <div className="text-xs text-zinc-400 text-center sm:text-left">
           {isHost ? (
             <span>You are the Host. When all villagers are prepared, signal the town horn to begin.</span>
           ) : (
-            <span>Ready up so the host knows you are ready for the dark descent.</span>
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${me?.isReady ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span>
+                {me?.isReady
+                  ? '✓ You are marked Ready! Waiting for the Host to commence the hunt.'
+                  : 'Use the Ready button next to your name in the player roster above.'}
+              </span>
+            </div>
           )}
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          {!isHost && (
-            <button
-              id="lobby-ready-toggle-btn"
-              onClick={onToggleReady}
-              className={`w-full sm:w-auto px-6 py-3.5 min-h-[48px] rounded-xl font-semibold text-sm transition font-cinzel cursor-pointer ${
-                me?.isReady
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50'
-                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
-              }`}
-            >
-              {me?.isReady ? 'Ready for the Hunt' : 'Mark Ready'}
-            </button>
-          )}
-
-          {isHost && (
+        {isHost && (
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             <button
               id="lobby-start-game-btn"
               onClick={handleStart}
@@ -579,8 +572,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   : 'Commence The Hunt'}
               </span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </footer>
 
       {/* Host Role Deck Customizer Modal in Lobby */}

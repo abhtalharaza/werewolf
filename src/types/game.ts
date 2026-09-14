@@ -164,6 +164,7 @@ export interface ClientGameState {
   masonTeammates?: { id: string; name: string }[];
   masonAllies?: { id: string; name: string }[];
   thiefReserveRoles?: Role[];
+  doppelgangerTargetId?: string;
   doppelgangerTargetName?: string;
   whiteWolfCanKillTonight?: boolean;
   littleGirlPeekResult?: { werewolfNames: string[]; targetName?: string; caught: boolean } | null;
