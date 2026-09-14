@@ -20,7 +20,8 @@ export function useSocketGame() {
 
   // Initialize socket connection
   useEffect(() => {
-    const s = io(window.location.origin, {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || window.location.origin;
+const s = io(backendUrl, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
