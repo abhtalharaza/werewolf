@@ -21,8 +21,21 @@ export interface ServerPlayer {
 export interface ServerNightAction {
   actorId: string;
   role: Role;
-  type: 'KILL' | 'INVESTIGATE' | 'PROTECT' | 'GUARD' | 'POISON' | 'HEAL';
+  type:
+    | 'KILL'
+    | 'INVESTIGATE'
+    | 'PROTECT'
+    | 'GUARD'
+    | 'POISON'
+    | 'HEAL'
+    | 'CUPID_LOVERS'
+    | 'THIEF_CHOOSE'
+    | 'DOPPELGANGER_BIND'
+    | 'WHITE_WOLF_KILL'
+    | 'LITTLE_GIRL_PEEK';
   targetId: string;
+  secondaryTargetId?: string;
+  chosenRole?: Role;
 }
 
 export interface ServerRoom {
@@ -46,4 +59,11 @@ export interface ServerRoom {
   winnerTeam: Team | null;
   winReason: string | null;
   createdAt: number;
+  lovers: [string, string] | null;
+  wolfCubKilledByVote: boolean;
+  enragedWolvesThisNight: boolean;
+  doppelgangerBinds: Record<string, string>; // doppelgangerId -> targetId
+  thiefReserveRoles: Role[];
+  werewolfKillsHistory: { victimId: string; victimRole: Role; round: number }[];
+  littleGirlPeekResults: Record<string, { werewolfNames: string[]; targetName?: string; caught: boolean }>;
 }

@@ -59,19 +59,38 @@ export function getBotNightActions(players: ServerPlayer[]): ServerNightAction[]
   const alivePlayers = players.filter((p) => p.isAlive);
   const aliveBots = alivePlayers.filter((p) => p.isBot);
 
-  // Alive werewolves targeting
-  const wolfBots = aliveBots.filter((p) => p.role === 'WEREWOLF');
-  const nonWolfAlive = alivePlayers.filter((p) => p.role !== 'WEREWOLF');
+  // Alive werewolves targeting (WEREWOLF, WOLF_CUB, WHITE_WOLF)
+  const wolfBots = aliveBots.filter(
+    (p) => p.role === 'WEREWOLF' || p.role === 'WOLF_CUB' || p.role === 'WHITE_WOLF'
+  );
+  const nonWolfAlive = alivePlayers.filter(
+    (p) => p.role !== 'WEREWOLF' && p.role !== 'WOLF_CUB' && p.role !== 'WHITE_WOLF'
+  );
 
+  let chosenWolfTargetId: string | null = null;
   if (wolfBots.length > 0 && nonWolfAlive.length > 0) {
     // Werewolf bots pick a non-werewolf victim
     const target = nonWolfAlive[Math.floor(Math.random() * nonWolfAlive.length)];
+    chosenWolfTargetId = target.id;
     for (const wolf of wolfBots) {
       actions.push({
         actorId: wolf.id,
-        role: 'WEREWOLF',
+        role: wolf.role,
         type: 'KILL',
         targetId: target.id,
+      });
+    }
+  }
+
+  // Witch bot: 40% chance to heal wolf victim if available
+  const witchBots = aliveBots.filter((p) => p.role === 'WITCH');
+  for (const witch of witchBots) {
+    if (chosenWolfTargetId && Math.random() < 0.4) {
+      actions.push({
+        actorId: witch.id,
+        role: 'WITCH',
+        type: 'HEAL',
+        targetId: chosenWolfTargetId,
       });
     }
   }

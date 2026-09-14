@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { ClientGameState, ChatMessage, Role, GameSettings } from '../types/game.js';
+import { ALL_ROLES_META } from '../types/roleMeta.js';
 import { getAvatar } from '../utils/avatars.js';
 import { AudioControls } from './AudioControls.js';
 
@@ -37,25 +38,49 @@ interface LobbyViewProps {
   chatMessages: ChatMessage[];
 }
 
-const ROLE_ICONS: Record<Role, React.ComponentType<{ className?: string }>> = {
-  WEREWOLF: Moon,
-  VILLAGER: Users,
-  SEER: Eye,
-  DOCTOR: HeartPulse,
-  HUNTER: Crosshair,
-  WITCH: Sparkles,
-  BODYGUARD: Shield,
+const createDefaultDeckDraft = (dist?: Partial<Record<Role, number>>): Record<Role, number> => {
+  const deck: Record<Role, number> = {
+    WEREWOLF: 2,
+    VILLAGER: 2,
+    SEER: 1,
+    DOCTOR: 1,
+    HUNTER: 1,
+    WITCH: 1,
+    BODYGUARD: 1,
+    CUPID: 0,
+    LITTLE_GIRL: 0,
+    JESTER: 0,
+    MAYOR: 0,
+    THIEF: 0,
+    WOLF_CUB: 0,
+    CURSED: 0,
+    MASON: 0,
+    LYCAN: 0,
+    DOPPELGANGER: 0,
+    WHITE_WOLF: 0,
+  };
+  if (dist) {
+    Object.entries(dist).forEach(([r, count]) => {
+      if (typeof count === 'number') {
+        deck[r as Role] = count;
+      }
+    });
+  }
+  return deck;
 };
 
-const ROLE_COLORS: Record<Role, string> = {
-  WEREWOLF: 'text-red-400 border-red-800/40 bg-red-950/40',
-  VILLAGER: 'text-blue-400 border-blue-800/40 bg-blue-950/40',
-  SEER: 'text-indigo-400 border-indigo-800/40 bg-indigo-950/40',
-  DOCTOR: 'text-emerald-400 border-emerald-800/40 bg-emerald-950/40',
-  HUNTER: 'text-amber-400 border-amber-800/40 bg-amber-950/40',
-  WITCH: 'text-pink-400 border-pink-800/40 bg-pink-950/40',
-  BODYGUARD: 'text-cyan-400 border-cyan-800/40 bg-cyan-950/40',
-};
+const ROLE_ICONS: Record<Role, React.ComponentType<{ className?: string }>> = ALL_ROLES_META.reduce(
+  (acc, r) => {
+    acc[r.role] = r.icon;
+    return acc;
+  },
+  {} as Record<Role, React.ComponentType<{ className?: string }>>
+);
+
+const ROLE_COLORS: Record<Role, string> = ALL_ROLES_META.reduce((acc, r) => {
+  acc[r.role] = r.badgeClass;
+  return acc;
+}, {} as Record<Role, string>);
 
 export const LobbyView: React.FC<LobbyViewProps> = ({
   gameState,
@@ -75,16 +100,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [isEditingDeck, setIsEditingDeck] = useState(false);
 
   // Local draft for in-lobby role deck customization
-  const [deckDraft, setDeckDraft] = useState<Record<Role, number>>(() => ({
-    WEREWOLF: 2,
-    VILLAGER: 2,
-    SEER: 1,
-    DOCTOR: 1,
-    HUNTER: 1,
-    WITCH: 1,
-    BODYGUARD: 1,
-    ...(gameState.settings.roleDistribution || {}),
-  }));
+  const [deckDraft, setDeckDraft] = useState<Record<Role, number>>(() =>
+    createDefaultDeckDraft(gameState.settings.roleDistribution)
+  );
 
   const isHost = gameState.isHost;
   const me = gameState.players.find((p) => p.id === gameState.myPlayerId);
@@ -122,16 +140,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   };
 
   const openDeckEditor = () => {
-    setDeckDraft({
-      WEREWOLF: 2,
-      VILLAGER: 2,
-      SEER: 1,
-      DOCTOR: 1,
-      HUNTER: 1,
-      WITCH: 1,
-      BODYGUARD: 1,
-      ...(gameState.settings.roleDistribution || {}),
-    });
+    setDeckDraft(createDefaultDeckDraft(gameState.settings.roleDistribution));
     setIsEditingDeck(true);
   };
 
@@ -524,49 +533,51 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               Set the number of each role to be dealt out to players.
             </p>
 
-            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-              {(Object.keys(ROLE_ICONS) as Role[]).map((role) => {
-                const Icon = ROLE_ICONS[role];
+            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+              {ALL_ROLES_META.map((meta) => {
+                const Icon = meta.icon;
+                const role = meta.role;
                 const count = deckDraft[role] || 0;
-                const colorClass = ROLE_COLORS[role];
 
                 return (
                   <div
                     key={role}
-                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-zinc-900 border border-zinc-800"
+                    className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 w-full"
                   >
-                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
-                      <div className={`p-1.5 sm:p-2 rounded-lg border ${colorClass} shrink-0`}>
+                    <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                      <div className={`p-1.5 rounded-lg border shrink-0 ${meta.badgeClass}`}>
                         <Icon className="w-4 h-4" />
                       </div>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-sm text-zinc-200 capitalize font-cinzel truncate">
-                          {role.toLowerCase()}
+                      <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                        <div className="font-semibold text-xs sm:text-sm text-zinc-200 font-cinzel truncate">
+                          {meta.name}
                         </div>
-                        <div className="text-[10px] sm:text-[11px] text-zinc-500 truncate">
-                          {role === 'WEREWOLF' ? 'Werewolves Team' : 'Villagers Team'}
+                        <div className={`text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded-full font-mono border self-start sm:self-auto whitespace-nowrap leading-none mt-0.5 sm:mt-0 ${meta.badgeClass}`}>
+                          {meta.team}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 bg-zinc-950 p-1 rounded-lg border border-zinc-800 shadow-inner">
                       <button
                         type="button"
                         onClick={() => updateDraftCount(role, -1)}
                         disabled={count <= (role === 'WEREWOLF' ? 1 : 0)}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 disabled:opacity-25 text-zinc-300 flex items-center justify-center transition cursor-pointer active:scale-95"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 disabled:opacity-20 text-zinc-300 flex items-center justify-center transition cursor-pointer"
                         title="Decrease"
+                        aria-label={`Decrease ${meta.name} count`}
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="w-5 sm:w-6 text-center font-mono font-bold text-xs text-purple-300">
+                      <span className="w-5 sm:w-6 text-center font-mono font-bold text-xs sm:text-sm text-purple-300 select-none">
                         {count}
                       </span>
                       <button
                         type="button"
                         onClick={() => updateDraftCount(role, 1)}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center transition cursor-pointer active:scale-95"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 text-zinc-300 flex items-center justify-center transition cursor-pointer"
                         title="Increase"
+                        aria-label={`Increase ${meta.name} count`}
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>

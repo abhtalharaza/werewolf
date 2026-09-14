@@ -262,6 +262,30 @@ class SoundEngine {
     osc.start(t);
     osc.stop(t + 0.12);
   }
+
+  // Suspenseful Clock Tick-Tick for remaining 5 seconds
+  public playTick(isUrgent: boolean = false) {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(isUrgent ? 950 : 700, t);
+    osc.frequency.exponentialRampToValueAtTime(150, t + 0.04);
+
+    gain.gain.setValueAtTime(0.3 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.05);
+  }
 }
 
 export const sounds = new SoundEngine();

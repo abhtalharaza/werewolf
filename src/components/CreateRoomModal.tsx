@@ -1,21 +1,15 @@
 import React, { useState } from 'react';
 import {
   X,
-  Shield,
-  Eye,
-  HeartPulse,
-  Crosshair,
-  Sparkles,
   Sliders,
   Play,
-  Moon,
-  Users,
   Plus,
   Minus,
   Check,
   Flame,
 } from 'lucide-react';
 import { Role, Team, GameSettings } from '../types/game.js';
+import { ALL_ROLES_META, RoleConfigMeta } from '../types/roleMeta.js';
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -23,82 +17,6 @@ interface CreateRoomModalProps {
   onCreateRoom: (name: string, hostName: string, avatar: string, settings: Partial<GameSettings>) => Promise<boolean>;
   loading: boolean;
 }
-
-interface RoleConfigMeta {
-  role: Role;
-  name: string;
-  team: Team;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  badgeClass: string;
-  description: string;
-}
-
-const ALL_ROLES_META: RoleConfigMeta[] = [
-  {
-    role: 'WEREWOLF',
-    name: 'Werewolf',
-    team: 'WEREWOLVES',
-    icon: Moon,
-    color: 'text-red-400',
-    badgeClass: 'bg-red-950/80 text-red-300 border-red-800/50',
-    description: 'Each night, agree with your pack to hunt and eliminate a villager.',
-  },
-  {
-    role: 'VILLAGER',
-    name: 'Villager',
-    team: 'VILLAGERS',
-    icon: Users,
-    color: 'text-blue-400',
-    badgeClass: 'bg-blue-950/80 text-blue-300 border-blue-800/50',
-    description: 'Use your sharp wits, deduction, and vote to ferret out the wolves before sunset.',
-  },
-  {
-    role: 'SEER',
-    name: 'Seer',
-    team: 'VILLAGERS',
-    icon: Eye,
-    color: 'text-indigo-400',
-    badgeClass: 'bg-indigo-950/80 text-indigo-300 border-indigo-800/50',
-    description: 'Each night, choose one player to peer into their soul and learn their true nature.',
-  },
-  {
-    role: 'DOCTOR',
-    name: 'Doctor',
-    team: 'VILLAGERS',
-    icon: HeartPulse,
-    color: 'text-emerald-400',
-    badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/50',
-    description: 'Each night, choose one player to protect from werewolf assault.',
-  },
-  {
-    role: 'HUNTER',
-    name: 'Hunter',
-    team: 'VILLAGERS',
-    icon: Crosshair,
-    color: 'text-amber-400',
-    badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-800/50',
-    description: 'If you are slain, you may take one final shot to take another down with you.',
-  },
-  {
-    role: 'WITCH',
-    name: 'Witch',
-    team: 'VILLAGERS',
-    icon: Sparkles,
-    color: 'text-pink-400',
-    badgeClass: 'bg-pink-950/80 text-pink-300 border-pink-800/50',
-    description: 'Possesses one Elixir of Life to save a victim, and one Vial of Poison to eliminate someone.',
-  },
-  {
-    role: 'BODYGUARD',
-    name: 'Bodyguard',
-    team: 'VILLAGERS',
-    icon: Shield,
-    color: 'text-cyan-400',
-    badgeClass: 'bg-cyan-950/80 text-cyan-300 border-cyan-800/50',
-    description: 'Each night, choose one player to protect from harm.',
-  },
-];
 
 export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   isOpen,
@@ -115,7 +33,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   const [revealRoleOnDeath, setRevealRoleOnDeath] = useState(true);
   const [autoPopulateBots, setAutoPopulateBots] = useState(true);
 
-  // Dedicated role configuration for all 7 roles
+  // Dedicated role configuration for all roles
   const [roleCounts, setRoleCounts] = useState<Record<Role, number>>({
     WEREWOLF: 2,
     VILLAGER: 2,
@@ -124,6 +42,17 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     HUNTER: 1,
     WITCH: 1,
     BODYGUARD: 1,
+    CUPID: 0,
+    LITTLE_GIRL: 0,
+    JESTER: 0,
+    MAYOR: 0,
+    THIEF: 0,
+    WOLF_CUB: 0,
+    CURSED: 0,
+    MASON: 0,
+    LYCAN: 0,
+    DOPPELGANGER: 0,
+    WHITE_WOLF: 0,
   });
 
   if (!isOpen) return null;
@@ -156,8 +85,30 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
   // Preset handlers
   const applyPreset = (preset: 'ALL_ROLES' | 'BALANCED' | 'MYSTIC') => {
+    const baseCounts: Record<Role, number> = {
+      WEREWOLF: 0,
+      VILLAGER: 0,
+      SEER: 0,
+      DOCTOR: 0,
+      HUNTER: 0,
+      WITCH: 0,
+      BODYGUARD: 0,
+      CUPID: 0,
+      LITTLE_GIRL: 0,
+      JESTER: 0,
+      MAYOR: 0,
+      THIEF: 0,
+      WOLF_CUB: 0,
+      CURSED: 0,
+      MASON: 0,
+      LYCAN: 0,
+      DOPPELGANGER: 0,
+      WHITE_WOLF: 0,
+    };
+
     if (preset === 'ALL_ROLES') {
       setRoleCounts({
+        ...baseCounts,
         WEREWOLF: 1,
         VILLAGER: 1,
         SEER: 1,
@@ -169,17 +120,17 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       setMaxPlayers(7);
     } else if (preset === 'BALANCED') {
       setRoleCounts({
+        ...baseCounts,
         WEREWOLF: 2,
         VILLAGER: 3,
         SEER: 1,
         DOCTOR: 1,
         HUNTER: 1,
-        WITCH: 0,
-        BODYGUARD: 0,
       });
       setMaxPlayers(8);
     } else if (preset === 'MYSTIC') {
       setRoleCounts({
+        ...baseCounts,
         WEREWOLF: 2,
         VILLAGER: 2,
         SEER: 1,
@@ -373,8 +324,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               </button>
             </div>
 
-            {/* LIST OF ALL 7 ROLES (MATCHING CODEX SCREENSHOT) */}
-            <div className="space-y-2.5 max-h-[320px] overflow-y-auto overflow-x-hidden pr-1">
+            {/* LIST OF ALL ROLES */}
+            <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
               {ALL_ROLES_META.map((r) => {
                 const IconComponent = r.icon;
                 const count = roleCounts[r.role] || 0;
@@ -391,9 +342,9 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                     }`}
                   >
                     {/* Header Row: Checkbox, Icon, Name, Badge + Quantity Controls */}
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 w-full">
                       {/* Left info */}
-                      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
                         {/* Checkbox toggle */}
                         <button
                           type="button"
@@ -415,32 +366,33 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                         </div>
 
                         {/* Title & Team Badge */}
-                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                          <span className="font-bold text-sm text-zinc-100 font-cinzel leading-none">
+                        <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                          <span className="font-bold text-xs sm:text-sm text-zinc-100 font-cinzel truncate">
                             {r.name}
                           </span>
                           <span
-                            className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono border whitespace-nowrap leading-none ${r.badgeClass}`}
+                            className={`text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded-full font-mono border self-start sm:self-auto whitespace-nowrap leading-none mt-0.5 sm:mt-0 ${r.badgeClass}`}
                           >
                             {r.team}
                           </span>
                         </div>
                       </div>
 
-                      {/* Right: Quantity Selector - Always fully visible, never pushed out */}
-                      <div className="flex items-center gap-1 shrink-0 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                      {/* Right: Quantity Selector - Always fully visible and touch-friendly on mobile */}
+                      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 bg-zinc-950 p-1 rounded-lg border border-zinc-800 shadow-inner">
                         <button
                           type="button"
                           onClick={() => updateRoleCount(r.role, -1)}
                           disabled={count <= (r.role === 'WEREWOLF' ? 1 : 0)}
-                          className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 disabled:opacity-25 text-zinc-200 flex items-center justify-center transition cursor-pointer active:scale-95"
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 disabled:opacity-20 text-zinc-200 flex items-center justify-center transition cursor-pointer"
                           title="Decrease count"
+                          aria-label={`Decrease ${r.name} count`}
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
 
                         <span
-                          className={`w-5 sm:w-6 text-center text-xs font-mono font-bold ${
+                          className={`w-5 sm:w-6 text-center text-xs sm:text-sm font-mono font-bold select-none ${
                             count > 0 ? 'text-purple-300' : 'text-zinc-600'
                           }`}
                         >
@@ -450,8 +402,9 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                         <button
                           type="button"
                           onClick={() => updateRoleCount(r.role, 1)}
-                          className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-200 flex items-center justify-center transition cursor-pointer active:scale-95"
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 text-zinc-200 flex items-center justify-center transition cursor-pointer"
                           title="Increase count"
+                          aria-label={`Increase ${r.name} count`}
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>

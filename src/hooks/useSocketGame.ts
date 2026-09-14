@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ClientGameState, ChatMessage, GameSettings, ChatChannel } from '../types/game.js';
+import { ClientGameState, ChatMessage, GameSettings, ChatChannel, Role } from '../types/game.js';
 import { sounds } from '../utils/audio.js';
 import confetti from 'canvas-confetti';
 
@@ -248,7 +248,23 @@ const s = io(backendUrl, {
   }, [socket, gameState]);
 
   const submitNightAction = useCallback(
-    (actionType: 'KILL' | 'INVESTIGATE' | 'PROTECT' | 'GUARD' | 'POISON' | 'HEAL', targetId: string): Promise<boolean> => {
+    (
+      actionType:
+        | 'KILL'
+        | 'INVESTIGATE'
+        | 'PROTECT'
+        | 'GUARD'
+        | 'POISON'
+        | 'HEAL'
+        | 'CUPID_LOVERS'
+        | 'THIEF_CHOOSE'
+        | 'DOPPELGANGER_BIND'
+        | 'WHITE_WOLF_KILL'
+        | 'LITTLE_GIRL_PEEK',
+      targetId: string,
+      secondaryTargetId?: string,
+      chosenRole?: Role
+    ): Promise<boolean> => {
       if (!socket || !gameState) return Promise.resolve(false);
       if (actionType === 'INVESTIGATE') {
         sounds.playMysticReveal();
@@ -263,6 +279,8 @@ const s = io(backendUrl, {
             playerId: gameState.myPlayerId,
             actionType,
             targetId,
+            secondaryTargetId,
+            chosenRole,
           },
           (res: { success: boolean; error?: string; seerResult?: any }) => {
             if (!res.success) {

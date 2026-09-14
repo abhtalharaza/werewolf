@@ -49,6 +49,17 @@ export class GameRoom {
         HUNTER: 1,
         WITCH: 0,
         BODYGUARD: 0,
+        CUPID: 0,
+        LITTLE_GIRL: 0,
+        JESTER: 0,
+        MAYOR: 0,
+        THIEF: 0,
+        WOLF_CUB: 0,
+        CURSED: 0,
+        MASON: 0,
+        LYCAN: 0,
+        DOPPELGANGER: 0,
+        WHITE_WOLF: 0,
       },
     };
 
@@ -93,6 +104,13 @@ export class GameRoom {
       winnerTeam: null,
       winReason: null,
       createdAt: Date.now(),
+      lovers: null,
+      wolfCubKilledByVote: false,
+      enragedWolvesThisNight: false,
+      doppelgangerBinds: {},
+      thiefReserveRoles: [],
+      werewolfKillsHistory: [],
+      littleGirlPeekResults: {},
     };
 
     if (initialSettings?.autoPopulateBots) {
@@ -248,6 +266,17 @@ export class GameRoom {
     if (!requester || !requester.isHost) {
       return { success: false, error: 'Only the host can start the game' };
     }
+
+    // Bug Fix: Check that all players are ready before game starts!
+    const unreadyPlayers = this.room.players.filter((p) => !p.isReady);
+    if (unreadyPlayers.length > 0) {
+      const names = unreadyPlayers.map((p) => p.name).join(', ');
+      return {
+        success: false,
+        error: `Cannot start yet: Waiting for all players to mark ready! (${names} not ready)`,
+      };
+    }
+
     if (this.room.players.length < 4) {
       const needed = Math.min(5, this.room.settings.maxPlayers || 10) - this.room.players.length;
       for (let i = 0; i < needed; i++) {
@@ -270,9 +299,26 @@ export class GameRoom {
     this.room.round = 1;
     this.room.witchHealUsed = false;
     this.room.witchPoisonUsed = false;
+    this.room.lovers = null;
+    this.room.wolfCubKilledByVote = false;
+    this.room.enragedWolvesThisNight = false;
+    this.room.doppelgangerBinds = {};
+    this.room.werewolfKillsHistory = [];
+    this.room.littleGirlPeekResults = {};
     this.room.winnerTeam = null;
     this.room.winReason = null;
     this.seerResults.clear();
+
+    // Setup thief reserve cards if Thief is in game
+    if (assigned.includes('THIEF')) {
+      const reservePool: Role[] = ['DOCTOR', 'SEER', 'BODYGUARD', 'HUNTER', 'VILLAGER'];
+      this.room.thiefReserveRoles = [
+        reservePool[Math.floor(Math.random() * reservePool.length)],
+        reservePool[Math.floor(Math.random() * reservePool.length)],
+      ];
+    } else {
+      this.room.thiefReserveRoles = [];
+    }
 
     this.setPhase('ROLE_REVEAL', 6);
     this.addEvent('PHASE_CHANGE', 'The darkness descends. Learn your secret fate in silence.');
@@ -342,13 +388,48 @@ export class GameRoom {
       p.targetId = null;
     });
     this.seerResults.clear();
+    this.room.littleGirlPeekResults = {};
+
+    if (this.room.wolfCubKilledByVote) {
+      this.room.enragedWolvesThisNight = true;
+      this.room.wolfCubKilledByVote = false;
+    }
+
     this.setPhase('NIGHT', this.room.settings.nightTime);
     this.addEvent('PHASE_CHANGE', `Night falls upon the village. Round ${this.room.round}.`);
   }
 
   private resolveNightAndStartDay() {
+    // Check if any little girl was caught
+    let caughtLittleGirlId: string | null = null;
+    for (const [girlId, result] of Object.entries(this.room.littleGirlPeekResults)) {
+      if (result.caught) {
+        caughtLittleGirlId = girlId;
+        break;
+      }
+    }
+
     // Resolve actions
-    const resolution = resolveNightActions(this.room.nightActions, this.room.players);
+    const resolution = resolveNightActions(this.room.nightActions, this.room.players, {
+      enragedWolves: this.room.enragedWolvesThisNight,
+      lovers: this.room.lovers,
+      caughtLittleGirlId,
+    });
+
+    this.room.enragedWolvesThisNight = false;
+
+    // Handle role transformations (e.g., Cursed turns into Werewolf!)
+    for (const trans of resolution.transformedPlayerIds) {
+      const p = this.getPlayer(trans.id);
+      if (p) {
+        p.role = trans.newRole;
+        p.team = trans.newTeam;
+        this.addEvent(
+          'CURSED_TRANSFORM',
+          `${p.name} was attacked in the dark and cursed to join the Werewolf pack!`
+        );
+      }
+    }
 
     // Store seer report
     if (resolution.seerReport) {
@@ -372,17 +453,52 @@ export class GameRoom {
       const player = this.getPlayer(killed.id);
       if (player && player.isAlive) {
         player.isAlive = false;
+
+        // Werewolf kill tracking: Record for secret werewolf reveal!
+        if (killed.reason === 'WEREWOLF') {
+          this.room.werewolfKillsHistory.push({
+            victimId: player.id,
+            victimRole: player.role,
+            round: this.room.round,
+          });
+        }
+
+        // Doppelganger check: if any living doppelganger bound this player, copy their role!
+        for (const [dopId, targetId] of Object.entries(this.room.doppelgangerBinds)) {
+          if (targetId === player.id) {
+            const doppel = this.getPlayer(dopId);
+            if (doppel && doppel.isAlive) {
+              doppel.role = player.role;
+              doppel.team = getRoleTeam(player.role);
+              this.addEvent(
+                'DOPPELGANGER_SHIFT',
+                `${doppel.name} the Doppelganger inherited the fallen ${player.name}'s secret mantle!`
+              );
+            }
+          }
+        }
+
         deaths.push({
           id: player.id,
           name: player.name,
-          role: this.room.settings.revealRoleOnDeath ? player.role : undefined,
+          role:
+            killed.reason === 'WEREWOLF'
+              ? undefined
+              : this.room.settings.revealRoleOnDeath
+              ? player.role
+              : undefined,
           reason: killed.reason,
           round: this.room.round,
         });
-        this.addEvent(
-          'DEATH',
-          `${player.name} was slain during the shadows of the night. (${killed.reason.toLowerCase()})`
-        );
+
+        let deathMsg = `${player.name} was slain during the shadows of the night.`;
+        if (killed.reason === 'WEREWOLF') deathMsg = `${player.name} was brutally devoured by the Werewolves!`;
+        if (killed.reason === 'POISON') deathMsg = `${player.name} succumbed to a mysterious, fatal poison!`;
+        if (killed.reason === 'WHITE_WOLF') deathMsg = `${player.name} was eliminated in cold blood by the White Wolf!`;
+        if (killed.reason === 'LITTLE_GIRL_CAUGHT') deathMsg = `${player.name} (Little Girl) was caught spying in the shadows and slain!`;
+        if (killed.reason === 'HEARTBREAK') deathMsg = `💔 ${player.name} collapsed and died of sheer heartbreak!`;
+
+        this.addEvent('DEATH', deathMsg);
       }
     }
 
@@ -414,15 +530,17 @@ export class GameRoom {
   }
 
   private resolveVotes() {
-    // Tally votes
+    // Tally votes (Mayor's vote counts as 2!)
     const counts: Record<string, number> = {};
     let skipCount = 0;
 
-    for (const targetId of Object.values(this.room.votes)) {
+    for (const [voterId, targetId] of Object.entries(this.room.votes)) {
+      const voter = this.getPlayer(voterId);
+      const weight = voter && voter.role === 'MAYOR' ? 2 : 1;
       if (targetId === null) {
-        skipCount++;
+        skipCount += weight;
       } else {
-        counts[targetId] = (counts[targetId] || 0) + 1;
+        counts[targetId] = (counts[targetId] || 0) + weight;
       }
     }
 
@@ -446,6 +564,52 @@ export class GameRoom {
       const eliminated = this.getPlayer(highestTarget);
       if (eliminated && eliminated.isAlive) {
         eliminated.isAlive = false;
+
+        // JESTER WIN RULE: If Jester is executed by day vote, JESTER WINS IMMEDIATELY!
+        if (eliminated.role === 'JESTER') {
+          deaths.push({
+            id: eliminated.id,
+            name: eliminated.name,
+            role: 'JESTER',
+            reason: 'VOTE',
+            round: this.room.round,
+          });
+          this.room.latestDeaths = deaths;
+          this.addEvent(
+            'DEATH',
+            `🎭 ${eliminated.name} burst into laughter at the gallows... They were the JESTER!`
+          );
+          this.endGame(
+            'JESTER',
+            `${eliminated.name} the Jester tricked the entire village council into executing them! JESTER WINS THE GAME!`
+          );
+          return;
+        }
+
+        // WOLF CUB RULE: If Wolf Cub is executed by vote, Werewolves kill TWO players next night!
+        if (eliminated.role === 'WOLF_CUB') {
+          this.room.wolfCubKilledByVote = true;
+          this.addEvent(
+            'WOLF_CUB_ENRAGE',
+            'The Wolf Cub was executed! The Werewolves howl in fury and will strike TWO victims next night!'
+          );
+        }
+
+        // Doppelganger check
+        for (const [dopId, targetId] of Object.entries(this.room.doppelgangerBinds)) {
+          if (targetId === eliminated.id) {
+            const doppel = this.getPlayer(dopId);
+            if (doppel && doppel.isAlive) {
+              doppel.role = eliminated.role;
+              doppel.team = getRoleTeam(eliminated.role);
+              this.addEvent(
+                'DOPPELGANGER_SHIFT',
+                `${doppel.name} the Doppelganger inherited the fallen ${eliminated.name}'s secret mantle!`
+              );
+            }
+          }
+        }
+
         deaths.push({
           id: eliminated.id,
           name: eliminated.name,
@@ -454,6 +618,26 @@ export class GameRoom {
           round: this.room.round,
         });
         this.addEvent('DEATH', `${eliminated.name} was sentenced to the gallows by the village council.`);
+
+        // Lovers check: if eliminated player is a lover, partner dies of heartbreak!
+        if (this.room.lovers && this.room.lovers.includes(eliminated.id)) {
+          const partnerId = this.room.lovers.find((id) => id !== eliminated.id)!;
+          const partner = this.getPlayer(partnerId);
+          if (partner && partner.isAlive) {
+            partner.isAlive = false;
+            deaths.push({
+              id: partner.id,
+              name: partner.name,
+              role: this.room.settings.revealRoleOnDeath ? partner.role : undefined,
+              reason: 'HEARTBREAK',
+              round: this.room.round,
+            });
+            this.addEvent(
+              'DEATH',
+              `💔 ${partner.name} collapsed and died of heartbreak upon losing their beloved ${eliminated.name}!`
+            );
+          }
+        }
 
         // Check if eliminated player is hunter
         if (eliminated.role === 'HUNTER') {
@@ -588,8 +772,21 @@ export class GameRoom {
   // NIGHT ACTION SUBMISSION
   public submitNightAction(
     playerId: string,
-    type: 'KILL' | 'INVESTIGATE' | 'PROTECT' | 'GUARD' | 'POISON' | 'HEAL',
-    targetId: string
+    type:
+      | 'KILL'
+      | 'INVESTIGATE'
+      | 'PROTECT'
+      | 'GUARD'
+      | 'POISON'
+      | 'HEAL'
+      | 'CUPID_LOVERS'
+      | 'THIEF_CHOOSE'
+      | 'DOPPELGANGER_BIND'
+      | 'WHITE_WOLF_KILL'
+      | 'LITTLE_GIRL_PEEK',
+    targetId: string,
+    secondaryTargetId?: string,
+    chosenRole?: Role
   ): { success: boolean; error?: string; seerResult?: SeerResult } {
     if (this.room.phase !== 'NIGHT') {
       return { success: false, error: 'Not the night phase' };
@@ -600,22 +797,18 @@ export class GameRoom {
       return { success: false, error: 'Player cannot act' };
     }
 
+    const isWolfPack =
+      player.role === 'WEREWOLF' ||
+      player.role === 'WOLF_CUB' ||
+      player.role === 'WHITE_WOLF' ||
+      (player.role === 'CURSED' && player.team === 'WEREWOLVES');
+
     // Role validation
-    if (type === 'KILL' && player.role !== 'WEREWOLF') {
+    if (type === 'KILL' && !isWolfPack) {
       return { success: false, error: 'Only werewolves can attack' };
     }
     if (type === 'INVESTIGATE' && player.role !== 'SEER') {
       return { success: false, error: 'Only the seer can investigate' };
-    }
-
-    // Seer restriction: only 1 player inspection per night
-    if (type === 'INVESTIGATE') {
-      const alreadyInvestigated = this.room.nightActions.some(
-        (a) => a.actorId === playerId && a.type === 'INVESTIGATE'
-      );
-      if (alreadyInvestigated || this.seerResults.has(playerId)) {
-        return { success: false, error: 'The Seer may only inspect one soul per night' };
-      }
     }
     if (type === 'PROTECT' && player.role !== 'DOCTOR') {
       return { success: false, error: 'Only the doctor can heal/protect' };
@@ -627,15 +820,112 @@ export class GameRoom {
       return { success: false, error: 'Only the witch can use potions' };
     }
 
-    if (type === 'HEAL' && this.room.witchHealUsed) {
-      return { success: false, error: 'Heal potion has already been consumed' };
+    // Witch potion limits
+    if (type === 'HEAL') {
+      if (this.room.witchHealUsed) {
+        return { success: false, error: 'Elixir of Life has already been used once this game' };
+      }
+      this.room.witchHealUsed = true;
     }
-    if (type === 'POISON' && this.room.witchPoisonUsed) {
-      return { success: false, error: 'Poison potion has already been consumed' };
+    if (type === 'POISON') {
+      if (this.room.witchPoisonUsed) {
+        return { success: false, error: 'Vial of Poison has already been used once this game' };
+      }
+      this.room.witchPoisonUsed = true;
     }
 
-    if (type === 'HEAL') this.room.witchHealUsed = true;
-    if (type === 'POISON') this.room.witchPoisonUsed = true;
+    // CUPID
+    if (type === 'CUPID_LOVERS') {
+      if (player.role !== 'CUPID') return { success: false, error: 'Only Cupid can choose lovers' };
+      if (this.room.round !== 1) return { success: false, error: 'Cupid only acts on Night 1' };
+      if (!secondaryTargetId || targetId === secondaryTargetId) {
+        return { success: false, error: 'Cupid must choose two distinct players' };
+      }
+      this.room.lovers = [targetId, secondaryTargetId];
+      const p1 = this.getPlayer(targetId);
+      const p2 = this.getPlayer(secondaryTargetId);
+      this.addEvent(
+        'LOVERS_BOUND',
+        `Cupid's arrow bound ${p1?.name || 'Villager'} and ${p2?.name || 'Villager'} in eternal love!`
+      );
+      this.notify();
+      return { success: true };
+    }
+
+    // THIEF
+    if (type === 'THIEF_CHOOSE') {
+      if (player.role !== 'THIEF') return { success: false, error: 'Only the Thief can choose a card' };
+      if (this.room.round !== 1) return { success: false, error: 'Thief only acts on Night 1' };
+      if (!chosenRole || !this.room.thiefReserveRoles.includes(chosenRole)) {
+        return { success: false, error: 'Invalid card selection' };
+      }
+      player.role = chosenRole;
+      player.team = getRoleTeam(chosenRole);
+      this.addEvent('THIEF_STOLEN', `The Thief slipped into the shadows and assumed a new identity.`);
+      this.notify();
+      return { success: true };
+    }
+
+    // DOPPELGANGER
+    if (type === 'DOPPELGANGER_BIND') {
+      if (player.role !== 'DOPPELGANGER') return { success: false, error: 'Only the Doppelganger can bind' };
+      if (this.room.round !== 1) return { success: false, error: 'Doppelganger only chooses on Night 1' };
+      this.room.doppelgangerBinds[playerId] = targetId;
+      const target = this.getPlayer(targetId);
+      this.addEvent('SYSTEM', `The Doppelganger locked gaze with their future reflection (${target?.name})...`);
+      this.notify();
+      return { success: true };
+    }
+
+    // WHITE WOLF
+    if (type === 'WHITE_WOLF_KILL') {
+      if (player.role !== 'WHITE_WOLF') return { success: false, error: 'Only the White Wolf can strike wolves' };
+      if (this.room.round % 2 !== 0) return { success: false, error: 'White Wolf may only strike on even rounds' };
+      const target = this.getPlayer(targetId);
+      if (!target || (target.role !== 'WEREWOLF' && target.role !== 'WOLF_CUB')) {
+        return { success: false, error: 'White Wolf can only target other werewolves' };
+      }
+    }
+
+    // LITTLE GIRL
+    if (type === 'LITTLE_GIRL_PEEK') {
+      if (player.role !== 'LITTLE_GIRL') return { success: false, error: 'Only Little Girl can peek' };
+      const caught = Math.random() < 0.3;
+      if (caught) {
+        this.room.littleGirlPeekResults[playerId] = {
+          werewolfNames: [],
+          caught: true,
+        };
+        this.addEvent('SYSTEM', 'A branch snapped in the darkness... The Little Girl was caught spying by the wolves!');
+      } else {
+        const wolfNames = this.room.players
+          .filter(
+            (p) =>
+              p.isAlive &&
+              (p.role === 'WEREWOLF' || p.role === 'WOLF_CUB' || p.role === 'WHITE_WOLF')
+          )
+          .map((p) => p.name);
+        const wolfKillAction = this.room.nightActions.find((a) => a.type === 'KILL');
+        const target = wolfKillAction ? this.getPlayer(wolfKillAction.targetId) : null;
+        this.room.littleGirlPeekResults[playerId] = {
+          werewolfNames: wolfNames,
+          targetName: target?.name,
+          caught: false,
+        };
+      }
+      this.notify();
+      return { success: true };
+    }
+
+    // Seer restriction: only 1 player inspection per night
+    if (type === 'INVESTIGATE') {
+      const alreadyInvestigated = this.room.nightActions.some(
+        (a) => a.actorId === playerId && a.type === 'INVESTIGATE'
+      );
+      if (alreadyInvestigated || this.seerResults.has(playerId)) {
+        return { success: false, error: 'The Seer may only inspect one soul per night' };
+      }
+    }
 
     // Remove existing action of this type by this player
     this.room.nightActions = this.room.nightActions.filter(
@@ -647,6 +937,8 @@ export class GameRoom {
       role: player.role,
       type,
       targetId,
+      secondaryTargetId,
+      chosenRole,
     });
 
     player.targetId = targetId;
@@ -655,11 +947,17 @@ export class GameRoom {
     if (type === 'INVESTIGATE') {
       const targetPlayer = this.getPlayer(targetId);
       if (targetPlayer) {
+        const appearsAsWolf =
+          targetPlayer.role === 'WEREWOLF' ||
+          targetPlayer.role === 'WOLF_CUB' ||
+          targetPlayer.role === 'WHITE_WOLF' ||
+          targetPlayer.role === 'LYCAN';
+
         computedSeerResult = {
           targetId: targetPlayer.id,
           targetName: targetPlayer.name,
-          isWerewolf: targetPlayer.role === 'WEREWOLF',
-          revealedRole: targetPlayer.role,
+          isWerewolf: appearsAsWolf,
+          revealedRole: targetPlayer.role === 'LYCAN' ? 'WEREWOLF' : targetPlayer.role,
         };
         this.seerResults.set(playerId, computedSeerResult);
         if (!this.seerHistory.has(playerId)) {
@@ -794,33 +1092,57 @@ export class GameRoom {
     const requester = this.getPlayer(forPlayerId);
     const isGameOver = this.room.phase === 'GAME_OVER';
 
-    // Calculate vote counts if in voting or result
-    const voteCounts: Record<string, number> = {};
-    for (const targetId of Object.values(this.room.votes)) {
-      if (targetId) {
-        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+    const isSeer = requester?.role === 'SEER';
+    const isWerewolf =
+      requester?.role === 'WEREWOLF' ||
+      requester?.role === 'WOLF_CUB' ||
+      requester?.role === 'WHITE_WOLF' ||
+      (requester?.role === 'CURSED' && requester?.team === 'WEREWOLVES');
+
+    const seerKnown = isSeer ? this.seerHistory.get(forPlayerId) : undefined;
+
+    // Werewolf victim roles: Secret dictionary visible EXCLUSIVELY to werewolves!
+    const werewolfVictimRoles: Record<string, Role> = {};
+    if (isWerewolf) {
+      for (const kill of this.room.werewolfKillsHistory) {
+        werewolfVictimRoles[kill.victimId] = kill.victimRole;
       }
     }
 
-    const isSeer = requester?.role === 'SEER';
-    const isWerewolf = requester?.role === 'WEREWOLF';
-    const seerKnown = isSeer ? this.seerHistory.get(forPlayerId) : undefined;
+    // Calculate vote counts (Mayor vote counts double!)
+    const voteCounts: Record<string, number> = {};
+    for (const [voterId, targetId] of Object.entries(this.room.votes)) {
+      if (targetId) {
+        const voter = this.getPlayer(voterId);
+        const weight = voter && voter.role === 'MAYOR' ? 2 : 1;
+        voteCounts[targetId] = (voteCounts[targetId] || 0) + weight;
+      }
+    }
 
     const clientPlayers: ClientPlayer[] = this.room.players.map((p) => {
       let roleToReveal: Role | undefined = undefined;
-      const isWolfTeammate = isWerewolf && p.role === 'WEREWOLF';
+      const isWolfTeammate =
+        isWerewolf &&
+        (p.role === 'WEREWOLF' || p.role === 'WOLF_CUB' || p.role === 'WHITE_WOLF');
+
+      const killedByWolf = this.room.werewolfKillsHistory.some((k) => k.victimId === p.id);
 
       if (isGameOver) {
         roleToReveal = p.role;
       } else if (p.id === forPlayerId) {
         roleToReveal = p.role;
       } else if (isWolfTeammate) {
-        roleToReveal = 'WEREWOLF';
-      } else if (!p.isAlive && this.room.settings.revealRoleOnDeath) {
+        roleToReveal = p.role;
+      } else if (!p.isAlive && killedByWolf) {
+        // EXCLUSIVE WEREWOLF REVEAL: Werewolves see the secret role of their killed prey, others NEVER see it!
+        if (isWerewolf) {
+          roleToReveal = p.role;
+        }
+      } else if (!p.isAlive && !killedByWolf && this.room.settings.revealRoleOnDeath) {
         roleToReveal = p.role;
       } else if (isSeer && seerKnown && seerKnown.has(p.id)) {
-        // The seer has investigated this player! Reveal their true role to the seer
-        roleToReveal = p.role;
+        // The seer has investigated this player!
+        roleToReveal = seerKnown.get(p.id)!.revealedRole;
       }
 
       // Werewolves can see what each werewolf teammate is targeting at night
@@ -847,7 +1169,13 @@ export class GameRoom {
     let werewolfVotes: WerewolfVoteRecord[] | undefined = undefined;
     if (isWerewolf) {
       werewolfTeammates = this.room.players
-        .filter((p) => p.role === 'WEREWOLF')
+        .filter(
+          (p) =>
+            p.role === 'WEREWOLF' ||
+            p.role === 'WOLF_CUB' ||
+            p.role === 'WHITE_WOLF' ||
+            p.team === 'WEREWOLVES'
+        )
         .map((p) => ({ id: p.id, name: p.name }));
 
       werewolfVotes = this.room.nightActions
@@ -867,15 +1195,78 @@ export class GameRoom {
     // Witch potion knowledge
     let witchPotions: WitchPotions | undefined = undefined;
     if (requester && requester.role === 'WITCH') {
-      const wolfAction = this.room.nightActions.find((a) => a.type === 'KILL');
-      const victim = wolfAction ? this.getPlayer(wolfAction.targetId) : null;
+      const wolfActions = this.room.nightActions.filter((a) => a.type === 'KILL');
+      const counts: Record<string, number> = {};
+      for (const a of wolfActions) {
+        counts[a.targetId] = (counts[a.targetId] || 0) + 1;
+      }
+      let topVictimId: string | null = null;
+      let maxCnt = 0;
+      for (const [tid, cnt] of Object.entries(counts)) {
+        if (cnt > maxCnt) {
+          maxCnt = cnt;
+          topVictimId = tid;
+        }
+      }
+      const victim = topVictimId ? this.getPlayer(topVictimId) : null;
+      const isWitchVictim = victim ? victim.id === requester.id : false;
+
       witchPotions = {
         healAvailable: !this.room.witchHealUsed,
         poisonAvailable: !this.room.witchPoisonUsed,
         nightVictimId: victim ? victim.id : null,
-        nightVictimName: victim ? victim.name : null,
+        nightVictimName: victim ? (isWitchVictim ? `${victim.name} (YOU!)` : victim.name) : null,
+        isWitchTargeted: isWitchVictim,
       };
     }
+
+    // Lovers knowledge: Only shared with the two lovers!
+    let lovers: { partnerId: string; partnerName: string } | undefined = undefined;
+    if (this.room.lovers && requester && this.room.lovers.includes(requester.id)) {
+      const partnerId = this.room.lovers.find((id) => id !== requester.id)!;
+      const partner = this.getPlayer(partnerId);
+      lovers = {
+        partnerId,
+        partnerName: partner?.name || 'Beloved Lover',
+      };
+    }
+
+    // Mason teammates knowledge: Masons recognize each other
+    let masonTeammates: { id: string; name: string }[] | undefined = undefined;
+    if (requester?.role === 'MASON') {
+      masonTeammates = this.room.players
+        .filter((p) => p.role === 'MASON')
+        .map((p) => ({ id: p.id, name: p.name }));
+    }
+
+    // Doppelganger target
+    let doppelgangerTargetName: string | undefined = undefined;
+    if (requester?.role === 'DOPPELGANGER' && this.room.doppelgangerBinds[forPlayerId]) {
+      const boundTarget = this.getPlayer(this.room.doppelgangerBinds[forPlayerId]);
+      doppelgangerTargetName = boundTarget?.name;
+    }
+
+    // White Wolf special kill available on even nights
+    const whiteWolfCanKillTonight = requester?.role === 'WHITE_WOLF' && this.room.round % 2 === 0;
+
+    // Little Girl peek results
+    const littleGirlPeekResult = this.room.littleGirlPeekResults[forPlayerId] || null;
+
+    // Unready players
+    const unreadyPlayerNames = this.room.players.filter((p) => !p.isReady).map((p) => p.name);
+
+    // Latest deaths with confidential role masking:
+    // If killed by werewolf, role is ONLY visible to werewolves!
+    const sanitizedLatestDeaths = this.room.latestDeaths.map((death) => {
+      if (death.reason === 'WEREWOLF') {
+        const killRecord = this.room.werewolfKillsHistory.find((k) => k.victimId === death.id);
+        return {
+          ...death,
+          role: isWerewolf && killRecord ? killRecord.victimRole : undefined,
+        };
+      }
+      return death;
+    });
 
     return {
       roomId: this.room.id,
@@ -891,13 +1282,22 @@ export class GameRoom {
       isHost: requester?.isHost || false,
       werewolfTeammates,
       werewolfVotes,
+      werewolfVictimRoles: isWerewolf ? werewolfVictimRoles : undefined,
       seerResult: this.seerResults.get(forPlayerId) || null,
-      seerHistory:
-        isSeer && seerKnown ? Array.from(seerKnown.values()) : undefined,
+      seerHistory: isSeer && seerKnown ? Array.from(seerKnown.values()) : undefined,
       witchPotions,
+      lovers,
+      masonTeammates,
+      thiefReserveRoles:
+        requester?.role === 'THIEF' && this.room.round === 1 ? this.room.thiefReserveRoles : undefined,
+      doppelgangerTargetName,
+      whiteWolfCanKillTonight,
+      littleGirlPeekResult,
+      unreadyPlayerNames,
+      isMayor: requester?.role === 'MAYOR',
       votes: this.room.votes,
       voteCounts,
-      latestDeaths: this.room.latestDeaths,
+      latestDeaths: sanitizedLatestDeaths,
       hunterPendingId: this.room.hunterPendingId,
       winnerTeam: this.room.winnerTeam,
       winReason: this.room.winReason || undefined,

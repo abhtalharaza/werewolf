@@ -15,7 +15,12 @@ interface GameBoardProps {
   gameState: ClientGameState;
   chatMessages: ChatMessage[];
   onSendMessage: (channel: ChatChannel, text: string) => void;
-  onSubmitNightAction: (actionType: any, targetId: string) => Promise<boolean>;
+  onSubmitNightAction: (
+    actionType: any,
+    targetId: string,
+    secondaryTargetId?: string,
+    chosenRole?: any
+  ) => Promise<boolean>;
   onSubmitVote: (targetId: string | null) => Promise<boolean>;
   onHunterShoot: (targetId: string) => void;
   onLeaveGame: () => void;
@@ -51,7 +56,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const canTargetPlayer = (playerId: string) => {
     if (!isMeAlive) return false;
     if (isNight) {
-      if (gameState.myRole === 'WEREWOLF') {
+      const isWolfPack =
+        gameState.myRole === 'WEREWOLF' ||
+        gameState.myRole === 'WOLF_CUB' ||
+        gameState.myRole === 'WHITE_WOLF' ||
+        (gameState.myRole === 'CURSED' && gameState.myTeam === 'WEREWOLVES');
+
+      if (isWolfPack) {
         // Wolves can target any living player
         return true;
       }
@@ -62,6 +73,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (gameState.myRole === 'DOCTOR') return true;
       if (gameState.myRole === 'BODYGUARD') return playerId !== gameState.myPlayerId;
       if (gameState.myRole === 'WITCH') return true;
+      if (gameState.myRole === 'CUPID' && gameState.round === 1) return true;
+      if (gameState.myRole === 'DOPPELGANGER' && gameState.round === 1) {
+        return playerId !== gameState.myPlayerId;
+      }
       return false;
     }
     if (isVoting) {

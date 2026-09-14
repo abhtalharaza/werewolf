@@ -5,9 +5,20 @@ export type Role =
   | 'DOCTOR'
   | 'HUNTER'
   | 'WITCH'
-  | 'BODYGUARD';
+  | 'BODYGUARD'
+  | 'CUPID'
+  | 'LITTLE_GIRL'
+  | 'JESTER'
+  | 'MAYOR'
+  | 'THIEF'
+  | 'WOLF_CUB'
+  | 'CURSED'
+  | 'MASON'
+  | 'LYCAN'
+  | 'DOPPELGANGER'
+  | 'WHITE_WOLF';
 
-export type Team = 'VILLAGERS' | 'WEREWOLVES';
+export type Team = 'VILLAGERS' | 'WEREWOLVES' | 'JESTER' | 'WHITE_WOLF';
 
 export type GamePhase =
   | 'LOBBY'
@@ -67,6 +78,11 @@ export interface GameEvent {
     | 'HUNTER_SHOT'
     | 'GAME_WIN'
     | 'HEAL'
+    | 'LOVERS_BOUND'
+    | 'CURSED_TRANSFORM'
+    | 'WOLF_CUB_ENRAGE'
+    | 'DOPPELGANGER_SHIFT'
+    | 'THIEF_STOLEN'
     | 'SYSTEM';
   message: string;
   round: number;
@@ -99,13 +115,14 @@ export interface WitchPotions {
   poisonAvailable: boolean;
   nightVictimId: string | null;
   nightVictimName: string | null;
+  isWitchTargeted?: boolean;
 }
 
 export interface GameDeathRecord {
   id: string;
   name: string;
   role?: Role;
-  reason: 'WEREWOLF' | 'VOTE' | 'POISON' | 'HUNTER';
+  reason: 'WEREWOLF' | 'VOTE' | 'POISON' | 'HUNTER' | 'HEARTBREAK' | 'WHITE_WOLF' | 'LITTLE_GIRL_CAUGHT';
   round: number;
 }
 
@@ -130,9 +147,20 @@ export interface ClientGameState {
   isHost: boolean;
   werewolfTeammates?: { id: string; name: string }[];
   werewolfVotes?: WerewolfVoteRecord[];
+  werewolfVictimRoles?: Record<string, Role>; // Secret victim roles visible EXCLUSIVELY to werewolves!
   seerResult?: SeerResult | null;
   seerHistory?: SeerResult[];
   witchPotions?: WitchPotions;
+  lovers?: { partnerId: string; partnerName: string };
+  loverPartner?: { id: string; name: string };
+  masonTeammates?: { id: string; name: string }[];
+  masonAllies?: { id: string; name: string }[];
+  thiefReserveRoles?: Role[];
+  doppelgangerTargetName?: string;
+  whiteWolfCanKillTonight?: boolean;
+  littleGirlPeekResult?: { werewolfNames: string[]; targetName?: string; caught: boolean } | null;
+  unreadyPlayerNames?: string[];
+  isMayor?: boolean;
   votes: Record<string, string | null>; // voterId -> targetId
   voteCounts?: Record<string, number>;
   latestDeaths?: GameDeathRecord[];

@@ -179,16 +179,19 @@ export function setupSocketHandlers(io: Server) {
     });
 
     // 8. NIGHT ACTION
-    socket.on('night:action', ({ roomCode, playerId, actionType, targetId }, callback) => {
-      const room = gameManager.getRoom(roomCode);
-      if (!room) {
-        if (callback) callback({ success: false, error: 'Room not found' });
-        return;
-      }
+    socket.on(
+      'night:action',
+      ({ roomCode, playerId, actionType, targetId, secondaryTargetId, chosenRole }, callback) => {
+        const room = gameManager.getRoom(roomCode);
+        if (!room) {
+          if (callback) callback({ success: false, error: 'Room not found' });
+          return;
+        }
 
-      const res = room.submitNightAction(playerId, actionType, targetId);
-      if (callback) callback(res);
-    });
+        const res = room.submitNightAction(playerId, actionType, targetId, secondaryTargetId, chosenRole);
+        if (callback) callback(res);
+      }
+    );
 
     // 9. CAST VOTE
     socket.on('vote:cast', ({ roomCode, playerId, targetId }, callback) => {
@@ -228,8 +231,14 @@ export function setupSocketHandlers(io: Server) {
         const sender = room.getPlayer(playerId);
         if (!sender) return;
 
+        const isSenderWolf =
+          sender.role === 'WEREWOLF' ||
+          sender.role === 'WOLF_CUB' ||
+          sender.role === 'WHITE_WOLF' ||
+          sender.team === 'WEREWOLVES';
+
         // Security check for channels
-        if (channel === 'WEREWOLF' && sender.role !== 'WEREWOLF') {
+        if (channel === 'WEREWOLF' && !isSenderWolf) {
           return;
         }
         if (channel === 'DEAD' && sender.isAlive) {
@@ -250,8 +259,14 @@ export function setupSocketHandlers(io: Server) {
         if (channel === 'PUBLIC') {
           io.to(room.getCode()).emit('chat:message', msg);
         } else if (channel === 'WEREWOLF') {
-          // Send only to werewolves
-          const wolves = room.getPlayers().filter((p) => p.role === 'WEREWOLF');
+          // Send only to werewolves / wolf pack
+          const wolves = room.getPlayers().filter(
+            (p) =>
+              p.role === 'WEREWOLF' ||
+              p.role === 'WOLF_CUB' ||
+              p.role === 'WHITE_WOLF' ||
+              p.team === 'WEREWOLVES'
+          );
           for (const wolf of wolves) {
             if (!wolf.isBot && wolf.socketId) {
               io.to(wolf.socketId).emit('chat:message', msg);

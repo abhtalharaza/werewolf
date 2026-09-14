@@ -16,6 +16,7 @@ import { GameBoard } from './components/GameBoard.js';
 import { GameOverView } from './components/GameOverView.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { useSocketGame } from './hooks/useSocketGame.js';
+import { sounds } from './utils/audio.js';
 
 export default function App() {
   const {
@@ -55,6 +56,16 @@ export default function App() {
       setIsJoinOpen(true);
     }
   }, [gameState]);
+
+  // Suspense tick-tick audio when countdown timer reaches 5 seconds or less
+  useEffect(() => {
+    if (!gameState) return;
+    if (gameState.phase !== 'LOBBY' && gameState.phase !== 'GAME_OVER') {
+      if (gameState.timer <= 5 && gameState.timer > 0) {
+        sounds.playTick(gameState.timer <= 2);
+      }
+    }
+  }, [gameState?.timer, gameState?.phase]);
 
   // Victory celebration confetti trigger on game over
   useEffect(() => {
