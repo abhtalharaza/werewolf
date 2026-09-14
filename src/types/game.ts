@@ -150,6 +150,7 @@ export interface ClientGameState {
   myPlayerId: string;
   myRole?: Role;
   myTeam?: Team;
+  myNightAction?: { type: string; targetId?: string };
   isHost: boolean;
   werewolfTeammates?: { id: string; name: string }[];
   werewolfVotes?: WerewolfVoteRecord[];

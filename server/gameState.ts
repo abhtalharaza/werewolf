@@ -444,7 +444,10 @@ export class GameRoom {
       caughtLittleGirlId,
     });
 
-    this.room.morningProtections = resolution.protections || [];
+    // Only record protections where the player was actually attacked and saved
+    this.room.morningProtections = (resolution.protections || []).filter(
+      (p) => p.wasAttackedAndSaved
+    );
     this.room.enragedWolvesThisNight = false;
 
     // Handle role transformations (e.g., Cursed turns into Werewolf!)
@@ -1414,6 +1417,12 @@ export class GameRoom {
       return death;
     });
 
+    // Player's registered night action
+    const currentNightAction = this.room.nightActions.find((a) => a.actorId === forPlayerId);
+    const myNightAction = currentNightAction
+      ? { type: currentNightAction.type, targetId: currentNightAction.targetId }
+      : undefined;
+
     return {
       roomId: this.room.id,
       roomCode: this.room.code,
@@ -1425,6 +1434,7 @@ export class GameRoom {
       myPlayerId: forPlayerId,
       myRole: requester?.role,
       myTeam: requester?.team,
+      myNightAction,
       isHost: requester?.isHost || false,
       werewolfTeammates,
       werewolfVotes,

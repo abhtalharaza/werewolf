@@ -13,6 +13,7 @@ interface PlayerCardProps {
   isWerewolfTeammate: boolean;
   isLittleGirlSpottedWolf?: boolean;
   isLittleGirlSpottedTarget?: boolean;
+  isGuardedByMe?: boolean;
   wolfVotesTargetingThisPlayer?: number;
   onSelect: (playerId: string) => void;
   canTarget: boolean;
@@ -28,6 +29,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   isWerewolfTeammate,
   isLittleGirlSpottedWolf,
   isLittleGirlSpottedTarget,
+  isGuardedByMe,
   wolfVotesTargetingThisPlayer = 0,
   onSelect,
   canTarget,
@@ -54,6 +56,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           ? 'bg-rose-950/60 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.45)] ring-2 ring-rose-400 scale-102 sm:scale-105'
           : isSelectedTarget
           ? 'bg-purple-950/50 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)] scale-102 sm:scale-105 ring-2 ring-purple-400'
+          : isGuardedByMe
+          ? 'bg-cyan-950/40 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.35)] ring-1 ring-cyan-400/60'
           : isWerewolfTeammate
           ? 'bg-red-950/30 border-red-800/60 shadow-[0_0_12px_rgba(239,68,68,0.2)]'
           : isSeerDivined
@@ -134,6 +138,17 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         >
           <Moon className="w-3 h-3 text-red-400 fill-red-400" />
           <span>{wolfVotesTargetingThisPlayer} 🐺</span>
+        </div>
+      )}
+
+      {/* Bodyguard Active Guarded Ally Badge (Visible only to Bodyguard) */}
+      {isGuardedByMe && !isDead && (
+        <div
+          className="absolute -top-2.5 -left-2.5 px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-400 text-cyan-200 text-[10px] font-bold flex items-center gap-1 shadow-xl z-20 animate-pulse"
+          title="Guarded by your shield tonight!"
+        >
+          <Shield className="w-3 h-3 text-cyan-400 fill-cyan-400/40" />
+          <span>Guarded</span>
         </div>
       )}
 

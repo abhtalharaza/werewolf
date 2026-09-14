@@ -311,6 +311,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   isLittleGirl && lgPeek && !lgPeek.caught && lgPeek.targetName === p.name
                 );
 
+                const isBodyguard = gameState.myRole === 'BODYGUARD' && gameState.phase === 'NIGHT';
+                const isGuardedByMe = Boolean(
+                  isBodyguard &&
+                  gameState.myNightAction?.type === 'GUARD' &&
+                  gameState.myNightAction?.targetId === p.id
+                );
+
                 return (
                   <PlayerCard
                     key={p.id}
@@ -323,6 +330,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     isWerewolfTeammate={isWolfTeammate}
                     isLittleGirlSpottedWolf={isLittleGirlSpottedWolf}
                     isLittleGirlSpottedTarget={isLittleGirlSpottedTarget}
+                    isGuardedByMe={isGuardedByMe}
                     wolfVotesTargetingThisPlayer={wolfVotesOnPlayer}
                     onSelect={handleSelectPlayer}
                     canTarget={canTargetPlayer(p.id)}

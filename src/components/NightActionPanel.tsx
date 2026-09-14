@@ -47,6 +47,11 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [confirmedTargetId, setConfirmedTargetId] = useState<string | null>(null);
 
+  // Reset confirmed local target if round or phase changes
+  React.useEffect(() => {
+    setConfirmedTargetId(null);
+  }, [gameState.round, gameState.phase]);
+
   const me = gameState.players.find((p) => p.id === gameState.myPlayerId);
   const role = gameState.myRole;
   const isDead = me && !me.isAlive;
@@ -54,6 +59,16 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   const targetPlayer = gameState.players.find((p) => p.id === selectedTargetId);
   const cupidLover1 = gameState.players.find((p) => p.id === cupidLover1Id);
   const cupidLover2 = gameState.players.find((p) => p.id === cupidLover2Id);
+
+  // Bodyguard helpers
+  const activeGuardedPlayerId =
+    (gameState.myNightAction?.type === 'GUARD' ? gameState.myNightAction.targetId : null) ||
+    (role === 'BODYGUARD' ? confirmedTargetId : null);
+  const activeGuardedPlayer = gameState.players.find((p) => p.id === activeGuardedPlayerId);
+  const isSelectedPlayerGuarded = Boolean(
+    targetPlayer && activeGuardedPlayerId === targetPlayer.id
+  );
+  const isTargetingSelf = Boolean(targetPlayer && targetPlayer.id === me?.id);
 
   const isLoversLocked = Boolean(
     isCupidBound ||
@@ -355,38 +370,115 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 
       {/* 4. BODYGUARD PANEL */}
       {role === 'BODYGUARD' && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-cyan-400 font-bold font-cinzel text-sm">
-            <Shield className="w-4 h-4" />
-            <span>Bodyguard Vigil</span>
+        <div className="space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-cyan-400 font-bold font-cinzel text-sm">
+              <Shield className="w-4 h-4" />
+              <span>Bodyguard Vigil</span>
+            </div>
+            {activeGuardedPlayer && (
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/60 text-[11px] font-mono text-cyan-300 animate-pulse">
+                <Check className="w-3 h-3 text-cyan-400" />
+                <span>Guarding: {activeGuardedPlayer.name}</span>
+              </div>
+            )}
           </div>
 
-          <p className="text-xs text-zinc-300">
-            Select another player to guard with your shield through the nocturnal fog.
+          <p className="text-xs text-zinc-300 leading-relaxed">
+            Select another player on the board to stand guard over them through the nocturnal mist. If werewolves target your guarded ally tonight, your steel shield will deflect their fatal strike!
           </p>
+
+          {isTargetingSelf && (
+            <div className="p-2.5 rounded-xl bg-amber-950/60 border border-amber-600/60 text-amber-200 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Bodyguard cannot guard themselves! Please select a fellow villager.</span>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
             <div className="text-xs">
               {targetPlayer ? (
-                <span>
-                  Guarding:{' '}
-                  <strong className="text-cyan-400 font-semibold">{targetPlayer.name}</strong>
-                </span>
+                <div>
+                  <span className="text-zinc-400">Target Ally: </span>
+                  <strong className="text-cyan-300 font-semibold">{targetPlayer.name}</strong>
+                  {isSelectedPlayerGuarded && (
+                    <span className="ml-2 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-mono text-[10px] font-bold">
+                      ✓ Guard Stationed
+                    </span>
+                  )}
+                </div>
+              ) : activeGuardedPlayer ? (
+                <div className="text-cyan-300 text-xs">
+                  Currently Guarding: <strong className="font-bold text-white">{activeGuardedPlayer.name}</strong>
+                </div>
               ) : (
-                <span className="text-zinc-500 italic">Select an ally</span>
+                <span className="text-zinc-500 italic">Select an ally from the village arena</span>
               )}
             </div>
 
             <button
               id="confirm-bodyguard-guard-btn"
-              onClick={() => targetPlayer && handleConfirm('GUARD', targetPlayer.id)}
-              disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 text-white text-xs font-bold transition min-h-[44px]"
+              onClick={() => targetPlayer && !isTargetingSelf && handleConfirm('GUARD', targetPlayer.id)}
+              disabled={!targetPlayer || isTargetingSelf || submitting || isSelectedPlayerGuarded}
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition min-h-[44px] cursor-pointer shadow-lg ${
+                isSelectedPlayerGuarded
+                  ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 border border-emerald-400 text-white shadow-[0_0_20px_rgba(16,185,129,0.35)] opacity-100 cursor-default'
+                  : !targetPlayer || isTargetingSelf
+                  ? 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-50'
+                  : activeGuardedPlayer && activeGuardedPlayer.id !== targetPlayer.id
+                  ? 'bg-gradient-to-r from-amber-600 to-cyan-700 hover:from-amber-500 hover:to-cyan-600 text-white border border-amber-400/60 shadow-amber-950/50'
+                  : 'bg-gradient-to-r from-cyan-700 to-blue-700 hover:from-cyan-600 hover:to-blue-600 text-white border border-cyan-500/50 shadow-cyan-950/50'
+              }`}
             >
-              <Shield className="w-3.5 h-3.5" />
-              <span>Stand Guard</span>
+              {submitting ? (
+                <>
+                  <Shield className="w-4 h-4 animate-spin text-cyan-200" />
+                  <span>Deploying Shield...</span>
+                </>
+              ) : isSelectedPlayerGuarded ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-200" />
+                  <span>✓ Shield Active: Guarding {targetPlayer.name}!</span>
+                </>
+              ) : activeGuardedPlayer && targetPlayer && activeGuardedPlayer.id !== targetPlayer.id ? (
+                <>
+                  <Shield className="w-4 h-4 text-amber-200" />
+                  <span>Switch Guard to {targetPlayer.name}</span>
+                </>
+              ) : (
+                <>
+                  <Shield className="w-4 h-4 text-cyan-200" />
+                  <span>{targetPlayer ? `Stand Guard over ${targetPlayer.name}` : 'Stand Guard'}</span>
+                </>
+              )}
             </button>
           </div>
+
+          {/* Active Guard Status Feedback Banner */}
+          {activeGuardedPlayer && (
+            <div
+              id="bodyguard-status-banner"
+              className="p-3.5 rounded-xl bg-cyan-950/70 border border-cyan-500/60 text-cyan-200 text-xs flex items-start gap-3 shadow-lg animate-in fade-in zoom-in-95 duration-200"
+            >
+              <div className="p-1.5 rounded-lg bg-cyan-900/80 border border-cyan-400/40 text-cyan-300 shrink-0 mt-0.5">
+                <Shield className="w-4 h-4" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-bold text-cyan-200 text-xs sm:text-sm">
+                  <span>🛡️ Pehra Shuru: Shield Active!</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300 text-[10px] font-mono font-bold">
+                    Protected Tonight
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  Aapne <strong>{activeGuardedPlayer.name}</strong> ke darwaze par pehra laga diya hai. Agar bhediye aaj raat in par hamla karenge, toh aapka steel shield unki jaan bacha lega!
+                </p>
+                <div className="text-[10px] text-cyan-400/80 italic font-mono pt-0.5">
+                  (Agar aap kisi aur villager ko guard karna chahte hain, toh arena me unke card par click karein)
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
