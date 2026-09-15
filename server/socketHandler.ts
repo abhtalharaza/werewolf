@@ -66,7 +66,70 @@ export function setupSocketHandlers(io: Server) {
     // 2. JOIN ROOM
     socket.on('room:join', ({ roomCode, playerName, avatar, existingPlayerId }, callback) => {
       try {
-        const room = gameManager.getRoom(roomCode);
+        const normalizedCode = (roomCode || '').trim().toUpperCase();
+        let room = gameManager.getRoom(normalizedCode);
+
+        // Special permanent hidden room "ROOM317":
+        // Hidden from public room lists, but when entered:
+        // The first person to enter automatically creates it as HOST!
+        // Others entering afterwards join this room as players.
+        if (normalizedCode === 'ROOM317') {
+          if (room) {
+            const humanPlayers = room.getPlayers().filter((p) => !p.isBot && p.connected);
+            if (humanPlayers.length === 0) {
+              gameManager.removeRoom('ROOM317');
+              room = undefined;
+            }
+          }
+
+          if (!room) {
+            const playerId = existingPlayerId || 'p-' + Math.random().toString(36).substring(2, 9);
+            const hostPlayer = {
+              id: playerId,
+              socketId: socket.id,
+              name: playerName?.trim() || 'Village Elder',
+              avatar: avatar || 'elder',
+              isHost: true,
+              isReady: true,
+              isAlive: true,
+              isBot: false,
+              connected: true,
+              targetId: null,
+              hasVoted: false,
+              voteTargetId: null,
+            };
+
+            const createdRoom = gameManager.createRoom(
+              'Secret Sanctuary',
+              hostPlayer,
+              (updatedRoom) => {
+                broadcastRoomState(io, updatedRoom);
+              },
+              (channel, message) => {
+                io.to(createdRoom.getCode()).emit('chat:message', message);
+              },
+              undefined,
+              'ROOM317'
+            );
+
+            gameManager.linkPlayer(socket.id, 'ROOM317');
+            gameManager.linkPlayer(playerId, 'ROOM317');
+
+            socket.join(createdRoom.getCode());
+            broadcastRoomState(io, createdRoom);
+
+            if (callback) {
+              callback({
+                success: true,
+                roomCode: createdRoom.getCode(),
+                playerId,
+                state: createdRoom.getSanitizedState(playerId),
+              });
+            }
+            return;
+          }
+        }
+
         if (!room) {
           if (callback) callback({ success: false, error: 'Room not found. Please verify the code.' });
           return;
@@ -93,8 +156,8 @@ export function setupSocketHandlers(io: Server) {
           return;
         }
 
-        gameManager.linkPlayer(socket.id, roomCode);
-        gameManager.linkPlayer(playerId, roomCode);
+        gameManager.linkPlayer(socket.id, room.getCode());
+        gameManager.linkPlayer(playerId, room.getCode());
 
         socket.join(room.getCode());
         broadcastRoomState(io, room);

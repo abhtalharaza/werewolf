@@ -153,10 +153,13 @@ export class GameRoom {
       return { success: true };
     }
 
+    const hasConnectedHost = this.room.players.some((p) => p.isHost && p.connected);
+    const shouldBeHost = Boolean(playerData.isHost) || !hasConnectedHost;
+
     const newPlayer: ServerPlayer = {
       ...playerData,
-      isHost: false,
-      isReady: false,
+      isHost: shouldBeHost,
+      isReady: shouldBeHost ? true : false,
       isAlive: true,
       role: 'VILLAGER',
       team: 'VILLAGERS',

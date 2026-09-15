@@ -12,8 +12,8 @@ class GameManager {
     for (let i = 0; i < 6; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    // Prevent collision
-    if (this.rooms.has(code)) {
+    // Prevent collision and reserved secret codes
+    if (code === 'ROOM317' || this.rooms.has(code)) {
       return this.generateRoomCode();
     }
     return code;
@@ -24,9 +24,10 @@ class GameManager {
     hostPlayer: Omit<ServerPlayer, 'role' | 'team'>,
     onStateChange: (room: GameRoom) => void,
     onChatMessage: (channel: string, message: unknown) => void,
-    settings?: Partial<GameSettings>
+    settings?: Partial<GameSettings>,
+    customCode?: string
   ): GameRoom {
-    const code = this.generateRoomCode();
+    const code = customCode ? customCode.trim().toUpperCase() : this.generateRoomCode();
     const gameRoom = new GameRoom(code, name, hostPlayer, onStateChange, onChatMessage, settings);
     this.rooms.set(code, gameRoom);
     this.playerToRoom.set(hostPlayer.socketId, code);
@@ -55,6 +56,10 @@ class GameManager {
   public getPublicRooms(): RoomListItem[] {
     const list: RoomListItem[] = [];
     for (const [code, room] of this.rooms.entries()) {
+      // Hidden secret permanent room: never display to the public
+      if (code.toUpperCase() === 'ROOM317') {
+        continue;
+      }
       list.push({
         id: room.room.id,
         code,
