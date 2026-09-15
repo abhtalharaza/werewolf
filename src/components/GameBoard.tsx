@@ -470,31 +470,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           )}
       </div>
 
-      {/* Floating Side Chat Button (Slides chat in when clicked) */}
-      <button
-        id="floating-side-chat-btn"
-        onClick={handleToggleChat}
-        className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center gap-2 pl-3.5 pr-2.5 py-3 rounded-l-2xl border-l-2 border-y border-zinc-800 bg-zinc-950/95 hover:bg-zinc-900 text-zinc-200 shadow-2xl backdrop-blur-md transition-all duration-200 group hover:pl-4 min-h-[48px] ${
-          unreadCount > 0 && !isChatOpen
-            ? 'border-l-purple-500 shadow-purple-950/70 ring-1 ring-purple-500/40'
-            : 'border-l-purple-600 hover:border-l-purple-400'
-        }`}
-        title="Open Village Chat"
-        aria-label="Open Village Chat"
-      >
-        <div className="relative flex items-center justify-center">
-          <MessageSquare className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
-          {unreadCount > 0 && !isChatOpen && (
-            <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.2 min-w-[18px] text-[10px] font-black text-white bg-red-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </div>
-        <span className="text-xs font-bold font-cinzel text-purple-200 hidden sm:inline tracking-wider">
-          Chat
-        </span>
-      </button>
-
       {/* Slide-over Chat Drawer Backdrop */}
       {isChatOpen && (
         <div
