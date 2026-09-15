@@ -165,6 +165,21 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         </div>
       )}
 
+      {/* Seer Divination Alignment Badge (Visible to Seer) */}
+      {isSeerDivined && !isMe && !isDead && (
+        <div
+          className={`absolute -top-2.5 -right-2.5 px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono shadow-xl z-20 flex items-center gap-1 animate-fade-in ${
+            player.role === 'WEREWOLF'
+              ? 'bg-red-950 border-red-500 text-red-200'
+              : 'bg-emerald-950 border-emerald-500 text-emerald-200'
+          }`}
+          title={player.role === 'WEREWOLF' ? 'Divined: Werewolf' : 'Divined: Good Team'}
+        >
+          <Eye className="w-3 h-3" />
+          <span>{player.role === 'WEREWOLF' ? 'Werewolf' : 'Good Team'}</span>
+        </div>
+      )}
+
       {/* Avatar Orb */}
       <div className="relative mb-1 sm:mb-2">
         <div
@@ -223,11 +238,21 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         {player.role ? (
           <span
             className={`font-bold font-cinzel inline-flex items-center gap-0.5 sm:gap-1 ${
-              player.role === 'WEREWOLF' ? 'text-red-400' : 'text-purple-300'
+              player.role === 'WEREWOLF'
+                ? 'text-red-400'
+                : isSeerDivined && !isMe
+                ? 'text-emerald-400'
+                : 'text-purple-300'
             }`}
           >
             {isSeerDivined && <Eye className="w-2.5 h-2.5 text-indigo-400" />}
-            <span>{player.role}</span>
+            <span>
+              {isSeerDivined && !isMe
+                ? player.role === 'WEREWOLF'
+                  ? 'Werewolf'
+                  : 'Good Team'
+                : player.role}
+            </span>
           </span>
         ) : isDead ? (
           <span className="text-zinc-600 italic">Slain</span>

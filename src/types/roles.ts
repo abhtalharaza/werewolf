@@ -159,8 +159,8 @@ export const ROLE_DEFINITIONS: Record<Role, RoleInfo> = {
     name: 'White Wolf',
     team: 'WHITE_WOLF',
     icon: 'Swords',
-    description: 'A solitary apex predator that obeys no master.',
-    ability: 'Hunts with the pack, but every even night can secretly kill another Werewolf. Wins alone.',
+    description: 'A solitary apex predator that belongs to no pack.',
+    ability: 'Hunts disguised with the pack, but every alternate night can secretly assassinate a fellow Werewolf. Wins only as the last survivor.',
     nightPriority: 55,
   },
 };

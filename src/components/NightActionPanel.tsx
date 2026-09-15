@@ -46,10 +46,14 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 }) => {
   const [submitting, setSubmitting] = useState(false);
   const [confirmedTargetId, setConfirmedTargetId] = useState<string | null>(null);
+  const [confirmedWolfKillId, setConfirmedWolfKillId] = useState<string | null>(null);
+  const [confirmedWhiteWolfKillId, setConfirmedWhiteWolfKillId] = useState<string | null>(null);
 
   // Reset confirmed local target if round or phase changes
   React.useEffect(() => {
     setConfirmedTargetId(null);
+    setConfirmedWolfKillId(null);
+    setConfirmedWhiteWolfKillId(null);
   }, [gameState.round, gameState.phase]);
 
   const me = gameState.players.find((p) => p.id === gameState.myPlayerId);
@@ -59,6 +63,34 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   const targetPlayer = gameState.players.find((p) => p.id === selectedTargetId);
   const cupidLover1 = gameState.players.find((p) => p.id === cupidLover1Id);
   const cupidLover2 = gameState.players.find((p) => p.id === cupidLover2Id);
+
+  // Werewolf pack kill lock
+  const myWolfVote = gameState.werewolfVotes?.find((v) => v.werewolfId === me?.id);
+  const isWolfKillLocked = Boolean(
+    confirmedWolfKillId ||
+    myWolfVote ||
+    (gameState.myNightAction?.type === 'KILL')
+  );
+  const lockedWolfTargetName =
+    myWolfVote?.targetName ||
+    (gameState.myNightAction?.type === 'KILL'
+      ? gameState.players.find((p) => p.id === gameState.myNightAction?.targetId)?.name
+      : null) ||
+    (targetPlayer && confirmedWolfKillId === targetPlayer.id ? targetPlayer.name : null);
+
+  // White Wolf solo kill lock
+  const isWhiteWolfSoloKillLocked = Boolean(
+    confirmedWhiteWolfKillId ||
+    (role === 'WHITE_WOLF' && gameState.myNightAction?.type === 'WHITE_WOLF_KILL')
+  );
+  const lockedWhiteWolfSoloTargetId =
+    confirmedWhiteWolfKillId ||
+    (role === 'WHITE_WOLF' && gameState.myNightAction?.type === 'WHITE_WOLF_KILL'
+      ? gameState.myNightAction.targetId
+      : null);
+  const lockedWhiteWolfSoloTarget = gameState.players.find(
+    (p) => p.id === lockedWhiteWolfSoloTargetId
+  );
 
   // Bodyguard helpers
   const activeGuardedPlayerId =
@@ -121,6 +153,11 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
       if (type === 'CUPID_LOVERS') {
         setConfirmedTargetId('CUPID_BOUND');
         onCupidBound?.();
+      } else if (type === 'KILL') {
+        setConfirmedWolfKillId(targetId);
+        setConfirmedTargetId(targetId);
+      } else if (type === 'WHITE_WOLF_KILL') {
+        setConfirmedWhiteWolfKillId(targetId);
       } else {
         setConfirmedTargetId(targetId);
       }
@@ -154,7 +191,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           </div>
 
           <p className="text-xs text-zinc-300">
-            Click any living villager on the board above to mark them for death tonight. You have 15 seconds to strike.
+            Click any living villager on the board above to mark them for death tonight. Once confirmed, your kill cannot be undone.
           </p>
 
           {/* Werewolf Pack Voting Coordination (Shared in Real Time Among Werewolves) */}
@@ -192,10 +229,17 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
             <div className="text-xs">
-              {targetPlayer ? (
+              {isWolfKillLocked ? (
+                <span className="text-emerald-400 font-mono font-semibold">
+                  Locked Strike: <strong>{lockedWolfTargetName || 'Prey'}</strong> (Locked in)
+                </span>
+              ) : targetPlayer ? (
                 <span>
                   Marked Prey:{' '}
                   <strong className="text-red-400 font-semibold">{targetPlayer.name}</strong>
+                  {targetPlayer.id === me?.id && (
+                    <span className="text-red-400 font-mono text-[11px] ml-1.5">(Cannot target yourself)</span>
+                  )}
                 </span>
               ) : (
                 <span className="text-zinc-500 italic">No prey selected yet</span>
@@ -204,14 +248,31 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 
             <button
               id="confirm-werewolf-kill-btn"
-              onClick={() => targetPlayer && handleConfirm('KILL', targetPlayer.id)}
-              disabled={!targetPlayer || submitting || confirmedTargetId === targetPlayer?.id}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-800 hover:bg-red-700 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-red-950/50 min-h-[44px]"
+              onClick={() => targetPlayer && !isWolfKillLocked && handleConfirm('KILL', targetPlayer.id)}
+              disabled={
+                !targetPlayer ||
+                submitting ||
+                isWolfKillLocked ||
+                targetPlayer.id === me?.id ||
+                targetPlayer.role === 'WEREWOLF' ||
+                targetPlayer.role === 'WOLF_CUB' ||
+                targetPlayer.role === 'WHITE_WOLF'
+              }
+              className={`flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg min-h-[44px] ${
+                isWolfKillLocked
+                  ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-200 cursor-not-allowed shadow-emerald-950/50'
+                  : 'bg-red-800 hover:bg-red-700 text-white shadow-red-950/50 disabled:opacity-40 cursor-pointer'
+              }`}
             >
-              {confirmedTargetId === targetPlayer?.id ? (
+              {submitting ? (
+                <>
+                  <Crosshair className="w-3.5 h-3.5 animate-spin" />
+                  <span>Locking Strike...</span>
+                </>
+              ) : isWolfKillLocked ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Target Stalked</span>
+                  <span>✓ Strike Locked: {lockedWolfTargetName || 'Target'} (Cannot be undone)</span>
                 </>
               ) : (
                 <>
@@ -221,6 +282,12 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               )}
             </button>
           </div>
+
+          {isWolfKillLocked && (
+            <p className="text-[11px] text-zinc-400 italic">
+              Your pack kill target is permanently locked in for tonight and cannot be undone.
+            </p>
+          )}
         </div>
       )}
 
@@ -238,7 +305,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           </div>
 
           <p className="text-xs text-zinc-300">
-            Select one player to uncover their exact secret role. You can only inspect 1 player each night.
+            Select one player to uncover their allegiance. Villagers show as Good Team; Werewolves and the White Wolf show as Werewolf.
           </p>
 
           {/* Immediate Investigation Report Card */}
@@ -247,28 +314,28 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-400" />
-                  <span className="text-zinc-300">True Nature of:</span>
+                  <span className="text-zinc-300">True Allegiance of:</span>
                   <strong className="text-white font-cinzel text-sm">{gameState.seerResult.targetName}</strong>
                 </div>
                 <div
-                  className={`font-bold font-mono px-2.5 py-0.5 rounded-lg text-xs border ${
+                  className={`font-bold font-mono px-3 py-1 rounded-lg text-xs border ${
                     gameState.seerResult.isWerewolf
                       ? 'bg-red-950 text-red-200 border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.4)]'
                       : 'bg-emerald-950 text-emerald-200 border-emerald-600'
                   }`}
                 >
-                  {gameState.seerResult.isWerewolf ? '🐺 WEREWOLF (EVIL)' : '🛡️ INNOCENT ALLY'}
+                  {gameState.seerResult.isWerewolf ? '🐺 Werewolf' : '🛡️ Good Team'}
                 </div>
               </div>
 
               <div className="flex items-center gap-2 pt-1 border-t border-indigo-900/60 text-xs">
-                <span className="text-zinc-400 font-mono">Secret Role:</span>
+                <span className="text-zinc-400 font-mono">Status:</span>
                 <span
                   className={`font-bold font-cinzel text-sm ${
-                    gameState.seerResult.isWerewolf ? 'text-red-400' : 'text-purple-300'
+                    gameState.seerResult.isWerewolf ? 'text-red-400' : 'text-emerald-400'
                   }`}
                 >
-                  {gameState.seerResult.revealedRole || (gameState.seerResult.isWerewolf ? 'WEREWOLF' : 'VILLAGER')}
+                  {gameState.seerResult.isWerewolf ? 'Werewolf' : 'Good Team'}
                 </span>
                 <span className="text-[10px] text-zinc-500 font-mono ml-auto">
                   Revealed to you
@@ -290,10 +357,10 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                     className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border ${
                       h.isWerewolf
                         ? 'bg-red-950/70 border-red-700 text-red-300'
-                        : 'bg-indigo-950/70 border-indigo-700 text-indigo-300'
+                        : 'bg-emerald-950/70 border-emerald-700 text-emerald-300'
                     }`}
                   >
-                    {h.targetName}: {h.revealedRole || (h.isWerewolf ? 'WEREWOLF' : 'INNOCENT')}
+                    {h.targetName}: {h.isWerewolf ? 'Werewolf' : 'Good Team'}
                   </span>
                 ))}
               </div>
@@ -480,16 +547,16 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 font-bold text-cyan-200 text-xs sm:text-sm">
-                  <span>🛡️ Pehra Shuru: Shield Active!</span>
+                  <span>🛡️ Guard Assigned: Shield Active!</span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300 text-[10px] font-mono font-bold">
                     Protected Tonight
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-300 leading-relaxed">
-                  Aapne <strong>{activeGuardedPlayer.name}</strong> ke darwaze par pehra laga diya hai. Agar bhediye aaj raat in par hamla karenge, toh aapka steel shield unki jaan bacha lega!
+                  You are guarding <strong>{activeGuardedPlayer.name}</strong> tonight. If werewolves target them, your steel shield will protect their life!
                 </p>
                 <div className="text-[10px] text-cyan-400/80 italic font-mono pt-0.5">
-                  (Agar aap kisi aur villager ko guard karna chahte hain, toh arena me unke card par click karein)
+                  (To reassign your guard to another villager, select their card on the board)
                 </div>
               </div>
             </div>
@@ -780,9 +847,9 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                       : canBindLovers
                       ? `Bind as Lovers! (${cupidLover1?.name} ❤️ ${cupidLover2?.name})`
                       : !cupidLover1
-                      ? '1. Board par 1st Lover select karein'
+                      ? '1. Select 1st Lover on board'
                       : !cupidLover2
-                      ? '2. Board par 2nd Lover select karein'
+                      ? '2. Select 2nd Lover on board'
                       : 'Bind as Lovers!'}
                   </span>
                 </button>
@@ -792,24 +859,108 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
         </div>
       )}
 
-      {/* 7. WHITE WOLF (Even Nights Solo Kill) */}
-      {role === 'WHITE_WOLF' && gameState.round % 2 === 0 && (
-        <div className="mt-3 p-3 rounded-xl bg-zinc-900/90 border border-zinc-700 space-y-2">
-          <div className="font-bold text-xs text-zinc-200 font-cinzel flex items-center gap-1.5">
-            <Moon className="w-3.5 h-3.5 text-zinc-400" />
-            <span>White Wolf Solo Hunt (Even Night: Kill a Werewolf)</span>
+      {/* 7. WHITE WOLF (Solo Hunt) */}
+      {role === 'WHITE_WOLF' && (
+        <div className="mt-3.5 p-4 rounded-2xl bg-zinc-900/95 border border-slate-700 shadow-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="font-bold text-xs sm:text-sm text-slate-200 font-cinzel flex items-center gap-1.5">
+              <Moon className="w-4 h-4 text-slate-300" />
+              <span>White Wolf Solo Hunt {gameState.round % 2 === 0 ? '(Active Tonight)' : '(Sleeping Tonight)'}</span>
+            </div>
+            <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full border border-slate-600 bg-slate-800 text-slate-300 font-bold">
+              {gameState.round % 2 === 0 ? 'Night 2, 4, 6... Strike' : 'Awakens Alternate Nights'}
+            </span>
           </div>
-          <p className="text-[11px] text-zinc-400">
-            Select another werewolf on the board to secretly murder them tonight.
-          </p>
-          <button
-            type="button"
-            onClick={() => targetPlayer && handleConfirm('WHITE_WOLF_KILL', targetPlayer.id)}
-            disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
-            className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
-          >
-            {targetPlayer ? `Kill Werewolf ${targetPlayer.name}` : 'Select a Werewolf on board'}
-          </button>
+
+          {gameState.round % 2 === 0 ? (
+            <>
+              <p className="text-xs text-zinc-300">
+                You are a solitary predator playing for yourself alone. Select a fellow living Werewolf on the board to assassinate them tonight in secret. Once confirmed, this strike cannot be undone.
+              </p>
+
+              <div className="text-xs">
+                {isWhiteWolfSoloKillLocked ? (
+                  <span className="text-emerald-400 font-semibold font-mono">
+                    ✓ Werewolf Target Slain: <strong>{lockedWhiteWolfSoloTarget?.name || 'Pack Wolf'}</strong> (Assassinated)
+                  </span>
+                ) : targetPlayer ? (
+                  <span>
+                    Selected Target:{' '}
+                    <strong className="text-red-400 font-bold">{targetPlayer.name}</strong>{' '}
+                    {targetPlayer.id === me?.id ? (
+                      <span className="text-amber-400 font-mono text-[11px] ml-1.5">(Cannot target yourself)</span>
+                    ) : targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB' ? (
+                      <span className="text-emerald-400 font-mono text-[11px] ml-1.5">(Valid Werewolf Target)</span>
+                    ) : (
+                      <span className="text-amber-400 font-mono text-[11px] ml-1.5">(Must target a Werewolf)</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-zinc-500 italic">Click a fellow living Werewolf on the board to strike</span>
+                )}
+              </div>
+
+              <button
+                id="white-wolf-solo-kill-btn"
+                type="button"
+                onClick={() =>
+                  targetPlayer &&
+                  (targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB') &&
+                  targetPlayer.id !== me?.id &&
+                  !isWhiteWolfSoloKillLocked &&
+                  handleConfirm('WHITE_WOLF_KILL', targetPlayer.id)
+                }
+                disabled={
+                  !targetPlayer ||
+                  (targetPlayer.role !== 'WEREWOLF' && targetPlayer.role !== 'WOLF_CUB') ||
+                  targetPlayer.id === me?.id ||
+                  isWhiteWolfSoloKillLocked ||
+                  submitting
+                }
+                className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all min-h-[46px] ${
+                  isWhiteWolfSoloKillLocked
+                    ? 'bg-emerald-950/80 border border-emerald-500/80 text-emerald-200 cursor-not-allowed shadow-emerald-950/50'
+                    : targetPlayer && (targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB') && targetPlayer.id !== me?.id
+                    ? 'bg-gradient-to-r from-red-700 via-zinc-800 to-slate-800 hover:from-red-600 hover:to-slate-700 text-white border border-red-500/60 shadow-lg shadow-red-950/50 cursor-pointer'
+                    : 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed'
+                }`}
+              >
+                {submitting ? (
+                  <>
+                    <Crosshair className="w-4 h-4 animate-spin text-red-200" />
+                    <span>Executing Assassination...</span>
+                  </>
+                ) : isWhiteWolfSoloKillLocked ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-300" />
+                    <span>✓ Werewolf Target Slain: {lockedWhiteWolfSoloTarget?.name || 'Werewolf'} (Cannot be undone)</span>
+                  </>
+                ) : targetPlayer && (targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB') && targetPlayer.id !== me?.id ? (
+                  <>
+                    <Crosshair className="w-4 h-4 text-red-300" />
+                    <span>Secretly Murder Werewolf {targetPlayer.name}</span>
+                  </>
+                ) : (
+                  <span>Select a fellow Werewolf on board to strike</span>
+                )}
+              </button>
+
+              {isWhiteWolfSoloKillLocked && (
+                <p className="text-[11px] text-zinc-400 italic">
+                  Your solo assassination has been executed for tonight and cannot be undone.
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800 text-xs text-zinc-400 space-y-1">
+              <p>
+                Your solitary assassination power sleeps tonight. You secretly strike fellow werewolves on <strong>alternate nights (Night 2, 4, 6...)</strong>.
+              </p>
+              <p className="text-zinc-500 text-[11px]">
+                Hunt disguised alongside the pack above for now. They do not know your true intentions.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1006,7 +1157,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-300 leading-relaxed">
-                  Aapne <strong>{activeDoppelPlayer.name}</strong> ko apna reflection chuna hai. Jab inki maut hogi, aap foran inka role aur team inherit kar lenge!
+                  You have chosen <strong>{activeDoppelPlayer.name}</strong> as your reflection. When they perish, you will immediately inherit their secret role and alignment!
                 </p>
               </div>
             </div>
@@ -1026,7 +1177,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               <span>🪞 Soul Bonded to {gameState.doppelgangerTargetName || 'your reflection'}</span>
             </div>
             <p className="text-[11px] text-zinc-300 leading-relaxed">
-              Aapka mirror bond active hai. Jab <strong>{gameState.doppelgangerTargetName || 'chosen player'}</strong> ki maut hogi, aap foran inka role inherit kar lenge.
+              Your mirror bond is active. When <strong>{gameState.doppelgangerTargetName || 'chosen player'}</strong> perishes, you will immediately inherit their secret role and team.
             </p>
           </div>
         </div>

@@ -74,17 +74,48 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   // Determine if a card can be targeted right now
   const canTargetPlayer = (playerId: string) => {
     if (!isMeAlive) return false;
+    const targetPlayer = gameState.players.find((p) => p.id === playerId);
+    if (!targetPlayer || !targetPlayer.isAlive) return false;
+
     if (isNight) {
-      const isWolfPack =
+      // 1. Regular Werewolves
+      if (
         gameState.myRole === 'WEREWOLF' ||
         gameState.myRole === 'WOLF_CUB' ||
-        gameState.myRole === 'WHITE_WOLF' ||
-        (gameState.myRole === 'CURSED' && gameState.myTeam === 'WEREWOLVES');
+        (gameState.myRole === 'CURSED' && gameState.myTeam === 'WEREWOLVES')
+      ) {
+        if (playerId === gameState.myPlayerId) return false; // Cannot target self
+        const isPackmate =
+          targetPlayer.role === 'WEREWOLF' ||
+          targetPlayer.role === 'WOLF_CUB' ||
+          targetPlayer.role === 'WHITE_WOLF' ||
+          Boolean(gameState.werewolfTeammates?.some((w) => w.id === targetPlayer.id));
+        if (isPackmate) return false; // Cannot target packmates
 
-      if (isWolfPack) {
-        // Wolves can target any living player
+        // Check if kill is already confirmed tonight
+        const hasLockedKill =
+          gameState.myNightAction?.type === 'KILL' ||
+          gameState.werewolfVotes?.some((v) => v.werewolfId === gameState.myPlayerId);
+        if (hasLockedKill) return false;
+
         return true;
       }
+
+      // 2. White Wolf
+      if (gameState.myRole === 'WHITE_WOLF') {
+        if (playerId === gameState.myPlayerId) return false; // Cannot target self
+
+        const isPackmate =
+          targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB';
+
+        // On alternate (even) rounds, White Wolf can strike fellow werewolves!
+        if (gameState.round % 2 === 0) {
+          return true; // Can select either a villager for pack kill or a werewolf for solo hunt
+        } else {
+          return !isPackmate; // On odd rounds, only villagers
+        }
+      }
+
       if (gameState.myRole === 'SEER') {
         if (gameState.seerResult) return false; // Seer restricted to 1 check per night
         return playerId !== gameState.myPlayerId;

@@ -196,7 +196,7 @@ export function resolveNightActions(
     if (action.type === 'INVESTIGATE') {
       const target = players.find((p) => p.id === action.targetId);
       if (target) {
-        // LYCAN rule: Appears as Werewolf to Seer even though innocent!
+        // Appears as Werewolf to Seer: Werewolf, Wolf Cub, White Wolf, or Lycan
         const appearsAsWolf =
           target.role === 'WEREWOLF' ||
           target.role === 'WOLF_CUB' ||
@@ -207,7 +207,7 @@ export function resolveNightActions(
           seerId: action.actorId,
           targetId: target.id,
           isWerewolf: appearsAsWolf,
-          role: target.role === 'LYCAN' ? 'WEREWOLF' : target.role,
+          role: appearsAsWolf ? ('WEREWOLF' as Role) : ('GOOD_TEAM' as Role),
         };
       }
     }
@@ -336,50 +336,65 @@ export function checkWinCondition(players: ServerPlayer[]): {
   reason: string;
 } {
   const alivePlayers = players.filter((p) => p.isAlive);
-  const aliveWolves = alivePlayers.filter(
-    (p) => p.team === 'WEREWOLVES' || p.role === 'WEREWOLF' || p.role === 'WOLF_CUB'
+  const aliveRegularWolves = alivePlayers.filter(
+    (p) =>
+      p.role === 'WEREWOLF' ||
+      p.role === 'WOLF_CUB' ||
+      (p.role === 'CURSED' && p.team === 'WEREWOLVES')
   );
   const aliveWhiteWolf = alivePlayers.filter((p) => p.role === 'WHITE_WOLF');
   const aliveVillagers = alivePlayers.filter(
     (p) => p.team === 'VILLAGERS' && p.role !== 'WHITE_WOLF'
   );
 
-  // White Wolf solo win condition: White wolf is alive and is the only player alive, or sole wolf remaining with no villagers
-  if (aliveWhiteWolf.length > 0 && alivePlayers.length === 1) {
-    return {
-      gameOver: true,
-      winnerTeam: 'WHITE_WOLF',
-      reason: 'The White Wolf is the sole predator standing! White Wolf wins alone!',
-    };
-  }
-
-  const allEvilWolves = aliveWolves.length + aliveWhiteWolf.length;
-
-  // Villagers win if all wolves (including White Wolf and Wolf Cub) are vanquished
-  if (allEvilWolves === 0) {
-    return {
-      gameOver: true,
-      winnerTeam: 'VILLAGERS',
-      reason: 'All werewolves have been vanquished! The village is safe once more.',
-    };
-  }
-
-  // Werewolves win if wolves equal or outnumber the remaining villagers
-  if (allEvilWolves >= aliveVillagers.length) {
-    // If only white wolf remains among wolves
-    if (aliveWolves.length === 0 && aliveWhiteWolf.length > 0 && aliveVillagers.length <= 1) {
+  // 1. White Wolf Solo Win Condition:
+  // Must be the last surviving predator standing. Wins if sole survivor or 1v1 with the final villager with no other wolves.
+  if (aliveWhiteWolf.length > 0) {
+    if (alivePlayers.length === 1) {
       return {
         gameOver: true,
         winnerTeam: 'WHITE_WOLF',
-        reason: 'The White Wolf outlasted the pack and devoured the last villager! White Wolf victory!',
+        reason: 'The White Wolf is the sole survivor standing! All villagers and werewolves have fallen.',
       };
     }
+    if (aliveRegularWolves.length === 0 && aliveVillagers.length <= 1 && alivePlayers.length <= 2) {
+      return {
+        gameOver: true,
+        winnerTeam: 'WHITE_WOLF',
+        reason: 'The White Wolf outlasted the pack and eliminated all rivals! The White Wolf stands alone in victory!',
+      };
+    }
+  }
 
+  // 2. Villagers win if all werewolves AND the White Wolf are eliminated
+  if (aliveRegularWolves.length === 0 && aliveWhiteWolf.length === 0) {
     return {
       gameOver: true,
-      winnerTeam: 'WEREWOLVES',
-      reason: 'The werewolves equal or outnumber the villagers. The village has been devoured!',
+      winnerTeam: 'VILLAGERS',
+      reason: 'All werewolves and nocturnal beasts have been vanquished! The village is saved.',
     };
+  }
+
+  // 3. If the White Wolf is still lurking among the living Werewolves:
+  // The regular Werewolves CANNOT claim victory yet! The White Wolf is a traitor seeking to eliminate them all.
+  if (aliveWhiteWolf.length > 0 && aliveRegularWolves.length > 0) {
+    return {
+      gameOver: false,
+      winnerTeam: null,
+      reason: '',
+    };
+  }
+
+  // 4. Regular Werewolves win (White Wolf is eliminated):
+  // Regular werewolves equal or outnumber the remaining villagers, or all villagers are dead.
+  if (aliveWhiteWolf.length === 0 && aliveRegularWolves.length > 0) {
+    if (aliveVillagers.length === 0 || aliveRegularWolves.length >= aliveVillagers.length) {
+      return {
+        gameOver: true,
+        winnerTeam: 'WEREWOLVES',
+        reason: 'The werewolf pack has overpowered the remaining villagers. The village has fallen!',
+      };
+    }
   }
 
   return {

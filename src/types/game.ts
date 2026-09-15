@@ -108,6 +108,7 @@ export interface SeerResult {
   targetName: string;
   isWerewolf: boolean;
   revealedRole?: Role;
+  alignment?: 'Werewolf' | 'Good Team';
 }
 
 export interface WitchPotions {

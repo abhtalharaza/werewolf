@@ -471,6 +471,7 @@ export class GameRoom {
         targetName: targetPlayer?.name || 'Unknown',
         isWerewolf: resolution.seerReport.isWerewolf,
         revealedRole: resolution.seerReport.role,
+        alignment: resolution.seerReport.isWerewolf ? 'Werewolf' : 'Good Team',
       };
       this.seerResults.set(resolution.seerReport.seerId, res);
       if (!this.seerHistory.has(resolution.seerReport.seerId)) {
@@ -924,8 +925,33 @@ export class GameRoom {
       (player.role === 'CURSED' && player.team === 'WEREWOLVES');
 
     // Role validation
-    if (type === 'KILL' && !isWolfPack) {
-      return { success: false, error: 'Only werewolves can attack' };
+    if (type === 'KILL') {
+      if (!isWolfPack) {
+        return { success: false, error: 'Only werewolves can attack' };
+      }
+      if (targetId === playerId) {
+        return { success: false, error: 'Werewolves cannot target themselves' };
+      }
+      const targetPlayer = this.getPlayer(targetId);
+      if (
+        targetPlayer &&
+        (targetPlayer.role === 'WEREWOLF' ||
+          targetPlayer.role === 'WOLF_CUB' ||
+          targetPlayer.role === 'WHITE_WOLF' ||
+          (targetPlayer.role === 'CURSED' && targetPlayer.team === 'WEREWOLVES'))
+      ) {
+        return { success: false, error: 'Werewolves cannot attack members of the pack' };
+      }
+      // Once confirmed, a werewolf kill cannot be undone ("ek bar mar diya toh mar diya")
+      const alreadySubmittedKill = this.room.nightActions.some(
+        (a) => a.actorId === playerId && a.type === 'KILL'
+      );
+      if (alreadySubmittedKill) {
+        return {
+          success: false,
+          error: 'Your pack kill target is already locked in for tonight and cannot be undone',
+        };
+      }
     }
     if (type === 'INVESTIGATE' && player.role !== 'SEER') {
       return { success: false, error: 'Only the seer can investigate' };
@@ -1000,10 +1026,21 @@ export class GameRoom {
     // WHITE WOLF
     if (type === 'WHITE_WOLF_KILL') {
       if (player.role !== 'WHITE_WOLF') return { success: false, error: 'Only the White Wolf can strike wolves' };
-      if (this.room.round % 2 !== 0) return { success: false, error: 'White Wolf may only strike on even rounds' };
+      if (this.room.round % 2 !== 0) return { success: false, error: 'White Wolf may only strike on alternate (even) rounds' };
+      if (targetId === playerId) return { success: false, error: 'White Wolf cannot target themselves' };
       const target = this.getPlayer(targetId);
-      if (!target || (target.role !== 'WEREWOLF' && target.role !== 'WOLF_CUB')) {
-        return { success: false, error: 'White Wolf can only target other werewolves' };
+      if (!target || !target.isAlive || (target.role !== 'WEREWOLF' && target.role !== 'WOLF_CUB')) {
+        return { success: false, error: 'White Wolf can only strike living werewolves of the pack' };
+      }
+      // Once confirmed, White Wolf solo kill cannot be undone
+      const alreadySubmittedSoloKill = this.room.nightActions.some(
+        (a) => a.actorId === playerId && a.type === 'WHITE_WOLF_KILL'
+      );
+      if (alreadySubmittedSoloKill) {
+        return {
+          success: false,
+          error: 'Your solo hunt target is already locked in for tonight and cannot be undone',
+        };
       }
     }
 
@@ -1079,6 +1116,7 @@ export class GameRoom {
     if (type === 'INVESTIGATE') {
       const targetPlayer = this.getPlayer(targetId);
       if (targetPlayer) {
+        // Appears as Werewolf: Werewolf, Wolf Cub, White Wolf, or Lycan
         const appearsAsWolf =
           targetPlayer.role === 'WEREWOLF' ||
           targetPlayer.role === 'WOLF_CUB' ||
@@ -1089,7 +1127,8 @@ export class GameRoom {
           targetId: targetPlayer.id,
           targetName: targetPlayer.name,
           isWerewolf: appearsAsWolf,
-          revealedRole: targetPlayer.role === 'LYCAN' ? 'WEREWOLF' : targetPlayer.role,
+          revealedRole: appearsAsWolf ? 'WEREWOLF' : 'VILLAGER',
+          alignment: appearsAsWolf ? 'Werewolf' : 'Good Team',
         };
         this.seerResults.set(playerId, computedSeerResult);
         if (!this.seerHistory.has(playerId)) {
