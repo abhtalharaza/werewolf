@@ -424,7 +424,7 @@ export class GameRoom {
     }
 
     this.setPhase('NIGHT', this.room.settings.nightTime);
-    this.addEvent('PHASE_CHANGE', `Night falls upon the village. Round ${this.room.round}.`);
+    this.addEvent('PHASE_CHANGE', `Night fell upon the village. Round ${this.room.round}.`);
   }
 
   private resolveNightAndStartDay() {

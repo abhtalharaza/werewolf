@@ -22,7 +22,7 @@ export const PhaseBanner: React.FC<PhaseBannerProps> = ({
     switch (phase) {
       case 'NIGHT':
         return {
-          title: 'NIGHTFALL',
+          title: 'NIGHTFELL',
           subtitle: 'Shadows envelop the village. Nocturnal powers take their toll.',
           icon: <Moon className="w-5 h-5 text-indigo-400" />,
           accent: 'border-indigo-500/40 bg-indigo-950/40 text-indigo-200',

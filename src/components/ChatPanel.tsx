@@ -183,7 +183,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   : activeChannel === 'DEAD'
                   ? 'Ghostly whispers from beyond...'
                   : isNight
-                  ? 'Night falls (Public whispers echo in the dark)...'
+                  ? 'Night fell (Public whispers echo in the dark)...'
                   : 'Speak to the village council...'
               }
               maxLength={200}

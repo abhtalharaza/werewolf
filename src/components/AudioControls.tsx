@@ -57,12 +57,18 @@ export const AudioControls: React.FC = () => {
 
       <button
         id="audio-test-howl"
-        onClick={() => sounds.playWolfHowl()}
-        className="hidden md:flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-300 transition pl-1 border-l border-zinc-700"
-        title="Test Wolf Sound"
+        onClick={() => {
+          if (muted) {
+            sounds.setMuted(false);
+            setMuted(false);
+          }
+          sounds.playWolfHowl();
+        }}
+        className="flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-300 transition pl-1 border-l border-zinc-700 cursor-pointer"
+        title="Listen to Wolf Howl Sound"
       >
         <Sparkles className="w-3 h-3 text-purple-400" />
-        <span className="text-[10px]">Sound FX</span>
+        <span className="text-[10px]">Wolf FX</span>
       </button>
     </div>
   );
