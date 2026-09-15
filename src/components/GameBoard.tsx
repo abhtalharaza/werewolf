@@ -43,13 +43,48 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const [cupidLover2Id, setCupidLover2Id] = useState<string | null>(null);
   const [isCupidBoundLocal, setIsCupidBoundLocal] = useState<boolean>(false);
   const [dismissedDeaths, setDismissedDeaths] = useState<string[]>([]);
-  const [mobileTab, setMobileTab] = useState<'arena' | 'chat'>('arena');
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const lastSeenMessageCountRef = React.useRef<number>(chatMessages.length);
 
   const me = gameState.players.find((p) => p.id === gameState.myPlayerId);
   const isMeAlive = me?.isAlive ?? false;
   const isNight = gameState.phase === 'NIGHT';
   const isVoting = gameState.phase === 'VOTING';
   const roleInfo = gameState.myRole ? ROLE_DEFINITIONS[gameState.myRole] : null;
+
+  // Track unread messages when slide chat is closed
+  React.useEffect(() => {
+    if (isChatOpen) {
+      setUnreadCount(0);
+      lastSeenMessageCountRef.current = chatMessages.length;
+    } else {
+      const diff = Math.max(0, chatMessages.length - lastSeenMessageCountRef.current);
+      setUnreadCount(diff);
+    }
+  }, [chatMessages.length, isChatOpen]);
+
+  // Close drawer on Escape key
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isChatOpen) {
+        setIsChatOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isChatOpen]);
+
+  const handleToggleChat = () => {
+    setIsChatOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setUnreadCount(0);
+        lastSeenMessageCountRef.current = chatMessages.length;
+      }
+      return next;
+    });
+  };
 
   const isCupidBound = Boolean(gameState.cupidLovers || isCupidBoundLocal);
   const effectiveCupidLover1Id = gameState.cupidLovers?.lover1Id || cupidLover1Id;
@@ -234,11 +269,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         )}
 
-        {/* Room Info & Audio */}
-        <div className="flex items-center gap-2.5">
+        {/* Room Info, Audio & Chat Trigger */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <div className="text-xs text-zinc-400 font-mono hidden md:block">
             Room: <span className="text-purple-400 font-bold">{gameState.roomCode}</span>
           </div>
+
+          {/* Header Chat Button */}
+          <button
+            id="header-chat-btn"
+            onClick={handleToggleChat}
+            className={`relative p-2 rounded-xl border transition flex items-center gap-1.5 min-h-[40px] min-w-[40px] justify-center ${
+              isChatOpen
+                ? 'bg-purple-900/60 border-purple-600/70 text-purple-200 shadow-md shadow-purple-950/50'
+                : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300 hover:text-white'
+            }`}
+            title="Village Chat"
+            aria-label="Village Chat"
+          >
+            <MessageSquare className="w-4 h-4 text-purple-400" />
+            <span className="text-xs font-semibold hidden sm:inline">Chat</span>
+            {unreadCount > 0 && !isChatOpen && (
+              <span className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-[17px] text-[10px] font-black text-white bg-red-600 rounded-full flex items-center justify-center animate-bounce shadow-md">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
 
           <button
             id="board-rules-btn"
@@ -277,38 +333,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         }
       />
 
-      {/* Mobile Navigation Tabs for Responsive Phone Play (lg:hidden) */}
-      <div className="lg:hidden flex items-center bg-zinc-950/80 border border-zinc-800 rounded-xl p-1 mb-3">
-        <button
-          id="mobile-tab-arena-btn"
-          onClick={() => setMobileTab('arena')}
-          className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[44px] ${
-            mobileTab === 'arena'
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-              : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5" />
-          <span>Village Arena</span>
-        </button>
-        <button
-          id="mobile-tab-chat-btn"
-          onClick={() => setMobileTab('chat')}
-          className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[44px] ${
-            mobileTab === 'chat'
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-              : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-        >
-          <MessageSquare className="w-3.5 h-3.5" />
-          <span>Village Chat ({chatMessages.length})</span>
-        </button>
-      </div>
-
-      {/* Main Board Layout: Left/Center Circle Grid + Right Chat */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 my-2">
-        {/* Left 2 Cols: Player Circle / Grid + Phase Action Panel */}
-        <div className={`lg:col-span-2 flex flex-col justify-between space-y-4 ${mobileTab === 'arena' ? 'flex' : 'hidden lg:flex'}`}>
+      {/* Main Board Layout: Centered Full-Width Arena */}
+      <div className="flex-1 flex flex-col justify-between space-y-4 my-2 max-w-5xl mx-auto w-full">
           {/* Players Arena */}
           <div
             id="players-arena"
@@ -442,16 +468,57 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               <p className="text-zinc-400">The executioner takes their leave as darkness descends once again.</p>
             </div>
           )}
-        </div>
+      </div>
 
-        {/* Right Col: Chat Panel & Event Chronicle */}
-        <div className={`flex flex-col justify-start ${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
-          <ChatPanel
-            gameState={gameState}
-            chatMessages={chatMessages}
-            onSendMessage={onSendMessage}
-          />
+      {/* Floating Side Chat Button (Slides chat in when clicked) */}
+      <button
+        id="floating-side-chat-btn"
+        onClick={handleToggleChat}
+        className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center gap-2 pl-3.5 pr-2.5 py-3 rounded-l-2xl border-l-2 border-y border-zinc-800 bg-zinc-950/95 hover:bg-zinc-900 text-zinc-200 shadow-2xl backdrop-blur-md transition-all duration-200 group hover:pl-4 min-h-[48px] ${
+          unreadCount > 0 && !isChatOpen
+            ? 'border-l-purple-500 shadow-purple-950/70 ring-1 ring-purple-500/40'
+            : 'border-l-purple-600 hover:border-l-purple-400'
+        }`}
+        title="Open Village Chat"
+        aria-label="Open Village Chat"
+      >
+        <div className="relative flex items-center justify-center">
+          <MessageSquare className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
+          {unreadCount > 0 && !isChatOpen && (
+            <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.2 min-w-[18px] text-[10px] font-black text-white bg-red-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </div>
+        <span className="text-xs font-bold font-cinzel text-purple-200 hidden sm:inline tracking-wider">
+          Chat
+        </span>
+      </button>
+
+      {/* Slide-over Chat Drawer Backdrop */}
+      {isChatOpen && (
+        <div
+          id="chat-drawer-backdrop"
+          onClick={() => setIsChatOpen(false)}
+          className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 transition-opacity duration-300"
+        />
+      )}
+
+      {/* Slide-over Chat Drawer */}
+      <div
+        id="chat-slide-drawer"
+        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] md:w-[460px] z-50 flex flex-col bg-zinc-950 border-l border-zinc-800 shadow-2xl transition-transform duration-300 ease-out transform ${
+          isChatOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+        }`}
+        aria-hidden={!isChatOpen}
+      >
+        <ChatPanel
+          gameState={gameState}
+          chatMessages={chatMessages}
+          onSendMessage={onSendMessage}
+          isDrawer={true}
+          onClose={() => setIsChatOpen(false)}
+        />
       </div>
 
       {/* Modals & Overlays */}

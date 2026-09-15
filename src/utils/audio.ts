@@ -1,9 +1,14 @@
+import { WOLF_HOWL_BASE64 } from './wolfAudioData.js';
+
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
   private volume: number = 0.5;
   private ambientGain: GainNode | null = null;
   private ambientSource: OscillatorNode | null = null;
+  private wolfBuffer: AudioBuffer | null = null;
+  private isWolfLoading: boolean = false;
+  private wolfAudio: HTMLAudioElement | null = null;
 
   constructor() {
     // Load preference from localStorage if available
@@ -15,6 +20,32 @@ class SoundEngine {
     } catch {
       // ignore
     }
+
+    // Preload actual wolf howl audio element
+    if (typeof window !== 'undefined') {
+      try {
+        this.wolfAudio = new Audio(WOLF_HOWL_BASE64);
+        this.wolfAudio.preload = 'auto';
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  public async preloadWolfBuffer() {
+    if (this.wolfBuffer || this.isWolfLoading) return;
+    this.isWolfLoading = true;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const resp = await fetch(WOLF_HOWL_BASE64);
+      const arrayBuf = await resp.arrayBuffer();
+      this.wolfBuffer = await this.ctx.decodeAudioData(arrayBuf);
+    } catch {
+      // ignore, fallback will be used
+    } finally {
+      this.isWolfLoading = false;
+    }
   }
 
   public init() {
@@ -24,6 +55,9 @@ class SoundEngine {
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
+    }
+    if (!this.wolfBuffer && !this.isWolfLoading) {
+      this.preloadWolfBuffer().catch(() => {});
     }
   }
 
@@ -59,8 +93,57 @@ class SoundEngine {
     }
   }
 
-  // Realistic Cinematic Wolf Pack Howl (Authentic Vocal Formants, Natural Vibrato, Breath & Forest Echo)
+  // Authentic Wild Wolf Howl (~2.4s, actual recorded wolf vocalization)
   public playWolfHowl() {
+    if (this.isMuted) return;
+    this.init();
+
+    // 1. Primary: Use pre-decoded Web Audio API buffer of actual wolf howl
+    if (this.wolfBuffer && this.ctx) {
+      try {
+        const source = this.ctx.createBufferSource();
+        source.buffer = this.wolfBuffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.95 * this.volume, this.ctx.currentTime);
+        source.connect(gain);
+        gain.connect(this.ctx.destination);
+        source.start();
+        return;
+      } catch {
+        // fallback to HTMLAudio
+      }
+    }
+
+    // 2. Immediate HTML5 Audio element fallback using authentic wolf howl audio
+    try {
+      if (typeof window !== 'undefined') {
+        if (!this.wolfAudio) {
+          this.wolfAudio = new Audio(WOLF_HOWL_BASE64);
+        }
+        this.wolfAudio.volume = Math.max(0, Math.min(1, 0.95 * this.volume));
+        this.wolfAudio.currentTime = 0;
+        const playPromise = this.wolfAudio.play();
+        if (playPromise) {
+          playPromise.catch(() => {
+            this.playSynthesizedWolfHowl();
+          });
+        }
+        // Decode in background for subsequent calls
+        if (!this.wolfBuffer) {
+          this.preloadWolfBuffer().catch(() => {});
+        }
+        return;
+      }
+    } catch {
+      // fallback to synth
+    }
+
+    // 3. Fallback: Concise ~2.2s synthesized wolf howl
+    this.playSynthesizedWolfHowl();
+  }
+
+  // Heavy, deep & loud 2.5s synthesized wolf howl fallback
+  public playSynthesizedWolfHowl() {
     if (this.isMuted) return;
     this.init();
     if (!this.ctx) return;
@@ -69,245 +152,79 @@ class SoundEngine {
     const t = ctx.currentTime;
     const vol = this.volume;
 
-    // Master Night Sound Bus
-    const masterBus = ctx.createGain();
-    masterBus.gain.setValueAtTime(vol, t);
-    masterBus.connect(ctx.destination);
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(vol * 0.9, t);
+    masterGain.connect(ctx.destination);
 
-    // Forest Echo & Reverb Delay
-    const echoDelay = ctx.createDelay();
-    echoDelay.delayTime.setValueAtTime(0.24, t);
-    const echoFeedback = ctx.createGain();
-    echoFeedback.gain.setValueAtTime(0.35, t);
-    const echoDamp = ctx.createBiquadFilter();
-    echoDamp.type = 'lowpass';
-    echoDamp.frequency.setValueAtTime(950, t);
-
-    echoDelay.connect(echoDamp);
-    echoDamp.connect(echoFeedback);
-    echoFeedback.connect(echoDelay);
-    echoDamp.connect(masterBus);
-
-    // 1. Deep Night Sub-Bass Suspense Swell (Ominous Dread)
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
     const subOsc = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(55, t);
-    subOsc.frequency.exponentialRampToValueAtTime(45, t + 4.0);
-
-    subGain.gain.setValueAtTime(0, t);
-    subGain.gain.linearRampToValueAtTime(0.25, t + 0.6);
-    subGain.gain.setValueAtTime(0.25, t + 2.0);
-    subGain.gain.exponentialRampToValueAtTime(0.001, t + 4.2);
-
-    subOsc.connect(subGain);
-    subGain.connect(masterBus);
-    subOsc.start(t);
-    subOsc.stop(t + 4.3);
-
-    // 2. Low Throat Snarl / Primal Growl (t = 0 to 0.8s)
-    const growlOsc = ctx.createOscillator();
-    const growlMod = ctx.createOscillator();
-    const growlModGain = ctx.createGain();
-    const growlGain = ctx.createGain();
-    const growlFilter = ctx.createBiquadFilter();
-
-    growlOsc.type = 'sawtooth';
-    growlOsc.frequency.setValueAtTime(75, t);
-    growlOsc.frequency.exponentialRampToValueAtTime(110, t + 0.6);
-
-    // AM modulation creates guttural throat rattle
-    growlMod.type = 'sine';
-    growlMod.frequency.setValueAtTime(40, t);
-    growlModGain.gain.setValueAtTime(30, t);
-    growlMod.connect(growlModGain);
-    growlModGain.connect(growlOsc.frequency);
-
-    growlFilter.type = 'lowpass';
-    growlFilter.frequency.setValueAtTime(350, t);
-    growlFilter.Q.setValueAtTime(3, t);
-
-    growlGain.gain.setValueAtTime(0, t);
-    growlGain.gain.linearRampToValueAtTime(0.22, t + 0.15);
-    growlGain.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
-
-    growlOsc.connect(growlFilter);
-    growlFilter.connect(growlGain);
-    growlGain.connect(masterBus);
-
-    growlOsc.start(t);
-    growlMod.start(t);
-    growlOsc.stop(t + 0.95);
-    growlMod.stop(t + 0.95);
-
-    // 3. Alpha Werewolf Vocal Howl (Multi-Oscillator with Vocal Formants & Natural Vibrato)
-    const voiceOsc1 = ctx.createOscillator();
-    const voiceOsc2 = ctx.createOscillator();
-    const vocalMix = ctx.createGain();
     const voiceGain = ctx.createGain();
+    const subGain = ctx.createGain();
 
-    voiceOsc1.type = 'triangle'; // Warm chest tone
-    voiceOsc2.type = 'sawtooth'; // Vocal cord harmonics
+    osc1.type = 'sawtooth';
+    osc2.type = 'triangle';
+    subOsc.type = 'sine'; // Deep chest vibration
 
-    // Pitch Curve: Deep rise -> piercing mournful howl -> sustained vibrato -> downward melancholic descent
-    const setHowlPitch = (osc: OscillatorNode, baseOffset: number = 0) => {
-      osc.frequency.setValueAtTime(190 + baseOffset, t);
-      // Throat rise into the night sky
-      osc.frequency.exponentialRampToValueAtTime(320 + baseOffset, t + 0.35);
-      osc.frequency.exponentialRampToValueAtTime(485 + baseOffset, t + 0.85);
-      // Sustained peak cry
-      osc.frequency.linearRampToValueAtTime(510 + baseOffset, t + 1.8);
-      osc.frequency.linearRampToValueAtTime(475 + baseOffset, t + 2.7);
-      // Melancholic descent into darkness
-      osc.frequency.exponentialRampToValueAtTime(330 + baseOffset, t + 3.8);
-      osc.frequency.exponentialRampToValueAtTime(210 + baseOffset, t + 4.8);
+    // Heavy low pitch contour: 140Hz throat growl -> 380Hz deep roar -> 240Hz finish
+    const setPitch = (osc: OscillatorNode, detune: number) => {
+      osc.frequency.setValueAtTime(140 + detune, t);
+      osc.frequency.exponentialRampToValueAtTime(380 + detune, t + 0.5);
+      osc.frequency.linearRampToValueAtTime(395 + detune, t + 1.2);
+      osc.frequency.exponentialRampToValueAtTime(240 + detune, t + 2.1);
+      osc.frequency.exponentialRampToValueAtTime(130 + detune, t + 2.5);
     };
 
-    setHowlPitch(voiceOsc1, 0);
-    setHowlPitch(voiceOsc2, 2.5); // Slight detune for thick chorus
+    setPitch(osc1, 0);
+    setPitch(osc2, 3);
+    setPitch(subOsc, -60); // Heavy sub bass
 
-    // Natural Animal Vibrato (LFO)
-    const vibratoLFO = ctx.createOscillator();
-    const vibratoGain = ctx.createGain();
-    vibratoLFO.type = 'sine';
-    vibratoLFO.frequency.setValueAtTime(5.3, t); // 5.3 Hz natural wolf vibrato rate
+    // Natural 4.8 Hz heavy animal vibrato
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.setValueAtTime(4.8, t);
+    lfoGain.gain.setValueAtTime(0, t);
+    lfoGain.gain.linearRampToValueAtTime(14, t + 0.6);
+    lfoGain.gain.exponentialRampToValueAtTime(2, t + 2.2);
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc1.frequency);
+    lfoGain.connect(osc2.frequency);
 
-    vibratoGain.gain.setValueAtTime(0, t);
-    vibratoGain.gain.linearRampToValueAtTime(4, t + 0.8);
-    vibratoGain.gain.linearRampToValueAtTime(15, t + 1.5); // Rich wavering cry
-    vibratoGain.gain.setValueAtTime(14, t + 2.6);
-    vibratoGain.gain.exponentialRampToValueAtTime(2, t + 4.4);
+    // Resonant low-mid formant filter for deep guttural roar/howl
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.setValueAtTime(3.5, t);
+    filter.frequency.setValueAtTime(420, t);
+    filter.frequency.linearRampToValueAtTime(750, t + 0.6);
+    filter.frequency.exponentialRampToValueAtTime(300, t + 2.3);
 
-    vibratoLFO.connect(vibratoGain);
-    vibratoGain.connect(voiceOsc1.frequency);
-    vibratoGain.connect(voiceOsc2.frequency);
+    // Loud volume envelope
+    voiceGain.gain.setValueAtTime(0.001, t);
+    voiceGain.gain.linearRampToValueAtTime(0.65, t + 0.25);
+    voiceGain.gain.setValueAtTime(0.65, t + 1.3);
+    voiceGain.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
 
-    // Vocal Tract Formant Filters ("Awoo-ooo-uuu" mouth opening and closing)
-    const formant1 = ctx.createBiquadFilter();
-    formant1.type = 'bandpass';
-    formant1.Q.setValueAtTime(4.2, t);
-    formant1.frequency.setValueAtTime(580, t);
-    formant1.frequency.linearRampToValueAtTime(750, t + 0.8); // "Aww"
-    formant1.frequency.linearRampToValueAtTime(460, t + 2.4); // "Oooo"
-    formant1.frequency.exponentialRampToValueAtTime(320, t + 4.6); // "Uuu"
+    subGain.gain.setValueAtTime(0.001, t);
+    subGain.gain.linearRampToValueAtTime(0.35, t + 0.3);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 2.3);
 
-    const formant2 = ctx.createBiquadFilter();
-    formant2.type = 'bandpass';
-    formant2.Q.setValueAtTime(3.8, t);
-    formant2.frequency.setValueAtTime(1150, t);
-    formant2.frequency.linearRampToValueAtTime(1380, t + 0.8);
-    formant2.frequency.linearRampToValueAtTime(880, t + 2.5);
-    formant2.frequency.exponentialRampToValueAtTime(620, t + 4.6);
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(voiceGain);
+    voiceGain.connect(masterGain);
 
-    const mainFilter = ctx.createBiquadFilter();
-    mainFilter.type = 'lowpass';
-    mainFilter.frequency.setValueAtTime(1800, t);
-    mainFilter.frequency.linearRampToValueAtTime(2400, t + 1.0);
-    mainFilter.frequency.exponentialRampToValueAtTime(800, t + 4.5);
+    subOsc.connect(subGain);
+    subGain.connect(masterGain);
 
-    // Voice Volume Envelope
-    voiceGain.gain.setValueAtTime(0, t);
-    voiceGain.gain.linearRampToValueAtTime(0.38, t + 0.7);
-    voiceGain.gain.setValueAtTime(0.38, t + 2.4);
-    voiceGain.gain.linearRampToValueAtTime(0.24, t + 3.6);
-    voiceGain.gain.exponentialRampToValueAtTime(0.001, t + 5.0);
+    osc1.start(t);
+    osc2.start(t);
+    subOsc.start(t);
+    lfo.start(t);
 
-    // Connect voice chain
-    voiceOsc1.connect(vocalMix);
-    voiceOsc2.connect(vocalMix);
-
-    vocalMix.connect(formant1);
-    vocalMix.connect(formant2);
-
-    formant1.connect(mainFilter);
-    formant2.connect(mainFilter);
-    mainFilter.connect(voiceGain);
-
-    voiceGain.connect(masterBus);
-    voiceGain.connect(echoDelay); // Send to forest echo
-
-    voiceOsc1.start(t);
-    voiceOsc2.start(t);
-    vibratoLFO.start(t);
-    voiceOsc1.stop(t + 5.1);
-    voiceOsc2.stop(t + 5.1);
-    vibratoLFO.stop(t + 5.1);
-
-    // 4. Exhaled Breath & Cold Night Wind Noise Layer
-    try {
-      const bufferSize = ctx.sampleRate * 4.5;
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-      }
-
-      const whiteNoise = ctx.createBufferSource();
-      whiteNoise.buffer = noiseBuffer;
-
-      const breathFilter = ctx.createBiquadFilter();
-      breathFilter.type = 'bandpass';
-      breathFilter.Q.setValueAtTime(3.2, t);
-      breathFilter.frequency.setValueAtTime(600, t);
-      breathFilter.frequency.linearRampToValueAtTime(950, t + 1.2);
-      breathFilter.frequency.exponentialRampToValueAtTime(450, t + 4.2);
-
-      const breathGain = ctx.createGain();
-      breathGain.gain.setValueAtTime(0, t);
-      breathGain.gain.linearRampToValueAtTime(0.12, t + 0.8);
-      breathGain.gain.setValueAtTime(0.10, t + 2.5);
-      breathGain.gain.exponentialRampToValueAtTime(0.001, t + 4.6);
-
-      whiteNoise.connect(breathFilter);
-      breathFilter.connect(breathGain);
-      breathGain.connect(masterBus);
-
-      whiteNoise.start(t);
-      whiteNoise.stop(t + 4.7);
-    } catch {
-      // ignore buffer fallback
-    }
-
-    // 5. Secondary Pack Wolf (Distant Wolf Answering the Call in the Night Woods)
-    const t2 = t + 0.85;
-    const wolf2Osc = ctx.createOscillator();
-    const wolf2Gain = ctx.createGain();
-    const wolf2Filter = ctx.createBiquadFilter();
-    const wolf2Vibrato = ctx.createOscillator();
-    const wolf2VibratoGain = ctx.createGain();
-
-    wolf2Osc.type = 'triangle';
-    wolf2Osc.frequency.setValueAtTime(175, t2);
-    wolf2Osc.frequency.exponentialRampToValueAtTime(380, t2 + 0.7);
-    wolf2Osc.frequency.linearRampToValueAtTime(410, t2 + 1.8);
-    wolf2Osc.frequency.exponentialRampToValueAtTime(230, t2 + 4.2);
-
-    wolf2Vibrato.type = 'sine';
-    wolf2Vibrato.frequency.setValueAtTime(4.8, t2);
-    wolf2VibratoGain.gain.setValueAtTime(0, t2);
-    wolf2VibratoGain.gain.linearRampToValueAtTime(11, t2 + 1.2);
-    wolf2VibratoGain.gain.exponentialRampToValueAtTime(1, t2 + 4.0);
-
-    wolf2Vibrato.connect(wolf2VibratoGain);
-    wolf2VibratoGain.connect(wolf2Osc.frequency);
-
-    wolf2Filter.type = 'lowpass';
-    wolf2Filter.frequency.setValueAtTime(750, t2); // Darker tone = distance
-
-    wolf2Gain.gain.setValueAtTime(0, t2);
-    wolf2Gain.gain.linearRampToValueAtTime(0.18, t2 + 0.6);
-    wolf2Gain.gain.setValueAtTime(0.16, t2 + 2.2);
-    wolf2Gain.gain.exponentialRampToValueAtTime(0.001, t2 + 4.4);
-
-    wolf2Osc.connect(wolf2Filter);
-    wolf2Filter.connect(wolf2Gain);
-    wolf2Gain.connect(masterBus);
-    wolf2Gain.connect(echoDelay);
-
-    wolf2Osc.start(t2);
-    wolf2Vibrato.start(t2);
-    wolf2Osc.stop(t2 + 4.5);
-    wolf2Vibrato.stop(t2 + 4.5);
+    osc1.stop(t + 2.55);
+    osc2.stop(t + 2.55);
+    subOsc.stop(t + 2.55);
+    lfo.stop(t + 2.55);
   }
 
   // Church Bell / Daybreak Gong

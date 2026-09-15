@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { sounds } from '../utils/audio.js';
 
-export const AudioControls: React.FC = () => {
+interface AudioControlsProps {
+  showFxTest?: boolean;
+}
+
+export const AudioControls: React.FC<AudioControlsProps> = ({ showFxTest = false }) => {
   const [muted, setMuted] = useState(sounds.getMuted());
   const [vol, setVol] = useState(sounds.getVolume());
   const [showSlider, setShowSlider] = useState(false);
@@ -55,21 +59,23 @@ export const AudioControls: React.FC = () => {
         />
       )}
 
-      <button
-        id="audio-test-howl"
-        onClick={() => {
-          if (muted) {
-            sounds.setMuted(false);
-            setMuted(false);
-          }
-          sounds.playWolfHowl();
-        }}
-        className="flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-300 transition pl-1 border-l border-zinc-700 cursor-pointer"
-        title="Listen to Wolf Howl Sound"
-      >
-        <Sparkles className="w-3 h-3 text-purple-400" />
-        <span className="text-[10px]">Wolf FX</span>
-      </button>
+      {showFxTest && (
+        <button
+          id="audio-test-howl"
+          onClick={() => {
+            if (muted) {
+              sounds.setMuted(false);
+              setMuted(false);
+            }
+            sounds.playWolfHowl();
+          }}
+          className="flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-300 transition pl-1 border-l border-zinc-700 cursor-pointer"
+          title="Listen to Wolf Howl Sound"
+        >
+          <Sparkles className="w-3 h-3 text-purple-400" />
+          <span className="text-[10px]">Wolf FX</span>
+        </button>
+      )}
     </div>
   );
 };

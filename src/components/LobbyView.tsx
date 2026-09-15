@@ -243,7 +243,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <AudioControls />
+            <AudioControls showFxTest={true} />
 
             <button
               id="leave-lobby-btn"
