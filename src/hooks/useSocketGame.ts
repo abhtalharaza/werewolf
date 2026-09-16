@@ -383,6 +383,30 @@ export function useSocketGame() {
     [socket, gameState]
   );
 
+  const dictatorCoup = useCallback(
+    (targetId: string): Promise<{ success: boolean; error?: string }> => {
+      if (!socket || !gameState) return Promise.resolve({ success: false, error: 'Not connected' });
+      sounds.playElimination();
+      return new Promise((resolve) => {
+        socket.emit(
+          'dictator:coup',
+          {
+            roomCode: gameState.roomCode,
+            playerId: gameState.myPlayerId,
+            targetId,
+          },
+          (res: { success: boolean; error?: string }) => {
+            if (!res.success && res.error) {
+              setError(res.error);
+            }
+            resolve(res);
+          }
+        );
+      });
+    },
+    [socket, gameState]
+  );
+
   const sendChatMessage = useCallback(
     (channel: ChatChannel, text: string) => {
       if (!socket || !gameState || !text.trim()) return;
@@ -423,6 +447,7 @@ export function useSocketGame() {
     submitNightAction,
     submitVote,
     hunterShoot,
+    dictatorCoup,
     sendChatMessage,
     restartGame,
   };

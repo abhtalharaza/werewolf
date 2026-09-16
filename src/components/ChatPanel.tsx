@@ -27,9 +27,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const me = gameState.players.find((p) => p.id === gameState.myPlayerId);
-  const isWerewolf = me?.role === 'WEREWOLF';
+  const isWerewolf =
+    me?.role === 'WEREWOLF' ||
+    me?.role === 'WOLF_CUB' ||
+    me?.role === 'WHITE_WOLF' ||
+    (me?.role === 'CURSED' && gameState.myTeam === 'WEREWOLVES');
   const isDead = me && !me.isAlive;
   const isNight = gameState.phase === 'NIGHT';
+  const isSilenced =
+    me &&
+    me.isAlive &&
+    gameState.silencedPlayerId === me.id &&
+    (gameState.phase === 'DISCUSSION' || gameState.phase === 'VOTING');
 
   // Auto switch channel if night begins and user is werewolf
   useEffect(() => {
@@ -196,6 +205,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Silenced Warning Banner */}
+          {isSilenced && (
+            <div className="px-3 py-2 bg-purple-950/90 border-t border-b border-purple-500/50 text-[11px] text-purple-200 flex items-center justify-between gap-2 animate-pulse">
+              <span className="font-bold">⚠️ SILENCED BY SPELLCASTER:</span>
+              <span>You cannot speak today! Sending any chat message will cause instant death.</span>
+            </div>
+          )}
+
           {/* Input Bar */}
           <form onSubmit={handleSend} className="p-2.5 sm:p-3 bg-zinc-900/40 border-t border-zinc-800/80 flex gap-2 items-center">
             <input
@@ -204,7 +221,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={
-                activeChannel === 'WEREWOLF'
+                isSilenced
+                  ? '⚠️ SILENCED! Sending a message will kill you instantly!'
+                  : activeChannel === 'WEREWOLF'
                   ? 'Conspire with your werewolf pack...'
                   : activeChannel === 'DEAD'
                   ? 'Ghostly whispers from beyond...'
@@ -213,13 +232,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   : 'Speak to the village council...'
               }
               maxLength={200}
-              className="flex-1 px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-purple-500 focus:outline-none text-base sm:text-xs text-zinc-100 placeholder-zinc-500 min-h-[44px]"
+              className={`flex-1 px-3.5 py-2 rounded-xl bg-zinc-900 border focus:outline-none text-base sm:text-xs text-zinc-100 placeholder-zinc-500 min-h-[44px] ${
+                isSilenced
+                  ? 'border-purple-600/80 focus:border-red-500 bg-purple-950/30'
+                  : 'border-zinc-800 focus:border-purple-500'
+              }`}
             />
             <button
               id="send-chat-btn"
               type="submit"
               disabled={!inputText.trim()}
-              className="px-3.5 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white transition shadow min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
+              className={`px-3.5 py-2 rounded-xl disabled:opacity-40 text-white transition shadow min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 ${
+                isSilenced
+                  ? 'bg-purple-800 hover:bg-purple-700'
+                  : 'bg-purple-700 hover:bg-purple-600'
+              }`}
             >
               <Send className="w-4 h-4" />
             </button>

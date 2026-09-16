@@ -2,9 +2,11 @@ import { Role, Team, GameSettings } from '../src/types/game.js';
 import { ServerPlayer, ServerNightAction } from './types.js';
 
 export function getRoleTeam(role: Role): Team {
-  if (role === 'WEREWOLF' || role === 'WOLF_CUB') return 'WEREWOLVES';
+  if (role === 'WEREWOLF' || role === 'WOLF_CUB' || role === 'MINION') return 'WEREWOLVES';
   if (role === 'JESTER') return 'JESTER';
   if (role === 'WHITE_WOLF') return 'WHITE_WOLF';
+  if (role === 'SERIAL_KILLER') return 'SERIAL_KILLER';
+  if (role === 'ARSONIST') return 'ARSONIST';
   return 'VILLAGERS';
 }
 
@@ -127,18 +129,31 @@ function shuffleArray<T>(array: T[]): T[] {
 export interface NightResolutionResult {
   killedPlayerIds: {
     id: string;
-    reason: 'WEREWOLF' | 'POISON' | 'WHITE_WOLF' | 'LITTLE_GIRL_CAUGHT' | 'HEARTBREAK';
+    reason:
+      | 'WEREWOLF'
+      | 'POISON'
+      | 'WHITE_WOLF'
+      | 'LITTLE_GIRL_CAUGHT'
+      | 'HEARTBREAK'
+      | 'SERIAL_KILLER'
+      | 'ARSONIST'
+      | 'VETERAN_SHOT'
+      | 'TOUGH_GUY_WOUND'
+      | 'DICTATOR_SUICIDE';
   }[];
   savedPlayerIds: string[];
   transformedPlayerIds: { id: string; newRole: Role; newTeam: Team }[];
   seerReport?: { seerId: string; targetId: string; isWerewolf: boolean; role: Role };
   protections: {
-    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH' | 'ARSONIST_IMMUNITY';
     protectorId: string;
     targetId: string;
     targetName: string;
     wasAttackedAndSaved: boolean;
   }[];
+  silencedPlayerId?: string | null;
+  toughGuyWoundedId?: string | null;
+  newDousedPlayerId?: string | null;
 }
 
 export function resolveNightActions(
@@ -148,6 +163,7 @@ export function resolveNightActions(
     enragedWolves?: boolean;
     lovers?: [string, string] | null;
     caughtLittleGirlId?: string | null;
+    dousedPlayerIds?: string[];
   }
 ): NightResolutionResult {
   const protectedTargets = new Set<string>();
@@ -155,7 +171,44 @@ export function resolveNightActions(
   let witchHealTarget: string | null = null;
   let witchPoisonTarget: string | null = null;
   let whiteWolfKillTarget: string | null = null;
+  let serialKillerKillTarget: string | null = null;
+  let silencedPlayerId: string | null = null;
+  let newDousedPlayerId: string | null = null;
+  let arsonistIgnite = false;
+  let toughGuyWoundedId: string | null = null;
   let seerReport: { seerId: string; targetId: string; isWerewolf: boolean; role: Role } | undefined;
+
+  const killedPlayerIds: {
+    id: string;
+    reason:
+      | 'WEREWOLF'
+      | 'POISON'
+      | 'WHITE_WOLF'
+      | 'LITTLE_GIRL_CAUGHT'
+      | 'HEARTBREAK'
+      | 'SERIAL_KILLER'
+      | 'ARSONIST'
+      | 'VETERAN_SHOT'
+      | 'TOUGH_GUY_WOUND'
+      | 'DICTATOR_SUICIDE';
+  }[] = [];
+  const savedPlayerIds: string[] = [];
+  const transformedPlayerIds: { id: string; newRole: Role; newTeam: Team }[] = [];
+  const protections: {
+    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH' | 'ARSONIST_IMMUNITY';
+    protectorId: string;
+    targetId: string;
+    targetName: string;
+    wasAttackedAndSaved: boolean;
+  }[] = [];
+
+  // Identify Veterans on Alert
+  const veteransOnAlert = new Set<string>();
+  for (const action of actions) {
+    if (action.type === 'VETERAN_ALERT') {
+      veteransOnAlert.add(action.actorId);
+    }
+  }
 
   // 1. Defenses: Doctor and Bodyguard
   for (const action of actions) {
@@ -164,12 +217,36 @@ export function resolveNightActions(
     }
   }
 
-  // 2. Gather Werewolf votes
+  // 2. Veteran retaliation: Anyone targeting a Veteran on alert gets shot!
+  for (const action of actions) {
+    if (action.actorId && action.targetId && action.actorId !== action.targetId) {
+      if (veteransOnAlert.has(action.targetId)) {
+        if (!killedPlayerIds.some((k) => k.id === action.actorId)) {
+          killedPlayerIds.push({ id: action.actorId, reason: 'VETERAN_SHOT' });
+        }
+      }
+    }
+    if (action.secondaryTargetId && veteransOnAlert.has(action.secondaryTargetId)) {
+      if (!killedPlayerIds.some((k) => k.id === action.actorId)) {
+        killedPlayerIds.push({ id: action.actorId, reason: 'VETERAN_SHOT' });
+      }
+    }
+  }
+
+  // 3. Gather Werewolf votes and other killers
   for (const action of actions) {
     if (action.type === 'KILL') {
       wolfTargetVotes[action.targetId] = (wolfTargetVotes[action.targetId] || 0) + 1;
     } else if (action.type === 'WHITE_WOLF_KILL') {
       whiteWolfKillTarget = action.targetId;
+    } else if (action.type === 'SERIAL_KILLER_KILL') {
+      serialKillerKillTarget = action.targetId;
+    } else if (action.type === 'SILENCE') {
+      silencedPlayerId = action.targetId;
+    } else if (action.type === 'ARSONIST_DOUSE') {
+      newDousedPlayerId = action.targetId;
+    } else if (action.type === 'ARSONIST_IGNITE') {
+      arsonistIgnite = true;
     }
   }
 
@@ -178,11 +255,10 @@ export function resolveNightActions(
     .sort((a, b) => b[1] - a[1])
     .map(([targetId]) => targetId);
 
-  // If wolves are enraged (Wolf Cub died by day vote), attack up to 2 victims!
   const killTargetsCount = options?.enragedWolves ? 2 : 1;
   const chosenWolfVictimIds = sortedWolfTargets.slice(0, killTargetsCount);
 
-  // 3. Witch actions
+  // 4. Witch actions
   for (const action of actions) {
     if (action.type === 'HEAL') {
       witchHealTarget = action.targetId;
@@ -191,12 +267,13 @@ export function resolveNightActions(
     }
   }
 
-  // 4. Seer investigation
+  // 5. Seer / Apprentice Seer investigation
   for (const action of actions) {
     if (action.type === 'INVESTIGATE') {
       const target = players.find((p) => p.id === action.targetId);
       if (target) {
-        // Appears as Werewolf to Seer: Werewolf, Wolf Cub, White Wolf, or Lycan
+        // Appears as Werewolf to Seer: Werewolf, Wolf Cub, White Wolf, or Lycan.
+        // Minion and Arsonist appear as Good Team / not wolf!
         const appearsAsWolf =
           target.role === 'WEREWOLF' ||
           target.role === 'WOLF_CUB' ||
@@ -213,31 +290,83 @@ export function resolveNightActions(
     }
   }
 
-  const killedPlayerIds: {
-    id: string;
-    reason: 'WEREWOLF' | 'POISON' | 'WHITE_WOLF' | 'LITTLE_GIRL_CAUGHT' | 'HEARTBREAK';
-  }[] = [];
-  const savedPlayerIds: string[] = [];
-  const transformedPlayerIds: { id: string; newRole: Role; newTeam: Team }[] = [];
-
   // Resolve Werewolf attacks
   for (const victimId of chosenWolfVictimIds) {
+    const victimPlayer = players.find((p) => p.id === victimId);
     const isProtected = protectedTargets.has(victimId);
     const isSavedByWitch = witchHealTarget === victimId;
+    const isVeteranAlert = veteransOnAlert.has(victimId);
+
+    // Arsonist possesses permanent Night Immunity against Werewolves!
+    if (victimPlayer && victimPlayer.role === 'ARSONIST') {
+      savedPlayerIds.push(victimId);
+      protections.push({
+        role: 'ARSONIST_IMMUNITY',
+        protectorId: victimId,
+        targetId: victimId,
+        targetName: victimPlayer.name,
+        wasAttackedAndSaved: true,
+      });
+      continue;
+    }
+
+    if (isVeteranAlert) {
+      savedPlayerIds.push(victimId);
+      continue;
+    }
 
     if (isProtected || isSavedByWitch) {
       savedPlayerIds.push(victimId);
     } else {
-      const targetPlayer = players.find((p) => p.id === victimId);
       // CURSED rule: If attacked by wolves, doesn't die; turns into a Werewolf!
-      if (targetPlayer && targetPlayer.role === 'CURSED') {
+      if (victimPlayer && victimPlayer.role === 'CURSED') {
         transformedPlayerIds.push({
           id: victimId,
           newRole: 'WEREWOLF',
           newTeam: 'WEREWOLVES',
         });
+      } else if (victimPlayer && victimPlayer.role === 'TOUGH_GUY') {
+        // Tough Guy survives the night! Suffers delayed wound.
+        savedPlayerIds.push(victimId);
+        toughGuyWoundedId = victimId;
       } else {
         killedPlayerIds.push({ id: victimId, reason: 'WEREWOLF' });
+      }
+    }
+  }
+
+  // Resolve Serial Killer
+  if (serialKillerKillTarget && !killedPlayerIds.some((k) => k.id === serialKillerKillTarget)) {
+    const skTargetPlayer = players.find((p) => p.id === serialKillerKillTarget);
+    const isProtected = protectedTargets.has(serialKillerKillTarget);
+    const isSavedByWitch = witchHealTarget === serialKillerKillTarget;
+    const isVeteranAlert = veteransOnAlert.has(serialKillerKillTarget);
+    const isArsonistImmune = skTargetPlayer && skTargetPlayer.role === 'ARSONIST';
+
+    if (isVeteranAlert || isArsonistImmune) {
+      savedPlayerIds.push(serialKillerKillTarget);
+      if (isArsonistImmune && skTargetPlayer) {
+        protections.push({
+          role: 'ARSONIST_IMMUNITY',
+          protectorId: serialKillerKillTarget,
+          targetId: serialKillerKillTarget,
+          targetName: skTargetPlayer.name,
+          wasAttackedAndSaved: true,
+        });
+      }
+    } else if (isProtected || isSavedByWitch) {
+      savedPlayerIds.push(serialKillerKillTarget);
+    } else {
+      killedPlayerIds.push({ id: serialKillerKillTarget, reason: 'SERIAL_KILLER' });
+    }
+  }
+
+  // Resolve Arsonist Ignition
+  if (arsonistIgnite && options?.dousedPlayerIds) {
+    for (const dousedId of options.dousedPlayerIds) {
+      const dousedPlayer = players.find((p) => p.id === dousedId);
+      if (dousedPlayer && dousedPlayer.isAlive && !killedPlayerIds.some((k) => k.id === dousedId)) {
+        killedPlayerIds.push({ id: dousedId, reason: 'ARSONIST' });
       }
     }
   }
@@ -249,7 +378,6 @@ export function resolveNightActions(
 
   // Resolve White Wolf alternate kill
   if (whiteWolfKillTarget && !killedPlayerIds.some((k) => k.id === whiteWolfKillTarget)) {
-    // Only kills if not protected
     if (!protectedTargets.has(whiteWolfKillTarget) && witchHealTarget !== whiteWolfKillTarget) {
       killedPlayerIds.push({ id: whiteWolfKillTarget, reason: 'WHITE_WOLF' });
     } else {
@@ -262,7 +390,7 @@ export function resolveNightActions(
     killedPlayerIds.push({ id: options.caughtLittleGirlId, reason: 'LITTLE_GIRL_CAUGHT' });
   }
 
-  // Resolve Lovers Heartbreak: If one lover is killed, the other perishes of grief
+  // Resolve Lovers Heartbreak
   if (options?.lovers) {
     const [lover1, lover2] = options.lovers;
     const isLover1Dead = killedPlayerIds.some((k) => k.id === lover1);
@@ -276,14 +404,6 @@ export function resolveNightActions(
   }
 
   // Gather protections from Doctor, Bodyguard, and Witch
-  const protections: {
-    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
-    protectorId: string;
-    targetId: string;
-    targetName: string;
-    wasAttackedAndSaved: boolean;
-  }[] = [];
-
   for (const action of actions) {
     if (action.type === 'PROTECT') {
       const target = players.find((p) => p.id === action.targetId);
@@ -293,7 +413,10 @@ export function resolveNightActions(
           protectorId: action.actorId,
           targetId: target.id,
           targetName: target.name,
-          wasAttackedAndSaved: chosenWolfVictimIds.includes(target.id) || whiteWolfKillTarget === target.id,
+          wasAttackedAndSaved:
+            chosenWolfVictimIds.includes(target.id) ||
+            whiteWolfKillTarget === target.id ||
+            serialKillerKillTarget === target.id,
         });
       }
     } else if (action.type === 'GUARD') {
@@ -304,7 +427,10 @@ export function resolveNightActions(
           protectorId: action.actorId,
           targetId: target.id,
           targetName: target.name,
-          wasAttackedAndSaved: chosenWolfVictimIds.includes(target.id) || whiteWolfKillTarget === target.id,
+          wasAttackedAndSaved:
+            chosenWolfVictimIds.includes(target.id) ||
+            whiteWolfKillTarget === target.id ||
+            serialKillerKillTarget === target.id,
         });
       }
     } else if (action.type === 'HEAL') {
@@ -315,7 +441,10 @@ export function resolveNightActions(
           protectorId: action.actorId,
           targetId: target.id,
           targetName: target.name,
-          wasAttackedAndSaved: chosenWolfVictimIds.includes(target.id) || whiteWolfKillTarget === target.id,
+          wasAttackedAndSaved:
+            chosenWolfVictimIds.includes(target.id) ||
+            whiteWolfKillTarget === target.id ||
+            serialKillerKillTarget === target.id,
         });
       }
     }
@@ -327,6 +456,9 @@ export function resolveNightActions(
     transformedPlayerIds,
     seerReport,
     protections,
+    silencedPlayerId,
+    toughGuyWoundedId,
+    newDousedPlayerId,
   };
 }
 
@@ -343,12 +475,63 @@ export function checkWinCondition(players: ServerPlayer[]): {
       (p.role === 'CURSED' && p.team === 'WEREWOLVES')
   );
   const aliveWhiteWolf = alivePlayers.filter((p) => p.role === 'WHITE_WOLF');
+  const aliveSerialKiller = alivePlayers.filter((p) => p.role === 'SERIAL_KILLER');
+  const aliveArsonist = alivePlayers.filter((p) => p.role === 'ARSONIST');
   const aliveVillagers = alivePlayers.filter(
-    (p) => p.team === 'VILLAGERS' && p.role !== 'WHITE_WOLF'
+    (p) =>
+      p.team === 'VILLAGERS' &&
+      p.role !== 'WHITE_WOLF' &&
+      p.role !== 'SERIAL_KILLER' &&
+      p.role !== 'ARSONIST'
   );
 
-  // 1. White Wolf Solo Win Condition:
-  // Must be the last surviving predator standing. Wins if sole survivor or 1v1 with the final villager with no other wolves.
+  // 1. Arsonist Solo Win:
+  if (aliveArsonist.length > 0) {
+    if (alivePlayers.length === 1) {
+      return {
+        gameOver: true,
+        winnerTeam: 'ARSONIST',
+        reason: 'The Arsonist burned the entire village to ashes and stands alone in victory! Arsonist Wins!',
+      };
+    }
+    if (
+      aliveRegularWolves.length === 0 &&
+      aliveWhiteWolf.length === 0 &&
+      aliveSerialKiller.length === 0 &&
+      alivePlayers.length <= 2
+    ) {
+      return {
+        gameOver: true,
+        winnerTeam: 'ARSONIST',
+        reason: 'With unyielding Night Immunity, the Arsonist engulfed the remaining villagers in flames! Arsonist Wins!',
+      };
+    }
+  }
+
+  // 2. Serial Killer Solo Win:
+  if (aliveSerialKiller.length > 0) {
+    if (alivePlayers.length === 1) {
+      return {
+        gameOver: true,
+        winnerTeam: 'SERIAL_KILLER',
+        reason: 'The Serial Killer executed everyone in the village! The Serial Killer stands victorious alone!',
+      };
+    }
+    if (
+      aliveRegularWolves.length === 0 &&
+      aliveWhiteWolf.length === 0 &&
+      aliveArsonist.length === 0 &&
+      alivePlayers.length <= 2
+    ) {
+      return {
+        gameOver: true,
+        winnerTeam: 'SERIAL_KILLER',
+        reason: 'The Serial Killer cornered the final survivor and finished them off! Serial Killer Wins!',
+      };
+    }
+  }
+
+  // 3. White Wolf Solo Win:
   if (aliveWhiteWolf.length > 0) {
     if (alivePlayers.length === 1) {
       return {
@@ -357,7 +540,13 @@ export function checkWinCondition(players: ServerPlayer[]): {
         reason: 'The White Wolf is the sole survivor standing! All villagers and werewolves have fallen.',
       };
     }
-    if (aliveRegularWolves.length === 0 && aliveVillagers.length <= 1 && alivePlayers.length <= 2) {
+    if (
+      aliveRegularWolves.length === 0 &&
+      aliveVillagers.length <= 1 &&
+      aliveSerialKiller.length === 0 &&
+      aliveArsonist.length === 0 &&
+      alivePlayers.length <= 2
+    ) {
       return {
         gameOver: true,
         winnerTeam: 'WHITE_WOLF',
@@ -366,18 +555,26 @@ export function checkWinCondition(players: ServerPlayer[]): {
     }
   }
 
-  // 2. Villagers win if all werewolves AND the White Wolf are eliminated
-  if (aliveRegularWolves.length === 0 && aliveWhiteWolf.length === 0) {
+  // 4. Villagers win if all predators, killers, and arsonists are vanquished:
+  if (
+    aliveRegularWolves.length === 0 &&
+    aliveWhiteWolf.length === 0 &&
+    aliveSerialKiller.length === 0 &&
+    aliveArsonist.length === 0 &&
+    aliveVillagers.length > 0
+  ) {
     return {
       gameOver: true,
       winnerTeam: 'VILLAGERS',
-      reason: 'All werewolves and nocturnal beasts have been vanquished! The village is saved.',
+      reason: 'All werewolves, killers, and nocturnal beasts have been vanquished! The village is saved.',
     };
   }
 
-  // 3. If the White Wolf is still lurking among the living Werewolves:
-  // The regular Werewolves CANNOT claim victory yet! The White Wolf is a traitor seeking to eliminate them all.
-  if (aliveWhiteWolf.length > 0 && aliveRegularWolves.length > 0) {
+  // 5. If White Wolf, Serial Killer, or Arsonist is still lurking among living werewolves:
+  if (
+    (aliveWhiteWolf.length > 0 || aliveSerialKiller.length > 0 || aliveArsonist.length > 0) &&
+    aliveRegularWolves.length > 0
+  ) {
     return {
       gameOver: false,
       winnerTeam: null,
@@ -385,9 +582,13 @@ export function checkWinCondition(players: ServerPlayer[]): {
     };
   }
 
-  // 4. Regular Werewolves win (White Wolf is eliminated):
-  // Regular werewolves equal or outnumber the remaining villagers, or all villagers are dead.
-  if (aliveWhiteWolf.length === 0 && aliveRegularWolves.length > 0) {
+  // 6. Regular Werewolves win:
+  if (
+    aliveWhiteWolf.length === 0 &&
+    aliveSerialKiller.length === 0 &&
+    aliveArsonist.length === 0 &&
+    aliveRegularWolves.length > 0
+  ) {
     if (aliveVillagers.length === 0 || aliveRegularWolves.length >= aliveVillagers.length) {
       return {
         gameOver: true,

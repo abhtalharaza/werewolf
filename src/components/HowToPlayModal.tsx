@@ -1,5 +1,26 @@
 import React from 'react';
-import { X, Moon, Sun, Users, Eye, HeartPulse, Crosshair, Sparkles, Shield, BookOpen } from 'lucide-react';
+import {
+  X,
+  Moon,
+  Sun,
+  Users,
+  Eye,
+  HeartPulse,
+  Crosshair,
+  Sparkles,
+  Shield,
+  BookOpen,
+  Skull,
+  VolumeX,
+  Compass,
+  PawPrint,
+  ShieldAlert,
+  Flame,
+  UserCheck,
+  Baby,
+  Crown,
+  AlertTriangle,
+} from 'lucide-react';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
 
 interface HowToPlayModalProps {
@@ -9,6 +30,47 @@ interface HowToPlayModalProps {
 
 export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'WEREWOLF':
+        return <Moon className="w-4 h-4 text-red-400" />;
+      case 'VILLAGER':
+        return <Users className="w-4 h-4 text-blue-400" />;
+      case 'SEER':
+        return <Eye className="w-4 h-4 text-indigo-400" />;
+      case 'DOCTOR':
+        return <HeartPulse className="w-4 h-4 text-emerald-400" />;
+      case 'HUNTER':
+        return <Crosshair className="w-4 h-4 text-amber-400" />;
+      case 'WITCH':
+        return <Sparkles className="w-4 h-4 text-pink-400" />;
+      case 'BODYGUARD':
+        return <Shield className="w-4 h-4 text-cyan-400" />;
+      case 'SERIAL_KILLER':
+        return <Skull className="w-4 h-4 text-red-500" />;
+      case 'SPELLCASTER':
+        return <VolumeX className="w-4 h-4 text-purple-400" />;
+      case 'APPRENTICE_SEER':
+        return <Compass className="w-4 h-4 text-teal-400" />;
+      case 'BEAR_TAMER':
+        return <PawPrint className="w-4 h-4 text-amber-500" />;
+      case 'TOUGH_GUY':
+        return <ShieldAlert className="w-4 h-4 text-lime-400" />;
+      case 'ARSONIST':
+        return <Flame className="w-4 h-4 text-orange-400" />;
+      case 'MINION':
+        return <UserCheck className="w-4 h-4 text-rose-400" />;
+      case 'WILD_CHILD':
+        return <Baby className="w-4 h-4 text-yellow-400" />;
+      case 'DICTATOR':
+        return <Crown className="w-4 h-4 text-amber-300" />;
+      case 'VETERAN':
+        return <AlertTriangle className="w-4 h-4 text-orange-500" />;
+      default:
+        return <Users className="w-4 h-4 text-zinc-400" />;
+    }
+  };
 
   return (
     <div
@@ -99,20 +161,18 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
               {Object.values(ROLE_DEFINITIONS).map((r) => (
                 <div key={r.role} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/80">
                   <div className="p-2 rounded-lg bg-zinc-800/90 text-purple-400 mt-0.5">
-                    {r.role === 'WEREWOLF' && <Moon className="w-4 h-4 text-red-400" />}
-                    {r.role === 'VILLAGER' && <Users className="w-4 h-4 text-blue-400" />}
-                    {r.role === 'SEER' && <Eye className="w-4 h-4 text-indigo-400" />}
-                    {r.role === 'DOCTOR' && <HeartPulse className="w-4 h-4 text-emerald-400" />}
-                    {r.role === 'HUNTER' && <Crosshair className="w-4 h-4 text-amber-400" />}
-                    {r.role === 'WITCH' && <Sparkles className="w-4 h-4 text-pink-400" />}
-                    {r.role === 'BODYGUARD' && <Shield className="w-4 h-4 text-cyan-400" />}
+                    {getRoleIcon(r.role)}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-zinc-100 font-cinzel">{r.name}</span>
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
-                          r.team === 'WEREWOLVES' ? 'bg-red-950/80 text-red-300 border border-red-800/50' : 'bg-blue-950/80 text-blue-300 border border-blue-800/50'
+                          r.team === 'WEREWOLVES'
+                            ? 'bg-red-950/80 text-red-300 border border-red-800/50'
+                            : r.team === 'VILLAGERS'
+                            ? 'bg-blue-950/80 text-blue-300 border border-blue-800/50'
+                            : 'bg-amber-950/80 text-amber-300 border border-amber-800/50'
                         }`}
                       >
                         {r.team}

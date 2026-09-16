@@ -60,6 +60,16 @@ export class GameRoom {
         LYCAN: 0,
         DOPPELGANGER: 0,
         WHITE_WOLF: 0,
+        SERIAL_KILLER: 0,
+        SPELLCASTER: 0,
+        APPRENTICE_SEER: 0,
+        BEAR_TAMER: 0,
+        TOUGH_GUY: 0,
+        ARSONIST: 0,
+        MINION: 0,
+        WILD_CHILD: 0,
+        DICTATOR: 0,
+        VETERAN: 0,
       },
     };
 
@@ -114,6 +124,15 @@ export class GameRoom {
       thiefReserveRoles: [],
       werewolfKillsHistory: [],
       littleGirlPeekResults: {},
+      silencedPlayerId: null,
+      bearGrowl: null,
+      toughGuyWoundedAtRound: null,
+      dousedPlayerIds: [],
+      wildChildModelId: null,
+      dictatorCoupUsed: false,
+      dictatorGuiltPending: false,
+      dictatorPlayerId: null,
+      veteranAlertsRemaining: {},
     };
 
     if (initialSettings?.autoPopulateBots) {
@@ -323,6 +342,20 @@ export class GameRoom {
     this.room.winnerTeam = null;
     this.room.winReason = null;
     this.seerResults.clear();
+    this.room.silencedPlayerId = null;
+    this.room.bearGrowl = null;
+    this.room.toughGuyWoundedAtRound = null;
+    this.room.dousedPlayerIds = [];
+    this.room.wildChildModelId = null;
+    this.room.dictatorCoupUsed = false;
+    this.room.dictatorGuiltPending = false;
+    this.room.dictatorPlayerId = null;
+    this.room.veteranAlertsRemaining = {};
+    this.room.players.forEach((p) => {
+      if (p.role === 'VETERAN') {
+        this.room.veteranAlertsRemaining[p.id] = 3;
+      }
+    });
 
     // Setup thief reserve cards if Thief is in game
     if (assigned.includes('THIEF')) {
@@ -445,6 +478,7 @@ export class GameRoom {
       enragedWolves: this.room.enragedWolvesThisNight,
       lovers: this.room.lovers,
       caughtLittleGirlId,
+      dousedPlayerIds: this.room.dousedPlayerIds,
     });
 
     // Only record protections where the player was actually attacked and saved
@@ -452,6 +486,68 @@ export class GameRoom {
       (p) => p.wasAttackedAndSaved
     );
     this.room.enragedWolvesThisNight = false;
+
+    // Track newly doused player
+    if (
+      resolution.newDousedPlayerId &&
+      !this.room.dousedPlayerIds.includes(resolution.newDousedPlayerId)
+    ) {
+      this.room.dousedPlayerIds.push(resolution.newDousedPlayerId);
+      const dousedPlayer = this.getPlayer(resolution.newDousedPlayerId);
+      this.addEvent(
+        'SYSTEM',
+        `A pungent stench of gasoline lingers in the night air around the village...`
+      );
+    }
+
+    // Set silenced player for the day
+    this.room.silencedPlayerId = resolution.silencedPlayerId || null;
+    if (this.room.silencedPlayerId) {
+      const silencedP = this.getPlayer(this.room.silencedPlayerId);
+      this.addEvent(
+        'SPELLCASTER_SILENCE',
+        `🔮 ${silencedP?.name || 'A player'} was struck with a dark silence hex by the Spellcaster! If they speak today, they will die instantly!`
+      );
+    }
+
+    // Tough Guy wounded handling
+    if (resolution.toughGuyWoundedId) {
+      this.room.toughGuyWoundedAtRound = this.room.round;
+      const tg = this.getPlayer(resolution.toughGuyWoundedId);
+      this.addEvent(
+        'SYSTEM',
+        `🩸 ${tg?.name} (Tough Guy) was attacked in the shadows by Werewolves, but their iron grit keeps them standing for one more day!`
+      );
+    }
+
+    // Check if Tough Guy succumbs from previous night's wounds
+    if (
+      this.room.toughGuyWoundedAtRound !== null &&
+      this.room.round > this.room.toughGuyWoundedAtRound
+    ) {
+      const woundedTg = this.room.players.find(
+        (p) => p.role === 'TOUGH_GUY' && p.isAlive
+      );
+      if (woundedTg) {
+        resolution.killedPlayerIds.push({
+          id: woundedTg.id,
+          reason: 'TOUGH_GUY_WOUND',
+        });
+      }
+      this.room.toughGuyWoundedAtRound = null;
+    }
+
+    // Check Dictator guilt suicide from previous day's coup
+    if (this.room.dictatorGuiltPending && this.room.dictatorPlayerId) {
+      const dictator = this.getPlayer(this.room.dictatorPlayerId);
+      if (dictator && dictator.isAlive) {
+        resolution.killedPlayerIds.push({
+          id: dictator.id,
+          reason: 'DICTATOR_SUICIDE',
+        });
+      }
+      this.room.dictatorGuiltPending = false;
+    }
 
     // Handle role transformations (e.g., Cursed turns into Werewolf!)
     for (const trans of resolution.transformedPlayerIds) {
@@ -540,9 +636,76 @@ export class GameRoom {
         if (killed.reason === 'WHITE_WOLF') deathMsg = `${player.name} was eliminated in cold blood by the White Wolf!`;
         if (killed.reason === 'LITTLE_GIRL_CAUGHT') deathMsg = `${player.name} (Little Girl) was caught spying in the shadows and slain!`;
         if (killed.reason === 'HEARTBREAK') deathMsg = `💔 ${player.name} collapsed and died of sheer heartbreak!`;
+        if (killed.reason === 'SERIAL_KILLER') deathMsg = `🔪 ${player.name} was butchered in cold blood by the Serial Killer!`;
+        if (killed.reason === 'ARSONIST') deathMsg = `🔥 ${player.name} was doused and incinerated in a blazing inferno by the Arsonist!`;
+        if (killed.reason === 'VETERAN_SHOT') deathMsg = `💥 ${player.name} targeted a Veteran on alert and was blasted to death!`;
+        if (killed.reason === 'TOUGH_GUY_WOUND') deathMsg = `🩸 ${player.name} (Tough Guy) finally collapsed from the fatal werewolf wounds sustained earlier!`;
+        if (killed.reason === 'DICTATOR_SUICIDE') deathMsg = `⚖️ ${player.name} the Dictator, tortured by the guilt of executing an innocent, ended their own life in the night!`;
 
         this.addEvent('DEATH', deathMsg);
+
+        // Wild Child check: Did their Role Model perish?
+        if (this.room.wildChildModelId === player.id) {
+          const wildChild = this.room.players.find(
+            (p) => p.role === 'WILD_CHILD' && p.isAlive
+          );
+          if (wildChild) {
+            wildChild.role = 'WEREWOLF';
+            wildChild.team = 'WEREWOLVES';
+            this.addEvent(
+              'WILD_CHILD_TRANSFORM',
+              `🐺 ${wildChild.name}'s beloved Role Model has died! Consumed by grief and primal fury, the Wild Child has become a WEREWOLF!`
+            );
+          }
+        }
       }
+    }
+
+    // Clean up doused list for any deceased players
+    this.room.dousedPlayerIds = this.room.dousedPlayerIds.filter((id) => {
+      const p = this.getPlayer(id);
+      return p && p.isAlive;
+    });
+
+    // Bear Tamer check: Does the bear growl at dawn?
+    const aliveBearTamer = this.room.players.find(
+      (p) => p.role === 'BEAR_TAMER' && p.isAlive
+    );
+    if (aliveBearTamer) {
+      const livingPlayers = this.room.players.filter((p) => p.isAlive);
+      const btIdx = livingPlayers.findIndex((p) => p.id === aliveBearTamer.id);
+      if (btIdx !== -1 && livingPlayers.length > 1) {
+        const leftNeighbor =
+          livingPlayers[(btIdx - 1 + livingPlayers.length) % livingPlayers.length];
+        const rightNeighbor = livingPlayers[(btIdx + 1) % livingPlayers.length];
+        const isLeftWolf =
+          leftNeighbor &&
+          (leftNeighbor.role === 'WEREWOLF' ||
+            leftNeighbor.role === 'WOLF_CUB' ||
+            leftNeighbor.role === 'WHITE_WOLF');
+        const isRightWolf =
+          rightNeighbor &&
+          (rightNeighbor.role === 'WEREWOLF' ||
+            rightNeighbor.role === 'WOLF_CUB' ||
+            rightNeighbor.role === 'WHITE_WOLF');
+
+        this.room.bearGrowl = Boolean(isLeftWolf || isRightWolf);
+        if (this.room.bearGrowl) {
+          this.addEvent(
+            'BEAR_GROWL',
+            `🐻 ROAAAR! The Bear Tamer's bear growls aggressively! A ravenous beast sits immediately adjacent!`
+          );
+        } else {
+          this.addEvent(
+            'BEAR_GROWL',
+            `🐻 The Bear Tamer's bear rests calmly. No wolves are seated beside them.`
+          );
+        }
+      } else {
+        this.room.bearGrowl = false;
+      }
+    } else {
+      this.room.bearGrowl = null;
     }
 
     this.room.latestDeaths = deaths;
@@ -663,6 +826,21 @@ export class GameRoom {
           round: this.room.round,
         });
         this.addEvent('DEATH', `${eliminated.name} was sentenced to the gallows by the village council.`);
+
+        // Wild Child check: Did their Role Model get executed?
+        if (this.room.wildChildModelId === eliminated.id) {
+          const wildChild = this.room.players.find(
+            (p) => p.role === 'WILD_CHILD' && p.isAlive
+          );
+          if (wildChild) {
+            wildChild.role = 'WEREWOLF';
+            wildChild.team = 'WEREWOLVES';
+            this.addEvent(
+              'WILD_CHILD_TRANSFORM',
+              `🐺 ${wildChild.name}'s beloved Role Model was executed at the gallows! The Wild Child transforms into a WEREWOLF!`
+            );
+          }
+        }
 
         // Lovers check: if eliminated player is a lover, partner dies of heartbreak!
         if (this.room.lovers && this.room.lovers.includes(eliminated.id)) {
@@ -828,22 +1006,194 @@ export class GameRoom {
     }
   }
 
+  public executeDictatorCoup(playerId: string, targetId: string): { success: boolean; error?: string } {
+    if (this.room.phase !== 'DISCUSSION' && this.room.phase !== 'VOTING') {
+      return { success: false, error: 'A Coup can only be staged during Day Discussion or Voting' };
+    }
+    const player = this.getPlayer(playerId);
+    if (!player || !player.isAlive || player.role !== 'DICTATOR') {
+      return { success: false, error: 'Only the living Dictator can stage a Coup' };
+    }
+    if (this.room.dictatorCoupUsed) {
+      return { success: false, error: 'The Coup has already been executed this game' };
+    }
+    const target = this.getPlayer(targetId);
+    if (!target || !target.isAlive) {
+      return { success: false, error: 'Invalid execution target' };
+    }
+    if (targetId === playerId) {
+      return { success: false, error: 'You cannot execute yourself' };
+    }
+
+    this.room.dictatorCoupUsed = true;
+    this.room.dictatorPlayerId = playerId;
+    this.clearTimer();
+
+    this.addEvent(
+      'DICTATOR_COUP',
+      `👑 COUP D'ÉTAT! ${player.name} steps forward, revealing themselves as THE DICTATOR! Halting village voting and personally executing ${target.name}!`
+    );
+
+    target.isAlive = false;
+    const isWolf =
+      target.role === 'WEREWOLF' ||
+      target.role === 'WOLF_CUB' ||
+      target.role === 'WHITE_WOLF' ||
+      (target.role === 'CURSED' && target.team === 'WEREWOLVES');
+
+    this.room.latestDeaths = [
+      {
+        id: target.id,
+        name: target.name,
+        role: this.room.settings.revealRoleOnDeath ? target.role : undefined,
+        reason: 'DICTATOR_EXECUTE',
+        round: this.room.round,
+      },
+    ];
+
+    this.addEvent(
+      'DEATH',
+      `⚖️ ${target.name} (${target.role}) was executed under the absolute authority of Dictator ${player.name}!`
+    );
+
+    if (isWolf) {
+      this.addEvent(
+        'SYSTEM',
+        `🎯 ${target.name} WAS a Werewolf! Dictator ${player.name}'s autocratic judgment protected the village!`
+      );
+    } else {
+      this.room.dictatorGuiltPending = true;
+      this.addEvent(
+        'SYSTEM',
+        `⚠️ ${target.name} was NOT a Werewolf! Stricken by overwhelming guilt and dishonor, Dictator ${player.name} will commit suicide tonight!`
+      );
+    }
+
+    // Check lovers
+    if (this.room.lovers && this.room.lovers.includes(target.id)) {
+      const partnerId = this.room.lovers.find((id) => id !== target.id);
+      const partner = partnerId ? this.getPlayer(partnerId) : null;
+      if (partner && partner.isAlive) {
+        partner.isAlive = false;
+        this.room.latestDeaths.push({
+          id: partner.id,
+          name: partner.name,
+          role: this.room.settings.revealRoleOnDeath ? partner.role : undefined,
+          reason: 'HEARTBREAK',
+          round: this.room.round,
+        });
+        this.addEvent(
+          'DEATH',
+          `💔 ${partner.name} died of sheer heartbreak after losing their beloved ${target.name}!`
+        );
+      }
+    }
+
+    // Check Wild Child
+    if (this.room.wildChildModelId === target.id) {
+      const wildChild = this.room.players.find((p) => p.role === 'WILD_CHILD' && p.isAlive);
+      if (wildChild) {
+        wildChild.role = 'WEREWOLF';
+        wildChild.team = 'WEREWOLVES';
+        this.addEvent(
+          'WILD_CHILD_TRANSFORM',
+          `🐺 ${wildChild.name}'s beloved Role Model was executed! The Wild Child transforms into a WEREWOLF!`
+        );
+      }
+    }
+
+    const win = checkWinCondition(this.room.players);
+    if (win.gameOver) {
+      this.endGame(win.winnerTeam!, win.reason);
+      return { success: true };
+    }
+
+    // Advance directly to night
+    this.startNightPhase();
+    return { success: true };
+  }
+
+  public eliminateSilencedViolation(playerId: string) {
+    const player = this.getPlayer(playerId);
+    if (!player || !player.isAlive) return;
+
+    player.isAlive = false;
+    this.room.latestDeaths.push({
+      id: player.id,
+      name: player.name,
+      role: this.room.settings.revealRoleOnDeath ? player.role : undefined,
+      reason: 'SILENCED_VIOLATION',
+      round: this.room.round,
+    });
+
+    this.addEvent(
+      'DEATH',
+      `⚡ ${player.name} dared to speak while afflicted by the Spellcaster's Silence hex and was instantly struck dead!`
+    );
+
+    // Check lovers
+    if (this.room.lovers && this.room.lovers.includes(player.id)) {
+      const partnerId = this.room.lovers.find((id) => id !== player.id);
+      const partner = partnerId ? this.getPlayer(partnerId) : null;
+      if (partner && partner.isAlive) {
+        partner.isAlive = false;
+        this.room.latestDeaths.push({
+          id: partner.id,
+          name: partner.name,
+          role: this.room.settings.revealRoleOnDeath ? partner.role : undefined,
+          reason: 'HEARTBREAK',
+          round: this.room.round,
+        });
+        this.addEvent(
+          'DEATH',
+          `💔 ${partner.name} collapsed and died of heartbreak after ${player.name}'s sudden death!`
+        );
+      }
+    }
+
+    // Check Wild Child
+    if (this.room.wildChildModelId === player.id) {
+      const wildChild = this.room.players.find((p) => p.role === 'WILD_CHILD' && p.isAlive);
+      if (wildChild) {
+        wildChild.role = 'WEREWOLF';
+        wildChild.team = 'WEREWOLVES';
+        this.addEvent(
+          'WILD_CHILD_TRANSFORM',
+          `🐺 ${wildChild.name}'s beloved Role Model died! The Wild Child transforms into a WEREWOLF!`
+        );
+      }
+    }
+
+    const win = checkWinCondition(this.room.players);
+    if (win.gameOver) {
+      this.endGame(win.winnerTeam!, win.reason);
+    } else {
+      this.notify();
+    }
+  }
+
   private endGame(winnerTeam: Team, winReason: string) {
     this.clearTimer();
     this.room.phase = 'GAME_OVER';
     this.room.winnerTeam = winnerTeam;
     this.room.winReason = winReason;
 
-    this.addEvent(
-      'GAME_WIN',
-      winnerTeam === 'VILLAGERS'
-        ? 'VICTORY FOR THE VILLAGERS! The darkness has been vanquished.'
-        : winnerTeam === 'JESTER'
-        ? 'THE JESTER WINS! The village has been duped into executing them!'
-        : winnerTeam === 'WHITE_WOLF'
-        ? 'VICTORY FOR THE WHITE WEREWOLF! The lone predator eliminated all packmates and villagers.'
-        : 'VICTORY FOR THE WEREWOLVES! The village has been devoured.'
-    );
+    let announcement = 'THE GAME HAS CONCLUDED.';
+    if (winnerTeam === 'VILLAGERS') {
+      announcement = 'VICTORY FOR THE VILLAGERS! The darkness has been vanquished.';
+    } else if (winnerTeam === 'JESTER') {
+      announcement = 'THE JESTER WINS! The village was duped into executing them!';
+    } else if (winnerTeam === 'WHITE_WOLF') {
+      announcement = 'VICTORY FOR THE WHITE WEREWOLF! The lone predator eliminated all packmates and villagers.';
+    } else if (winnerTeam === 'SERIAL_KILLER') {
+      announcement = 'VICTORY FOR THE SERIAL KILLER! Every last soul in the village was mercilessly butchered.';
+    } else if (winnerTeam === 'ARSONIST') {
+      announcement = 'VICTORY FOR THE ARSONIST! The entire village was engulfed in flame and reduced to ashes!';
+    } else {
+      announcement = 'VICTORY FOR THE WEREWOLVES! The village has been devoured.';
+    }
+
+    this.addEvent('GAME_WIN', announcement);
 
     // Save game record to database
     db.recordGame({
@@ -907,7 +1257,13 @@ export class GameRoom {
       | 'THIEF_CHOOSE'
       | 'DOPPELGANGER_BIND'
       | 'WHITE_WOLF_KILL'
-      | 'LITTLE_GIRL_PEEK',
+      | 'LITTLE_GIRL_PEEK'
+      | 'SERIAL_KILLER_KILL'
+      | 'SILENCE'
+      | 'ARSONIST_DOUSE'
+      | 'ARSONIST_IGNITE'
+      | 'WILD_CHILD_CHOOSE'
+      | 'VETERAN_ALERT',
     targetId: string,
     secondaryTargetId?: string,
     chosenRole?: Role
@@ -956,8 +1312,11 @@ export class GameRoom {
         };
       }
     }
-    if (type === 'INVESTIGATE' && player.role !== 'SEER') {
-      return { success: false, error: 'Only the seer can investigate' };
+    const hasLivingTrueSeer = this.room.players.some((p) => p.role === 'SEER' && p.isAlive);
+    const isApprenticeSeerActive = player.role === 'APPRENTICE_SEER' && !hasLivingTrueSeer;
+
+    if (type === 'INVESTIGATE' && player.role !== 'SEER' && !isApprenticeSeerActive) {
+      return { success: false, error: 'Only the Seer (or an active Apprentice Seer) can investigate' };
     }
     if (type === 'PROTECT' && player.role !== 'DOCTOR') {
       return { success: false, error: 'Only the doctor can heal/protect' };
@@ -1087,6 +1446,60 @@ export class GameRoom {
       }
       this.notify();
       return { success: true };
+    }
+
+    // SERIAL KILLER
+    if (type === 'SERIAL_KILLER_KILL') {
+      if (player.role !== 'SERIAL_KILLER') return { success: false, error: 'Only the Serial Killer can strike' };
+      if (targetId === playerId) return { success: false, error: 'The Serial Killer cannot target themselves' };
+      const target = this.getPlayer(targetId);
+      if (!target || !target.isAlive) return { success: false, error: 'Target is invalid or already dead' };
+    }
+
+    // SPELLCASTER (SILENCER)
+    if (type === 'SILENCE') {
+      if (player.role !== 'SPELLCASTER') return { success: false, error: 'Only the Spellcaster can silence' };
+      const target = this.getPlayer(targetId);
+      if (!target || !target.isAlive) return { success: false, error: 'Target is invalid or already dead' };
+    }
+
+    // ARSONIST
+    if (type === 'ARSONIST_DOUSE') {
+      if (player.role !== 'ARSONIST') return { success: false, error: 'Only the Arsonist can douse' };
+      if (targetId === playerId) return { success: false, error: 'The Arsonist cannot douse themselves' };
+      const target = this.getPlayer(targetId);
+      if (!target || !target.isAlive) return { success: false, error: 'Target is invalid or already dead' };
+    }
+    if (type === 'ARSONIST_IGNITE') {
+      if (player.role !== 'ARSONIST') return { success: false, error: 'Only the Arsonist can ignite' };
+    }
+
+    // WILD CHILD
+    if (type === 'WILD_CHILD_CHOOSE') {
+      if (player.role !== 'WILD_CHILD') return { success: false, error: 'Only the Wild Child can choose a Role Model' };
+      if (this.room.round !== 1 && this.room.wildChildModelId) {
+        return { success: false, error: 'Role model can only be chosen on Night 1' };
+      }
+      if (targetId === playerId) {
+        return { success: false, error: 'You cannot choose yourself as your Role Model' };
+      }
+      const target = this.getPlayer(targetId);
+      if (!target || !target.isAlive) return { success: false, error: 'Invalid Role Model target' };
+      this.room.wildChildModelId = targetId;
+      this.addEvent('SYSTEM', `The Wild Child chose their beloved Role Model in the night.`);
+      this.notify();
+      return { success: true };
+    }
+
+    // VETERAN
+    if (type === 'VETERAN_ALERT') {
+      if (player.role !== 'VETERAN') return { success: false, error: 'Only the Veteran can go on Alert' };
+      const remaining = this.room.veteranAlertsRemaining[playerId] ?? 3;
+      if (remaining <= 0) {
+        return { success: false, error: 'No alerts remaining (maximum 3 per game)' };
+      }
+      // Decrement alert count
+      this.room.veteranAlertsRemaining[playerId] = remaining - 1;
     }
 
     // Seer restriction: only 1 player inspection per night
@@ -1267,13 +1680,17 @@ export class GameRoom {
     const isGameOver = this.room.phase === 'GAME_OVER';
 
     const isSeer = requester?.role === 'SEER';
+    const hasLivingTrueSeer = this.room.players.some((p) => p.role === 'SEER' && p.isAlive);
+    const isApprenticeActive = requester?.role === 'APPRENTICE_SEER' && !hasLivingTrueSeer;
+    const seerOrApprentice = isSeer || isApprenticeActive;
+
     const isWerewolf =
       requester?.role === 'WEREWOLF' ||
       requester?.role === 'WOLF_CUB' ||
       requester?.role === 'WHITE_WOLF' ||
       (requester?.role === 'CURSED' && requester?.team === 'WEREWOLVES');
 
-    const seerKnown = isSeer ? this.seerHistory.get(forPlayerId) : undefined;
+    const seerKnown = seerOrApprentice ? this.seerHistory.get(forPlayerId) : undefined;
 
     // Werewolf victim roles: Secret dictionary visible EXCLUSIVELY to werewolves!
     const werewolfVictimRoles: Record<string, Role> = {};
@@ -1301,11 +1718,19 @@ export class GameRoom {
 
       const killedByWolf = this.room.werewolfKillsHistory.some((k) => k.victimId === p.id);
 
+      const isMinion = requester?.role === 'MINION';
+      const isWolfToMinion =
+        isMinion &&
+        (p.role === 'WEREWOLF' || p.role === 'WOLF_CUB' || p.role === 'WHITE_WOLF');
+
       if (isGameOver) {
         roleToReveal = p.role;
       } else if (p.id === forPlayerId) {
         roleToReveal = p.role;
       } else if (isWolfTeammate) {
+        roleToReveal = p.role;
+      } else if (isWolfToMinion) {
+        // Minion learns the Werewolves on Night 1!
         roleToReveal = p.role;
       } else if (!p.isAlive && killedByWolf) {
         // EXCLUSIVE WEREWOLF REVEAL: Werewolves see the secret role of their killed prey, others NEVER see it!
@@ -1314,8 +1739,8 @@ export class GameRoom {
         }
       } else if (!p.isAlive && !killedByWolf && this.room.settings.revealRoleOnDeath) {
         roleToReveal = p.role;
-      } else if (isSeer && seerKnown && seerKnown.has(p.id)) {
-        // The seer has investigated this player!
+      } else if (seerOrApprentice && seerKnown && seerKnown.has(p.id)) {
+        // The Seer or active Apprentice Seer has investigated this player!
         roleToReveal = seerKnown.get(p.id)!.revealedRole;
       }
 
@@ -1364,6 +1789,18 @@ export class GameRoom {
             targetName: victim?.name || 'Unknown',
           };
         });
+    } else if (requester?.role === 'MINION') {
+      // Minion learns who the Werewolves are on Night 1!
+      werewolfTeammates = this.room.players
+        .filter(
+          (p) =>
+            p.isAlive &&
+            (p.role === 'WEREWOLF' ||
+              p.role === 'WOLF_CUB' ||
+              p.role === 'WHITE_WOLF' ||
+              (p.role === 'CURSED' && p.team === 'WEREWOLVES'))
+        )
+        .map((p) => ({ id: p.id, name: p.name }));
     }
 
     // Witch potion knowledge
@@ -1488,7 +1925,7 @@ export class GameRoom {
       werewolfVotes,
       werewolfVictimRoles: isWerewolf ? werewolfVictimRoles : undefined,
       seerResult: this.seerResults.get(forPlayerId) || null,
-      seerHistory: isSeer && seerKnown ? Array.from(seerKnown.values()) : undefined,
+      seerHistory: (isSeer || isApprenticeActive) && seerKnown ? Array.from(seerKnown.values()) : undefined,
       witchPotions,
       lovers,
       cupidLovers,
@@ -1517,6 +1954,24 @@ export class GameRoom {
       winReason: this.room.winReason || undefined,
       events: this.room.events,
       settings: this.room.settings,
+      silencedPlayerId: this.room.silencedPlayerId,
+      bearGrowl: this.room.bearGrowl,
+      toughGuyWounded: this.room.toughGuyWoundedAtRound !== null,
+      dousedPlayerIds: requester?.role === 'ARSONIST' ? this.room.dousedPlayerIds : undefined,
+      wildChildModelId: requester?.role === 'WILD_CHILD' ? this.room.wildChildModelId : undefined,
+      wildChildModelName:
+        requester?.role === 'WILD_CHILD' && this.room.wildChildModelId
+          ? this.getPlayer(this.room.wildChildModelId)?.name
+          : undefined,
+      dictatorCoupUsed: this.room.dictatorCoupUsed,
+      dictatorGuiltPending: requester?.role === 'DICTATOR' ? this.room.dictatorGuiltPending : undefined,
+      dictatorPlayerId: this.room.dictatorPlayerId,
+      veteranAlertsRemaining:
+        requester?.role === 'VETERAN' ? (this.room.veteranAlertsRemaining[forPlayerId] ?? 3) : undefined,
+      veteranOnAlertTonight: this.room.nightActions.some(
+        (a) => a.actorId === forPlayerId && a.type === 'VETERAN_ALERT'
+      ),
+      isApprenticeSeerActive: isApprenticeActive,
     };
   }
 

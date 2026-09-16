@@ -7,6 +7,8 @@ interface PhaseBannerProps {
   round: number;
   timer: number;
   timerMax: number;
+  bearGrowl?: boolean | null;
+  silencedPlayerName?: string | null;
 }
 
 export const PhaseBanner: React.FC<PhaseBannerProps> = ({
@@ -14,6 +16,8 @@ export const PhaseBanner: React.FC<PhaseBannerProps> = ({
   round,
   timer,
   timerMax,
+  bearGrowl,
+  silencedPlayerName,
 }) => {
   const isUrgent = timer <= 5 && timer > 0;
   const progress = timerMax > 0 ? (timer / timerMax) * 100 : 0;
@@ -140,6 +144,28 @@ export const PhaseBanner: React.FC<PhaseBannerProps> = ({
           </div>
         )}
       </div>
+
+      {/* Special Morning / Daytime Announcements */}
+      {(phase === 'DAY_ANNOUNCEMENT' || phase === 'DISCUSSION' || phase === 'VOTING') && (
+        <>
+          {bearGrowl === true && (
+            <div className="px-4 py-2 bg-amber-950/80 border-t border-amber-600/50 text-xs text-amber-200 flex items-center justify-center gap-2 font-mono animate-bounce">
+              <span>🐻</span>
+              <strong className="font-cinzel tracking-wider text-amber-300">BEAR GROWL ALERT:</strong>
+              <span>The Bear Tamer's bear growled violently at sunrise! A Werewolf sits directly adjacent!</span>
+            </div>
+          )}
+          {silencedPlayerName && (
+            <div className="px-4 py-2 bg-purple-950/80 border-t border-purple-500/50 text-xs text-purple-200 flex items-center justify-center gap-2 font-mono">
+              <span>🤐</span>
+              <strong className="font-cinzel tracking-wider text-purple-300">SPELLCASTER'S HEX:</strong>
+              <span>
+                <strong>{silencedPlayerName}</strong> is silenced today! If they speak in chat, they will die instantly!
+              </span>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

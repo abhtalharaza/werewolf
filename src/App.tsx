@@ -38,6 +38,7 @@ export default function App() {
     submitNightAction,
     submitVote,
     hunterShoot,
+    dictatorCoup,
     sendChatMessage,
     restartGame,
     leaveRoom,
@@ -189,6 +190,7 @@ export default function App() {
               onSubmitNightAction={submitNightAction}
               onSubmitVote={submitVote}
               onHunterShoot={hunterShoot}
+              onDictatorCoup={dictatorCoup}
               onLeaveGame={leaveRoom}
               onOpenHowToPlay={() => setIsHowToPlayOpen(true)}
             />

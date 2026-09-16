@@ -32,14 +32,20 @@ export interface ServerNightAction {
     | 'THIEF_CHOOSE'
     | 'DOPPELGANGER_BIND'
     | 'WHITE_WOLF_KILL'
-    | 'LITTLE_GIRL_PEEK';
+    | 'LITTLE_GIRL_PEEK'
+    | 'SERIAL_KILLER_KILL'
+    | 'SILENCE'
+    | 'ARSONIST_DOUSE'
+    | 'ARSONIST_IGNITE'
+    | 'WILD_CHILD_CHOOSE'
+    | 'VETERAN_ALERT';
   targetId: string;
   secondaryTargetId?: string;
   chosenRole?: Role;
 }
 
 export interface ProtectionRecord {
-  role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+  role: 'DOCTOR' | 'BODYGUARD' | 'WITCH' | 'ARSONIST_IMMUNITY';
   protectorId: string;
   targetId: string;
   targetName: string;
@@ -77,4 +83,14 @@ export interface ServerRoom {
   thiefReserveRoles: Role[];
   werewolfKillsHistory: { victimId: string; victimRole: Role; round: number }[];
   littleGirlPeekResults: Record<string, { werewolfNames: string[]; targetName?: string; caught: boolean }>;
+  // Additional role state
+  silencedPlayerId: string | null;
+  bearGrowl: boolean | null;
+  toughGuyWoundedAtRound: number | null;
+  dousedPlayerIds: string[];
+  wildChildModelId: string | null;
+  dictatorCoupUsed: boolean;
+  dictatorGuiltPending: boolean;
+  dictatorPlayerId: string | null;
+  veteranAlertsRemaining: Record<string, number>; // playerId -> count
 }

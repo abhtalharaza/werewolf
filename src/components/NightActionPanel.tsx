@@ -12,6 +12,11 @@ import {
   Zap,
   AlertTriangle,
   Skull,
+  Flame,
+  VolumeX,
+  ShieldAlert,
+  UserPlus,
+  Crown,
 } from 'lucide-react';
 import { ClientGameState, ClientPlayer, Role } from '../types/game.js';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
@@ -292,12 +297,16 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
       )}
 
       {/* 2. SEER PANEL */}
-      {role === 'SEER' && (
+      {(role === 'SEER' || (role === 'APPRENTICE_SEER' && gameState.isApprenticeSeerActive)) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-indigo-400 font-bold font-cinzel text-sm">
               <Eye className="w-4 h-4 text-indigo-400 animate-pulse" />
-              <span>Seer's Divination</span>
+              <span>
+                {role === 'APPRENTICE_SEER'
+                  ? "Apprentice Seer's Divination (Active)"
+                  : "Seer's Divination"}
+              </span>
             </div>
             <span className="text-[11px] text-indigo-300/80 font-mono">
               Limit: 1 Player / Night
@@ -1208,23 +1217,298 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
         </div>
       )}
 
-      {/* 11. PASSIVE OR SLUMBERING ROLES AT NIGHT */}
+      {/* 11. SERIAL KILLER */}
+      {role === 'SERIAL_KILLER' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-rose-500 font-bold font-cinzel text-sm">
+              <Skull className="w-4 h-4 text-rose-500 animate-pulse" />
+              <span>Serial Killer's Rampage</span>
+            </div>
+            <span className="text-[11px] text-rose-400/80 font-mono">Solo Killer</span>
+          </div>
+          <p className="text-xs text-zinc-300">
+            You stalk alone in the shadows. Select a victim to execute tonight. You win when all other souls in the village have perished!
+          </p>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+            <div className="text-xs">
+              {targetPlayer && targetPlayer.id !== me?.id ? (
+                <span>
+                  Execution Target: <strong className="text-rose-400 font-semibold">{targetPlayer.name}</strong>
+                </span>
+              ) : (
+                <span className="text-zinc-500 italic">Select a player card on the board to assassinate</span>
+              )}
+            </div>
+            <button
+              id="confirm-serial-killer-btn"
+              onClick={() => targetPlayer && handleConfirm('SERIAL_KILLER_KILL', targetPlayer.id)}
+              disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-800 hover:bg-rose-700 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-rose-950/50 min-h-[44px]"
+            >
+              <Skull className="w-3.5 h-3.5" />
+              <span>{submitting ? 'Hunting...' : confirmedTargetId === targetPlayer?.id ? 'Target Slated' : 'Execute Target'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 12. SPELLCASTER (SILENCER) */}
+      {role === 'SPELLCASTER' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-purple-400 font-bold font-cinzel text-sm">
+              <VolumeX className="w-4 h-4 text-purple-400 animate-pulse" />
+              <span>Spellcaster's Silence Hex</span>
+            </div>
+            <span className="text-[11px] text-purple-300/80 font-mono">Instant Death Hex</span>
+          </div>
+          <p className="text-xs text-zinc-300">
+            Cast a magical hex of silence upon a player. Tomorrow, they are forbidden from sending a single message in chat. If they speak even once, they die immediately!
+          </p>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+            <div className="text-xs">
+              {targetPlayer ? (
+                <span>
+                  Hex Target: <strong className="text-purple-400 font-semibold">{targetPlayer.name}</strong>
+                </span>
+              ) : (
+                <span className="text-zinc-500 italic">Select a player card on the board to silence tomorrow</span>
+              )}
+            </div>
+            <button
+              id="confirm-silence-btn"
+              onClick={() => targetPlayer && handleConfirm('SILENCE', targetPlayer.id)}
+              disabled={!targetPlayer || submitting}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-purple-950/50 min-h-[44px]"
+            >
+              <VolumeX className="w-3.5 h-3.5" />
+              <span>{submitting ? 'Casting Hex...' : confirmedTargetId === targetPlayer?.id ? 'Silence Hexed' : 'Cast Silence'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 13. ARSONIST */}
+      {role === 'ARSONIST' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-500 font-bold font-cinzel text-sm">
+              <Flame className="w-4 h-4 text-amber-500 animate-bounce" />
+              <span>Arsonist's Gasoline & Blaze</span>
+            </div>
+            <span className="text-[11px] text-amber-400/80 font-mono">Night Immune vs Wolves</span>
+          </div>
+          <p className="text-xs text-zinc-300">
+            Douse a player in gasoline tonight, or ignite all previously doused players simultaneously! You are immune to werewolf attacks at night (only Witch poison can kill you). Win alone when the village burns to ash!
+          </p>
+
+          {gameState.dousedPlayerIds && gameState.dousedPlayerIds.length > 0 && (
+            <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-600/40 text-xs">
+              <span className="text-amber-300 font-bold font-mono">⛽ Currently Doused: </span>
+              <span className="text-amber-100 font-semibold">
+                {gameState.dousedPlayerIds
+                  .map((id) => gameState.players.find((p) => p.id === id)?.name || id)
+                  .join(', ')}
+              </span>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+            <div className="text-xs">
+              {targetPlayer && targetPlayer.id !== me?.id ? (
+                <span>
+                  Target: <strong className="text-amber-400 font-semibold">{targetPlayer.name}</strong>
+                  {gameState.dousedPlayerIds?.includes(targetPlayer.id) && (
+                    <span className="ml-2 text-amber-400/90 font-mono text-[11px]">(Already Doused)</span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-zinc-500 italic">Select a player to douse with fuel, or ignite all</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                id="confirm-arsonist-douse-btn"
+                onClick={() => targetPlayer && handleConfirm('ARSONIST_DOUSE', targetPlayer.id)}
+                disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-amber-950/50 min-h-[44px]"
+              >
+                <span>⛽ Douse</span>
+              </button>
+              <button
+                id="confirm-arsonist-ignite-btn"
+                onClick={() => me && handleConfirm('ARSONIST_IGNITE', me.id)}
+                disabled={!gameState.dousedPlayerIds || gameState.dousedPlayerIds.length === 0 || submitting}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-red-950/50 min-h-[44px]"
+              >
+                <Flame className="w-3.5 h-3.5" />
+                <span>🔥 Ignite ({gameState.dousedPlayerIds?.length || 0})</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 14. WILD CHILD */}
+      {role === 'WILD_CHILD' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-400 font-bold font-cinzel text-sm">
+              <UserPlus className="w-4 h-4 text-emerald-400" />
+              <span>Wild Child's Role Model</span>
+            </div>
+            <span className="text-[11px] text-emerald-300/80 font-mono">Feral Bond</span>
+          </div>
+          {gameState.wildChildModelId ? (
+            <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-600/40 text-xs text-emerald-200">
+              🐺 Your beloved Role Model is{' '}
+              <strong className="text-white font-cinzel text-sm">{gameState.wildChildModelName || 'your Idol'}</strong>.
+              As long as they live, you fight with the Villagers. The moment your Role Model perishes, you will transform into a Werewolf!
+            </div>
+          ) : gameState.round === 1 ? (
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-300">
+                Night 1: Choose any living player to be your Role Model. If they die during the game, your inner beast will awaken and turn you into a Werewolf!
+              </p>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+                <div className="text-xs">
+                  {targetPlayer && targetPlayer.id !== me?.id ? (
+                    <span>
+                      Role Model Target: <strong className="text-emerald-400 font-semibold">{targetPlayer.name}</strong>
+                    </span>
+                  ) : (
+                    <span className="text-zinc-500 italic">Select a player on the board to bond with</span>
+                  )}
+                </div>
+                <button
+                  id="confirm-wild-child-btn"
+                  onClick={() => targetPlayer && handleConfirm('WILD_CHILD_CHOOSE', targetPlayer.id)}
+                  disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-emerald-950/50 min-h-[44px]"
+                >
+                  <Heart className="w-3.5 h-3.5" />
+                  <span>Bind Role Model</span>
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* 15. THE VETERAN */}
+      {role === 'VETERAN' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-blue-400 font-bold font-cinzel text-sm">
+              <ShieldAlert className="w-4 h-4 text-blue-400" />
+              <span>The Veteran's Alert</span>
+            </div>
+            <span className="text-[11px] text-blue-300 font-mono">
+              Alerts: {gameState.veteranAlertsRemaining ?? 3}/3 Left
+            </span>
+          </div>
+          <p className="text-xs text-zinc-300">
+            You can go on Alert up to 3 times per game. While on Alert tonight, anyone who visits or targets you (Werewolves, Seer, Doctor, Spellcaster) will be shot and killed instantly!
+          </p>
+          {gameState.veteranOnAlertTonight || confirmedTargetId === me?.id ? (
+            <div className="p-3 rounded-xl bg-blue-950/60 border border-blue-500/60 text-center text-xs text-blue-200 font-mono">
+              🛡️ Shotgun loaded! You are on HIGH ALERT tonight! Any night visitor will be eliminated!
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+              <div className="text-xs text-zinc-400">
+                {(gameState.veteranAlertsRemaining ?? 3) > 0
+                  ? 'Guard your cabin for the night.'
+                  : 'All 3 alerts have been exhausted.'}
+              </div>
+              <button
+                id="confirm-veteran-alert-btn"
+                onClick={() => me && handleConfirm('VETERAN_ALERT', me.id)}
+                disabled={(gameState.veteranAlertsRemaining ?? 3) <= 0 || submitting}
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-blue-950/50 min-h-[44px]"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>{submitting ? 'Locking Cabin...' : 'Go on Alert Tonight'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 16. APPRENTICE SEER (INACTIVE / LEARNING) */}
+      {role === 'APPRENTICE_SEER' && !gameState.isApprenticeSeerActive && (
+        <div className="space-y-2 p-3.5 rounded-xl bg-violet-950/40 border border-violet-800/40 text-center">
+          <div className="flex items-center justify-center gap-2 text-violet-300 font-bold font-cinzel text-sm">
+            <Eye className="w-4 h-4 text-violet-400 animate-pulse" />
+            <span>Apprentice in Training</span>
+          </div>
+          <p className="text-xs text-zinc-300 max-w-md mx-auto">
+            The true Seer is still alive and guiding the village. You slumber as a simple villager for now. If the true Seer falls, you will inherit their clairvoyant powers!
+          </p>
+        </div>
+      )}
+
+      {/* 17. PASSIVE OR SLUMBERING ROLES AT NIGHT */}
       {!isWerewolfPackMember &&
         role !== 'SEER' &&
+        !(role === 'APPRENTICE_SEER' && gameState.isApprenticeSeerActive) &&
+        role !== 'APPRENTICE_SEER' &&
         role !== 'DOCTOR' &&
         role !== 'BODYGUARD' &&
         role !== 'WITCH' &&
         role !== 'LITTLE_GIRL' &&
+        role !== 'SERIAL_KILLER' &&
+        role !== 'SPELLCASTER' &&
+        role !== 'ARSONIST' &&
+        role !== 'VETERAN' &&
+        !(role === 'WILD_CHILD' && !gameState.wildChildModelId && gameState.round === 1) &&
         !(role === 'CUPID' && gameState.round === 1) &&
         !(role === 'DOPPELGANGER' && gameState.round === 1) &&
         !(role === 'THIEF' && gameState.round === 1) && (
-          <div className="text-center py-3 space-y-1.5">
+          <div className="text-center py-3 space-y-2">
             <div className="font-cinzel text-zinc-300 font-bold text-sm">
               The Village Slumbers
             </div>
             <p className="text-xs text-zinc-400 max-w-md mx-auto">
               Close your eyes and lock your oak doors. The darkness belongs to prowling beasts and mystic arts.
             </p>
+
+            {/* Bear Tamer Information */}
+            {role === 'BEAR_TAMER' && (
+              <div className="mt-2 text-xs text-amber-300/90 font-mono bg-amber-950/40 p-2.5 rounded-lg border border-amber-800/40 max-w-md mx-auto">
+                🐻 Bear Tamer: Your bear is sleeping beside you. At dawn, if any Werewolf sits directly next to you, your bear will growl in fury!
+              </div>
+            )}
+
+            {/* Tough Guy Information */}
+            {role === 'TOUGH_GUY' && (
+              <div className="mt-2 text-xs text-orange-300/90 font-mono bg-orange-950/40 p-2.5 rounded-lg border border-orange-800/40 max-w-md mx-auto">
+                💪 Tough Guy: You are resilient as stone. If Werewolves attack you tonight, you will not die tonight — you will survive all of tomorrow and only succumb to wounds the following night!
+              </div>
+            )}
+
+            {/* Minion Information */}
+            {role === 'MINION' && (
+              <div className="mt-2 text-xs text-red-300/90 font-mono bg-red-950/50 p-2.5 rounded-lg border border-red-800/50 max-w-md mx-auto text-left space-y-1">
+                <div className="font-bold text-red-200">🐺 Minion Knowledge:</div>
+                <div>You fight alongside the Werewolves! The Seer sees you as innocent.</div>
+                {gameState.werewolfTeammates && gameState.werewolfTeammates.length > 0 ? (
+                  <div>Living Pack Members: <strong className="text-white">{gameState.werewolfTeammates.map((w) => w.name).join(', ')}</strong></div>
+                ) : (
+                  <div>No known werewolves currently alive.</div>
+                )}
+                <div className="text-[10px] text-zinc-400 italic">(The werewolves do not know your identity)</div>
+              </div>
+            )}
+
+            {/* Dictator Information */}
+            {role === 'DICTATOR' && (
+              <div className="mt-2 text-xs text-amber-300/90 font-mono bg-amber-950/40 p-2.5 rounded-lg border border-amber-800/40 max-w-md mx-auto">
+                👑 Dictator: Save your absolute authority for the daytime voting phase, where you can stage a Coup and personally execute any player!
+              </div>
+            )}
+
             {gameState.masonAllies && gameState.masonAllies.length > 0 && (
               <div className="mt-2 text-xs text-amber-300/80 font-mono bg-amber-950/40 p-2 rounded-lg border border-amber-800/40 inline-block">
                 Mason Brotherhood: You recognized {gameState.masonAllies.map((m) => m.name).join(', ')} in the dark!

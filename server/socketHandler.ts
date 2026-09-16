@@ -276,6 +276,17 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
+    // 10.5 DICTATOR COUP
+    socket.on('dictator:coup', ({ roomCode, playerId, targetId }, callback) => {
+      const room = gameManager.getRoom(roomCode);
+      if (!room) {
+        if (callback) callback({ success: false, error: 'Room not found' });
+        return;
+      }
+      const res = room.executeDictatorCoup(playerId, targetId);
+      if (callback) callback(res);
+    });
+
     // 11. RESTART GAME
     socket.on('game:restart', ({ roomCode, playerId }) => {
       const room = gameManager.getRoom(roomCode);
@@ -321,6 +332,18 @@ export function setupSocketHandlers(io: Server) {
 
         if (channel === 'PUBLIC') {
           io.to(room.getCode()).emit('chat:message', msg);
+
+          // Check if sender was Silenced by the Spellcaster!
+          // "Agli subah discussion ya voting me woh player chat me ek lafz bhi nahi bol sakta.
+          // Agar usne galti se bhi baat ki, toh use turant game se out kar diya jata hai (instant death) aur reason sabko pata chal jata hai."
+          if (
+            sender.isAlive &&
+            room.room.silencedPlayerId === sender.id &&
+            (room.room.phase === 'DISCUSSION' || room.room.phase === 'VOTING')
+          ) {
+            room.eliminateSilencedViolation(sender.id);
+            broadcastRoomState(io, room);
+          }
         } else if (channel === 'WEREWOLF') {
           // Send only to werewolves / wolf pack
           const wolves = room.getPlayers().filter(

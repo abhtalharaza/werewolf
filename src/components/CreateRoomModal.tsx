@@ -53,6 +53,16 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     LYCAN: 0,
     DOPPELGANGER: 0,
     WHITE_WOLF: 0,
+    SERIAL_KILLER: 0,
+    SPELLCASTER: 0,
+    APPRENTICE_SEER: 0,
+    BEAR_TAMER: 0,
+    TOUGH_GUY: 0,
+    ARSONIST: 0,
+    MINION: 0,
+    WILD_CHILD: 0,
+    DICTATOR: 0,
+    VETERAN: 0,
   });
 
   if (!isOpen) return null;
@@ -104,6 +114,16 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       LYCAN: 0,
       DOPPELGANGER: 0,
       WHITE_WOLF: 0,
+      SERIAL_KILLER: 0,
+      SPELLCASTER: 0,
+      APPRENTICE_SEER: 0,
+      BEAR_TAMER: 0,
+      TOUGH_GUY: 0,
+      ARSONIST: 0,
+      MINION: 0,
+      WILD_CHILD: 0,
+      DICTATOR: 0,
+      VETERAN: 0,
     };
 
     if (preset === 'ALL_ROLES') {

@@ -16,9 +16,25 @@ export type Role =
   | 'MASON'
   | 'LYCAN'
   | 'DOPPELGANGER'
-  | 'WHITE_WOLF';
+  | 'WHITE_WOLF'
+  | 'SERIAL_KILLER'
+  | 'SPELLCASTER'
+  | 'APPRENTICE_SEER'
+  | 'BEAR_TAMER'
+  | 'TOUGH_GUY'
+  | 'ARSONIST'
+  | 'MINION'
+  | 'WILD_CHILD'
+  | 'DICTATOR'
+  | 'VETERAN';
 
-export type Team = 'VILLAGERS' | 'WEREWOLVES' | 'JESTER' | 'WHITE_WOLF';
+export type Team =
+  | 'VILLAGERS'
+  | 'WEREWOLVES'
+  | 'JESTER'
+  | 'WHITE_WOLF'
+  | 'SERIAL_KILLER'
+  | 'ARSONIST';
 
 export type GamePhase =
   | 'LOBBY'
@@ -83,6 +99,13 @@ export interface GameEvent {
     | 'WOLF_CUB_ENRAGE'
     | 'DOPPELGANGER_SHIFT'
     | 'THIEF_STOLEN'
+    | 'SERIAL_KILLER_STRIKE'
+    | 'SPELLCASTER_SILENCE'
+    | 'BEAR_GROWL'
+    | 'ARSONIST_IGNITION'
+    | 'WILD_CHILD_TRANSFORM'
+    | 'DICTATOR_COUP'
+    | 'VETERAN_SHOT'
     | 'SYSTEM';
   message: string;
   round: number;
@@ -123,7 +146,21 @@ export interface GameDeathRecord {
   id: string;
   name: string;
   role?: Role;
-  reason: 'WEREWOLF' | 'VOTE' | 'POISON' | 'HUNTER' | 'HEARTBREAK' | 'WHITE_WOLF' | 'LITTLE_GIRL_CAUGHT';
+  reason:
+    | 'WEREWOLF'
+    | 'VOTE'
+    | 'POISON'
+    | 'HUNTER'
+    | 'HEARTBREAK'
+    | 'WHITE_WOLF'
+    | 'LITTLE_GIRL_CAUGHT'
+    | 'SERIAL_KILLER'
+    | 'ARSONIST'
+    | 'VETERAN_SHOT'
+    | 'DICTATOR_EXECUTE'
+    | 'DICTATOR_SUICIDE'
+    | 'TOUGH_GUY_WOUND'
+    | 'SILENCED_VIOLATION';
   round: number;
 }
 
@@ -135,7 +172,7 @@ export interface WerewolfVoteRecord {
 }
 
 export interface ProtectionRecord {
-  role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+  role: 'DOCTOR' | 'BODYGUARD' | 'WITCH' | 'ARSONIST_IMMUNITY';
   targetName: string;
   wasAttackedAndSaved: boolean;
 }
@@ -175,7 +212,7 @@ export interface ClientGameState {
   voteCounts?: Record<string, number>;
   latestDeaths?: GameDeathRecord[];
   morningProtections?: {
-    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH';
+    role: 'DOCTOR' | 'BODYGUARD' | 'WITCH' | 'ARSONIST_IMMUNITY';
     targetName: string;
     wasAttackedAndSaved: boolean;
   }[];
@@ -185,6 +222,19 @@ export interface ClientGameState {
   winReason?: string;
   events: GameEvent[];
   settings: GameSettings;
+  // New role states
+  silencedPlayerId?: string | null;
+  bearGrowl?: boolean | null;
+  dousedPlayerIds?: string[];
+  wildChildModelId?: string | null;
+  wildChildModelName?: string | null;
+  dictatorCoupUsed?: boolean;
+  dictatorGuiltPending?: boolean;
+  dictatorPlayerId?: string | null;
+  veteranAlertsRemaining?: number;
+  veteranOnAlertTonight?: boolean;
+  isApprenticeSeerActive?: boolean;
+  toughGuyWounded?: boolean;
 }
 
 export interface RoomListItem {

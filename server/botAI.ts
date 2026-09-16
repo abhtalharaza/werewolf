@@ -138,6 +138,92 @@ export function getBotNightActions(players: ServerPlayer[]): ServerNightAction[]
     }
   }
 
+  // Serial Killer bots
+  const skBots = aliveBots.filter((p) => p.role === 'SERIAL_KILLER');
+  for (const sk of skBots) {
+    const others = alivePlayers.filter((p) => p.id !== sk.id);
+    if (others.length > 0) {
+      const target = others[Math.floor(Math.random() * others.length)];
+      actions.push({
+        actorId: sk.id,
+        role: 'SERIAL_KILLER',
+        type: 'SERIAL_KILLER_KILL',
+        targetId: target.id,
+      });
+    }
+  }
+
+  // Spellcaster bots
+  const casterBots = aliveBots.filter((p) => p.role === 'SPELLCASTER');
+  for (const caster of casterBots) {
+    const others = alivePlayers.filter((p) => p.id !== caster.id);
+    if (others.length > 0) {
+      const target = others[Math.floor(Math.random() * others.length)];
+      actions.push({
+        actorId: caster.id,
+        role: 'SPELLCASTER',
+        type: 'SILENCE',
+        targetId: target.id,
+      });
+    }
+  }
+
+  // Arsonist bots (70% douse, 30% ignite if any doused)
+  const arsoBots = aliveBots.filter((p) => p.role === 'ARSONIST');
+  for (const arso of arsoBots) {
+    const others = alivePlayers.filter((p) => p.id !== arso.id);
+    if (others.length > 0) {
+      const shouldIgnite = Math.random() < 0.25;
+      if (shouldIgnite) {
+        actions.push({
+          actorId: arso.id,
+          role: 'ARSONIST',
+          type: 'ARSONIST_IGNITE',
+          targetId: arso.id,
+        });
+      } else {
+        const target = others[Math.floor(Math.random() * others.length)];
+        actions.push({
+          actorId: arso.id,
+          role: 'ARSONIST',
+          type: 'ARSONIST_DOUSE',
+          targetId: target.id,
+        });
+      }
+    }
+  }
+
+  // Veteran bots (35% chance to alert)
+  const vetBots = aliveBots.filter((p) => p.role === 'VETERAN');
+  for (const vet of vetBots) {
+    if (Math.random() < 0.35) {
+      actions.push({
+        actorId: vet.id,
+        role: 'VETERAN',
+        type: 'VETERAN_ALERT',
+        targetId: vet.id,
+      });
+    }
+  }
+
+  // Apprentice Seer bots (if no living true seer)
+  const hasLivingSeer = alivePlayers.some((p) => p.role === 'SEER');
+  if (!hasLivingSeer) {
+    const appSeerBots = aliveBots.filter((p) => p.role === 'APPRENTICE_SEER');
+    for (const appSeer of appSeerBots) {
+      const others = alivePlayers.filter((p) => p.id !== appSeer.id);
+      if (others.length > 0) {
+        const target = others[Math.floor(Math.random() * others.length)];
+        actions.push({
+          actorId: appSeer.id,
+          role: 'APPRENTICE_SEER',
+          type: 'INVESTIGATE',
+          targetId: target.id,
+        });
+      }
+    }
+  }
+
   return actions;
 }
 

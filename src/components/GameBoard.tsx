@@ -24,6 +24,7 @@ interface GameBoardProps {
   ) => Promise<boolean>;
   onSubmitVote: (targetId: string | null) => Promise<boolean>;
   onHunterShoot: (targetId: string) => void;
+  onDictatorCoup?: (targetId: string) => Promise<{ success: boolean; error?: string }>;
   onLeaveGame: () => void;
   onOpenHowToPlay: () => void;
 }
@@ -35,6 +36,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onSubmitNightAction,
   onSubmitVote,
   onHunterShoot,
+  onDictatorCoup,
   onLeaveGame,
   onOpenHowToPlay,
 }) => {
@@ -331,6 +333,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             ? gameState.settings.votingTime
             : gameState.settings.discussionTime
         }
+        bearGrowl={gameState.bearGrowl}
+        silencedPlayerName={
+          gameState.silencedPlayerId
+            ? gameState.players.find((p) => p.id === gameState.silencedPlayerId)?.name
+            : null
+        }
       />
 
       {/* Main Board Layout: Centered Full-Width Arena */}
@@ -425,6 +433,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               gameState={gameState}
               selectedTargetId={selectedTargetId}
               onSubmitVote={onSubmitVote}
+              onDictatorCoup={onDictatorCoup}
             />
           )}
 
