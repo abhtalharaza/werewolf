@@ -494,11 +494,20 @@ export function checkWinCondition(players: ServerPlayer[]): {
         reason: 'The Arsonist burned the entire village to ashes and stands alone in victory! Arsonist Wins!',
       };
     }
+    // Arsonist has Night Immunity against Werewolves & Serial Killer.
+    // In a 1v1 showdown (<= 2 players), day votes result in a tie and night attacks cannot kill the Arsonist.
+    if (alivePlayers.length <= 2) {
+      return {
+        gameOver: true,
+        winnerTeam: 'ARSONIST',
+        reason: 'With unyielding Night Immunity, the Arsonist engulfed the remaining villagers in flames! Arsonist Wins!',
+      };
+    }
     if (
       aliveRegularWolves.length === 0 &&
       aliveWhiteWolf.length === 0 &&
       aliveSerialKiller.length === 0 &&
-      alivePlayers.length <= 2
+      aliveVillagers.length <= aliveArsonist.length
     ) {
       return {
         gameOver: true,

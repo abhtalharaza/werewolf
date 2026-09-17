@@ -140,6 +140,12 @@ export interface WitchPotions {
   nightVictimId: string | null;
   nightVictimName: string | null;
   isWitchTargeted?: boolean;
+  healActiveTonight?: boolean;
+  healTargetId?: string | null;
+  healTargetName?: string | null;
+  poisonActiveTonight?: boolean;
+  poisonTargetId?: string | null;
+  poisonTargetName?: string | null;
 }
 
 export interface GameDeathRecord {

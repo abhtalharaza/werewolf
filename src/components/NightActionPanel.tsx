@@ -615,6 +615,36 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             </div>
           )}
 
+          {/* Active Potions Summary Pill */}
+          {(gameState.witchPotions?.healActiveTonight || gameState.witchPotions?.poisonActiveTonight) && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {gameState.witchPotions?.healActiveTonight && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 text-xs font-mono">
+                  <span>✨ Elixir Active: Saving <strong>{gameState.witchPotions.healTargetName}</strong></span>
+                  <button
+                    onClick={() => handleConfirm('CANCEL_HEAL', '')}
+                    disabled={submitting}
+                    className="ml-1 text-[10px] text-emerald-200 hover:text-white bg-emerald-900/80 hover:bg-emerald-800 px-1.5 py-0.5 rounded transition cursor-pointer font-bold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+              {gameState.witchPotions?.poisonActiveTonight && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-950/80 border border-rose-500/60 text-rose-300 text-xs font-mono">
+                  <span>☠️ Poison Active: Killing <strong>{gameState.witchPotions.poisonTargetName}</strong></span>
+                  <button
+                    onClick={() => handleConfirm('CANCEL_POISON', '')}
+                    disabled={submitting}
+                    className="ml-1 text-[10px] text-rose-200 hover:text-white bg-rose-900/80 hover:bg-rose-800 px-1.5 py-0.5 rounded transition cursor-pointer font-bold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             {/* Healing Potion (Elixir of Life) */}
             <div className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between space-y-2">
@@ -623,40 +653,93 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   <span className="font-bold text-xs text-emerald-400 font-cinzel">
                     Elixir of Life (Bachao)
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-emerald-400">
-                    {gameState.witchPotions?.healAvailable ? '1 Available' : 'Used (0/1)'}
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                    gameState.witchPotions?.healActiveTonight
+                      ? 'bg-emerald-950 border-emerald-500 text-emerald-300 font-bold animate-pulse'
+                      : gameState.witchPotions?.healAvailable
+                      ? 'bg-zinc-950 border-zinc-800 text-emerald-400'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-500'
+                  }`}>
+                    {gameState.witchPotions?.healActiveTonight
+                      ? 'Cast Tonight ✨'
+                      : gameState.witchPotions?.healAvailable
+                      ? '1 Available'
+                      : 'Used (0/1)'}
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-1">
-                  {gameState.witchPotions?.isWitchTargeted
+                  {gameState.witchPotions?.healActiveTonight
+                    ? `Administered to ${gameState.witchPotions.healTargetName}. They will survive tonight's attack.`
+                    : gameState.witchPotions?.isWitchTargeted
                     ? 'Drink potion to save your own life.'
                     : gameState.witchPotions?.nightVictimName
                     ? `Save ${gameState.witchPotions.nightVictimName} from death.`
-                    : 'Awaits werewolf attack victim.'}
+                    : targetPlayer
+                    ? `Administer to ${targetPlayer.name} to protect them.`
+                    : 'Awaits werewolf victim or select any player to protect.'}
                 </p>
               </div>
 
-              <button
-                id="witch-heal-btn"
-                onClick={() =>
-                  gameState.witchPotions?.nightVictimId &&
-                  handleConfirm('HEAL', gameState.witchPotions.nightVictimId)
-                }
-                disabled={
-                  !gameState.witchPotions?.healAvailable ||
-                  !gameState.witchPotions?.nightVictimId ||
-                  submitting
-                }
-                className="w-full py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 disabled:opacity-30 disabled:hover:bg-emerald-800 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
-              >
-                {gameState.witchPotions?.healAvailable
-                  ? gameState.witchPotions?.isWitchTargeted
-                    ? 'Drink Elixir (Save Yourself)'
-                    : gameState.witchPotions?.nightVictimName
-                    ? `Administer Elixir (Save ${gameState.witchPotions.nightVictimName})`
-                    : 'Elixir Ready'
-                  : 'Elixir Expended (Dawai Kharch Ho Chuki)'}
-              </button>
+              {gameState.witchPotions?.healActiveTonight ? (
+                <div className="flex gap-2">
+                  <button
+                    id="witch-cancel-heal-btn"
+                    onClick={() => handleConfirm('CANCEL_HEAL', '')}
+                    disabled={submitting}
+                    className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition min-h-[44px] cursor-pointer border border-zinc-600"
+                  >
+                    Cancel Elixir (Save for Later)
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {/* Primary Heal Button: Target is werewolf victim if available */}
+                  {gameState.witchPotions?.nightVictimId && (
+                    <button
+                      id="witch-heal-btn"
+                      onClick={() =>
+                        gameState.witchPotions?.nightVictimId &&
+                        handleConfirm('HEAL', gameState.witchPotions.nightVictimId)
+                      }
+                      disabled={
+                        !gameState.witchPotions?.healAvailable ||
+                        submitting
+                      }
+                      className="w-full py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 disabled:opacity-30 disabled:hover:bg-emerald-800 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
+                    >
+                      {gameState.witchPotions?.healAvailable
+                        ? gameState.witchPotions?.isWitchTargeted
+                          ? 'Drink Elixir (Save Yourself)'
+                          : `Save Werewolf Prey (${gameState.witchPotions.nightVictimName})`
+                        : 'Elixir Expended (Dawai Kharch Ho Chuki)'}
+                    </button>
+                  )}
+
+                  {/* Secondary Heal Button: If Witch clicked another player on the board */}
+                  {targetPlayer && targetPlayer.id !== gameState.witchPotions?.nightVictimId && (
+                    <button
+                      id="witch-heal-custom-btn"
+                      onClick={() => handleConfirm('HEAL', targetPlayer.id)}
+                      disabled={!gameState.witchPotions?.healAvailable || submitting}
+                      className="w-full py-2 rounded-lg bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-600/70 text-emerald-100 text-xs font-bold transition min-h-[40px] cursor-pointer"
+                    >
+                      Protect Selected: {targetPlayer.name}
+                    </button>
+                  )}
+
+                  {/* If no victim yet and no target selected */}
+                  {!gameState.witchPotions?.nightVictimId && !targetPlayer && (
+                    <button
+                      disabled={true}
+                      className="w-full py-2.5 rounded-lg bg-emerald-950 border border-emerald-900/60 opacity-50 text-emerald-300 text-xs font-medium min-h-[44px]"
+                    >
+                      {gameState.witchPotions?.healAvailable
+                        ? 'Waiting for Wolf Victim (or select player)'
+                        : 'Elixir Expended (Dawai Kharch Ho Chuki)'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Poison Potion (Black Nightshade) */}
@@ -666,33 +749,65 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   <span className="font-bold text-xs text-rose-400 font-cinzel">
                     Vial of Poison (Zahar Do)
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-rose-400">
-                    {gameState.witchPotions?.poisonAvailable ? '1 Available' : 'Used (0/1)'}
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                    gameState.witchPotions?.poisonActiveTonight
+                      ? 'bg-rose-950 border-rose-500 text-rose-300 font-bold animate-pulse'
+                      : gameState.witchPotions?.poisonAvailable
+                      ? 'bg-zinc-950 border-zinc-800 text-rose-400'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-500'
+                  }`}>
+                    {gameState.witchPotions?.poisonActiveTonight
+                      ? 'Cast Tonight ☠️'
+                      : gameState.witchPotions?.poisonAvailable
+                      ? '1 Available'
+                      : 'Used (0/1)'}
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-1">
-                  {targetPlayer ? (
-                    <span>
-                      Selected target: <strong className="text-rose-300">{targetPlayer.name}</strong>
-                    </span>
-                  ) : (
-                    <span>Click any player on the board to poison.</span>
-                  )}
+                  {gameState.witchPotions?.poisonActiveTonight
+                    ? `Poison prepared for ${gameState.witchPotions.poisonTargetName}. They will perish at sunrise.`
+                    : targetPlayer
+                    ? <span>Selected target: <strong className="text-rose-300">{targetPlayer.name}</strong></span>
+                    : <span>Click any living player on the board to poison them tonight.</span>}
                 </p>
               </div>
 
-              <button
-                id="witch-poison-btn"
-                onClick={() => targetPlayer && handleConfirm('POISON', targetPlayer.id)}
-                disabled={!gameState.witchPotions?.poisonAvailable || !targetPlayer || submitting}
-                className="w-full py-2.5 rounded-lg bg-rose-900 hover:bg-rose-800 disabled:opacity-30 disabled:hover:bg-rose-900 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
-              >
-                {gameState.witchPotions?.poisonAvailable
-                  ? targetPlayer
-                    ? `Poison ${targetPlayer.name}`
-                    : 'Select Target on Board'
-                  : 'Poison Expended (Zahar Kharch Ho Chuka)'}
-              </button>
+              {gameState.witchPotions?.poisonActiveTonight ? (
+                <div className="space-y-2">
+                  <button
+                    id="witch-cancel-poison-btn"
+                    onClick={() => handleConfirm('CANCEL_POISON', '')}
+                    disabled={submitting}
+                    className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition min-h-[44px] cursor-pointer border border-zinc-600"
+                  >
+                    Cancel Poison (Save for Later)
+                  </button>
+                  {targetPlayer && targetPlayer.id !== gameState.witchPotions.poisonTargetId && (
+                    <button
+                      onClick={() => handleConfirm('POISON', targetPlayer.id)}
+                      disabled={submitting}
+                      className="w-full py-1.5 rounded-lg bg-rose-900 hover:bg-rose-800 text-white text-xs font-bold transition min-h-[36px] cursor-pointer"
+                    >
+                      Change Target to {targetPlayer.name}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <button
+                  id="witch-poison-btn"
+                  onClick={() => targetPlayer && handleConfirm('POISON', targetPlayer.id)}
+                  disabled={!gameState.witchPotions?.poisonAvailable || !targetPlayer || targetPlayer.id === gameState.myPlayerId || submitting}
+                  className="w-full py-2.5 rounded-lg bg-rose-900 hover:bg-rose-800 disabled:opacity-30 disabled:hover:bg-rose-900 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
+                >
+                  {gameState.witchPotions?.poisonAvailable
+                    ? targetPlayer
+                      ? targetPlayer.id === gameState.myPlayerId
+                        ? 'Cannot Poison Yourself'
+                        : `Poison ${targetPlayer.name}`
+                      : 'Select Target on Board'
+                    : 'Poison Expended (Zahar Kharch Ho Chuka)'}
+                </button>
+              )}
             </div>
           </div>
         </div>

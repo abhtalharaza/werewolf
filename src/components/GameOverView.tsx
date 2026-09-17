@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Moon, Users, RotateCcw, Home, Skull, Laugh } from 'lucide-react';
+import { Trophy, Moon, Users, RotateCcw, Home, Skull, Laugh, Flame } from 'lucide-react';
 import { ClientGameState } from '../types/game.js';
 import { getAvatar } from '../utils/avatars.js';
 import { AudioControls } from './AudioControls.js';
@@ -19,6 +19,26 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
   const isHost = gameState.isHost;
 
   const outcomeConfig = React.useMemo(() => {
+    if (winnerTeam === 'ARSONIST') {
+      return {
+        title: 'Arsonist Wins!',
+        glowColor: 'bg-orange-500',
+        emblemStyle: 'bg-orange-950 border-orange-500 text-orange-400',
+        titleStyle: 'text-orange-400 drop-shadow-[0_0_25px_rgba(249,115,22,0.5)]',
+        icon: <Flame className="w-8 h-8 sm:w-10 sm:h-10 text-orange-400 drop-shadow" />,
+        defaultQuote: 'The entire village was reduced to ashes! The Arsonist reigns supreme alone in victory!',
+      };
+    }
+    if (winnerTeam === 'SERIAL_KILLER') {
+      return {
+        title: 'Serial Killer Wins!',
+        glowColor: 'bg-rose-600',
+        emblemStyle: 'bg-rose-950 border-rose-500 text-rose-400',
+        titleStyle: 'text-rose-400 drop-shadow-[0_0_25px_rgba(244,63,94,0.5)]',
+        icon: <Skull className="w-8 h-8 sm:w-10 sm:h-10 text-rose-400 drop-shadow" />,
+        defaultQuote: 'Every last soul in the village was butchered in cold blood! Serial Killer Wins!',
+      };
+    }
     if (winnerTeam === 'JESTER') {
       return {
         title: 'Jester Wins!',
@@ -113,12 +133,21 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
               const isWolf = p.role === 'WEREWOLF' || p.role === 'WHITE_WOLF' || p.role === 'WOLF_CUB';
               const isJester = p.role === 'JESTER';
               const isJesterWinner = isJester && winnerTeam === 'JESTER';
+              const isArsonist = p.role === 'ARSONIST';
+              const isArsonistWinner = isArsonist && winnerTeam === 'ARSONIST';
+              const isSK = p.role === 'SERIAL_KILLER';
+              const isSKWinner = isSK && winnerTeam === 'SERIAL_KILLER';
+              const isSoloWinner = isJesterWinner || isArsonistWinner || isSKWinner;
 
               return (
                 <div
                   key={p.id}
                   className={`p-2.5 sm:p-3 rounded-xl border flex items-center justify-between transition ${
-                    isJesterWinner
+                    isArsonistWinner
+                      ? 'bg-orange-950/40 border-orange-500/80 ring-1 ring-orange-500/50'
+                      : isSKWinner
+                      ? 'bg-rose-950/40 border-rose-500/80 ring-1 ring-rose-500/50'
+                      : isJesterWinner
                       ? 'bg-yellow-950/40 border-yellow-500/80 ring-1 ring-yellow-500/50'
                       : p.isAlive
                       ? 'bg-zinc-900/80 border-zinc-700/80'
@@ -134,14 +163,18 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
                     </div>
                     <div>
                       <div className="font-semibold text-xs text-zinc-100 flex items-center gap-1">
-                        <span className={!p.isAlive && !isJesterWinner ? 'line-through text-zinc-500' : ''}>
+                        <span className={!p.isAlive && !isSoloWinner ? 'line-through text-zinc-500' : ''}>
                           {p.name}
                         </span>
                         {!p.isAlive && <Skull className="w-3 h-3 text-zinc-500" />}
                       </div>
                       <div
                         className={`text-[10px] font-bold font-cinzel ${
-                          isWolf
+                          isArsonist
+                            ? 'text-orange-400'
+                            : isSK
+                            ? 'text-rose-400'
+                            : isWolf
                             ? 'text-red-400'
                             : isJester
                             ? 'text-yellow-400'
@@ -155,14 +188,26 @@ export const GameOverView: React.FC<GameOverViewProps> = ({
 
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
-                      isJesterWinner
+                      isArsonistWinner
+                        ? 'bg-orange-950 text-orange-300 border border-orange-600 font-bold'
+                        : isSKWinner
+                        ? 'bg-rose-950 text-rose-300 border border-rose-600 font-bold'
+                        : isJesterWinner
                         ? 'bg-yellow-950 text-yellow-300 border border-yellow-600 font-bold'
                         : p.isAlive
                         ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/50'
                         : 'bg-zinc-800 text-zinc-500'
                     }`}
                   >
-                    {isJesterWinner ? 'Victor 🎭' : p.isAlive ? 'Alive' : 'Dead'}
+                    {isArsonistWinner
+                      ? 'Victor 🔥'
+                      : isSKWinner
+                      ? 'Victor 🔪'
+                      : isJesterWinner
+                      ? 'Victor 🎭'
+                      : p.isAlive
+                      ? 'Alive'
+                      : 'Dead'}
                   </span>
                 </div>
               );

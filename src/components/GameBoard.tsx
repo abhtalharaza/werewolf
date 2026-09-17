@@ -418,6 +418,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                    (gameState.doppelgangerTargetName && gameState.doppelgangerTargetName === p.name))
                 );
 
+                const isWitch = gameState.myRole === 'WITCH';
+                const isWitchHealedByMe = Boolean(
+                  isWitch && gameState.witchPotions?.healTargetId === p.id
+                );
+                const isWitchPoisonedByMe = Boolean(
+                  isWitch && gameState.witchPotions?.poisonTargetId === p.id
+                );
+                const isWolfVictimForWitch = Boolean(
+                  isWitch &&
+                  gameState.phase === 'NIGHT' &&
+                  gameState.witchPotions?.nightVictimId === p.id
+                );
+
                 return (
                   <PlayerCard
                     key={p.id}
@@ -433,6 +446,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     isGuardedByMe={isGuardedByMe}
                     isDoppelgangerBound={isDoppelgangerBound}
                     wolfVotesTargetingThisPlayer={wolfVotesOnPlayer}
+                    isWitchHealedByMe={isWitchHealedByMe}
+                    isWitchPoisonedByMe={isWitchPoisonedByMe}
+                    isWolfVictimForWitch={isWolfVictimForWitch}
                     onSelect={handleSelectPlayer}
                     canTarget={canTargetPlayer(p.id)}
                   />

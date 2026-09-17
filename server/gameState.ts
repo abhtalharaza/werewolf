@@ -481,10 +481,29 @@ export class GameRoom {
       dousedPlayerIds: this.room.dousedPlayerIds,
     });
 
+    // Witch potion permanence: Mark potions as used if executed tonight
+    if (this.room.nightActions.some((a) => a.type === 'HEAL')) {
+      this.room.witchHealUsed = true;
+    }
+    if (this.room.nightActions.some((a) => a.type === 'POISON')) {
+      this.room.witchPoisonUsed = true;
+    }
+
     // Only record protections where the player was actually attacked and saved
     this.room.morningProtections = (resolution.protections || []).filter(
       (p) => p.wasAttackedAndSaved
     );
+
+    // Announce if any player was saved by the Witch's Elixir of Life
+    for (const prot of this.room.morningProtections) {
+      if (prot.role === 'WITCH') {
+        this.addEvent(
+          'SYSTEM',
+          `✨ The Witch secretly administered the mystic Elixir of Life! ${prot.targetName} was rescued from death's door!`
+        );
+      }
+    }
+
     this.room.enragedWolvesThisNight = false;
 
     // Track newly doused player
@@ -1267,6 +1286,8 @@ export class GameRoom {
       | 'GUARD'
       | 'POISON'
       | 'HEAL'
+      | 'CANCEL_HEAL'
+      | 'CANCEL_POISON'
       | 'CUPID_LOVERS'
       | 'THIEF_CHOOSE'
       | 'DOPPELGANGER_BIND'
@@ -1289,6 +1310,29 @@ export class GameRoom {
     const player = this.getPlayer(playerId);
     if (!player || !player.isAlive) {
       return { success: false, error: 'Player cannot act' };
+    }
+
+    // Witch cancellation actions
+    if (type === 'CANCEL_HEAL') {
+      if (player.role !== 'WITCH') {
+        return { success: false, error: 'Only the Witch can cancel potions' };
+      }
+      this.room.nightActions = this.room.nightActions.filter(
+        (a) => !(a.actorId === playerId && a.type === 'HEAL')
+      );
+      this.notify();
+      return { success: true };
+    }
+
+    if (type === 'CANCEL_POISON') {
+      if (player.role !== 'WITCH') {
+        return { success: false, error: 'Only the Witch can cancel potions' };
+      }
+      this.room.nightActions = this.room.nightActions.filter(
+        (a) => !(a.actorId === playerId && a.type === 'POISON')
+      );
+      this.notify();
+      return { success: true };
     }
 
     const isWolfPack =
@@ -1342,18 +1386,27 @@ export class GameRoom {
       return { success: false, error: 'Only the witch can use potions' };
     }
 
-    // Witch potion limits
+    // Witch potion limits & target validation
     if (type === 'HEAL') {
       if (this.room.witchHealUsed) {
         return { success: false, error: 'Elixir of Life has already been used once this game' };
       }
-      this.room.witchHealUsed = true;
+      const targetPlayer = this.getPlayer(targetId);
+      if (!targetPlayer || !targetPlayer.isAlive) {
+        return { success: false, error: 'Target player is not among the living' };
+      }
     }
     if (type === 'POISON') {
       if (this.room.witchPoisonUsed) {
         return { success: false, error: 'Vial of Poison has already been used once this game' };
       }
-      this.room.witchPoisonUsed = true;
+      if (targetId === playerId) {
+        return { success: false, error: 'The Witch cannot poison herself' };
+      }
+      const targetPlayer = this.getPlayer(targetId);
+      if (!targetPlayer || !targetPlayer.isAlive) {
+        return { success: false, error: 'Target player is not alive' };
+      }
     }
 
     // CUPID
@@ -1610,6 +1663,8 @@ export class GameRoom {
         if (this.room.phase === 'NIGHT') {
           const botActions = getBotNightActions(this.room.players);
           for (const act of botActions) {
+            if (act.type === 'HEAL' && this.room.witchHealUsed) continue;
+            if (act.type === 'POISON' && this.room.witchPoisonUsed) continue;
             this.room.nightActions.push(act);
           }
           this.notify();
@@ -1836,12 +1891,28 @@ export class GameRoom {
       const victim = topVictimId ? this.getPlayer(topVictimId) : null;
       const isWitchVictim = victim ? victim.id === requester.id : false;
 
+      const healAction = this.room.nightActions.find(
+        (a) => a.actorId === requester.id && a.type === 'HEAL'
+      );
+      const healTarget = healAction ? this.getPlayer(healAction.targetId) : null;
+
+      const poisonAction = this.room.nightActions.find(
+        (a) => a.actorId === requester.id && a.type === 'POISON'
+      );
+      const poisonTarget = poisonAction ? this.getPlayer(poisonAction.targetId) : null;
+
       witchPotions = {
         healAvailable: !this.room.witchHealUsed,
         poisonAvailable: !this.room.witchPoisonUsed,
         nightVictimId: victim ? victim.id : null,
         nightVictimName: victim ? (isWitchVictim ? `${victim.name} (YOU!)` : victim.name) : null,
         isWitchTargeted: isWitchVictim,
+        healActiveTonight: Boolean(healAction),
+        healTargetId: healAction?.targetId || null,
+        healTargetName: healTarget?.name || null,
+        poisonActiveTonight: Boolean(poisonAction),
+        poisonTargetId: poisonAction?.targetId || null,
+        poisonTargetName: poisonTarget?.name || null,
       };
     }
 

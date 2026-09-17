@@ -83,6 +83,8 @@ export default function App() {
               ? ['#6366f1', '#a855f7', '#38bdf8']
               : gameState.winnerTeam === 'JESTER'
               ? ['#eab308', '#f59e0b', '#ec4899', '#a855f7']
+              : gameState.winnerTeam === 'ARSONIST'
+              ? ['#ea580c', '#f97316', '#fbbf24', '#dc2626']
               : ['#ef4444', '#991b1b', '#f97316'],
         });
       } catch {
