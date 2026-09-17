@@ -284,6 +284,9 @@ export function setupSocketHandlers(io: Server) {
         return;
       }
       const res = room.executeDictatorCoup(playerId, targetId);
+      if (res.success) {
+        broadcastRoomState(io, room);
+      }
       if (callback) callback(res);
     });
 

@@ -30,6 +30,7 @@ interface NightActionPanelProps {
   onCupidBound?: () => void;
   onUnselectCupidLover?: (slot: 1 | 2) => void;
   onResetCupidLovers?: () => void;
+  onSelectTarget?: (playerId: string) => void;
   onSubmitAction: (
     actionType: any,
     targetId: string,
@@ -47,6 +48,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   onCupidBound,
   onUnselectCupidLover,
   onResetCupidLovers,
+  onSelectTarget,
   onSubmitAction,
 }) => {
   const [submitting, setSubmitting] = useState(false);
@@ -1218,183 +1220,437 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
       )}
 
       {/* 11. SERIAL KILLER */}
-      {role === 'SERIAL_KILLER' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-rose-500 font-bold font-cinzel text-sm">
-              <Skull className="w-4 h-4 text-rose-500 animate-pulse" />
-              <span>Serial Killer's Rampage</span>
+      {role === 'SERIAL_KILLER' && (() => {
+        const activeSkTargetId =
+          (gameState.myNightAction?.type === 'SERIAL_KILLER_KILL' ? gameState.myNightAction.targetId : null) ||
+          confirmedTargetId;
+        const activeSkTarget = activeSkTargetId ? gameState.players.find((p) => p.id === activeSkTargetId) : null;
+        const effectiveVictim = targetPlayer || activeSkTarget;
+
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-rose-500 font-bold font-cinzel text-sm">
+                <Skull className="w-4 h-4 text-rose-500 animate-pulse" />
+                <span>Serial Killer's Rampage</span>
+              </div>
+              <span className="text-[11px] text-rose-400/80 font-mono">Solo Killer</span>
             </div>
-            <span className="text-[11px] text-rose-400/80 font-mono">Solo Killer</span>
-          </div>
-          <p className="text-xs text-zinc-300">
-            You stalk alone in the shadows. Select a victim to execute tonight. You win when all other souls in the village have perished!
-          </p>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
-            <div className="text-xs">
-              {targetPlayer && targetPlayer.id !== me?.id ? (
-                <span>
-                  Execution Target: <strong className="text-rose-400 font-semibold">{targetPlayer.name}</strong>
+            <p className="text-xs text-zinc-300">
+              You stalk alone in the shadows. Select a victim to execute tonight. You win when all other souls in the village have perished!
+            </p>
+
+            {activeSkTarget && (
+              <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-600/60 flex items-center justify-between text-xs text-rose-200">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-rose-400" />
+                  <span>
+                    Slated for Execution: <strong className="text-white font-cinzel">{activeSkTarget.name}</strong>
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-900/80 font-mono text-rose-300 border border-rose-700/60">
+                  Target Queued
                 </span>
-              ) : (
-                <span className="text-zinc-500 italic">Select a player card on the board to assassinate</span>
-              )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <div className="text-[11px] text-zinc-400 font-medium">Select Victim:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {gameState.players
+                  .filter((p) => p.isAlive && p.id !== me?.id)
+                  .map((p) => {
+                    const isSelected = targetPlayer?.id === p.id || (!targetPlayer && activeSkTargetId === p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => onSelectTarget?.(p.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-rose-900 border-rose-400 text-rose-100 ring-2 ring-rose-400/50 font-bold shadow-lg shadow-rose-950/60'
+                            : 'bg-zinc-900/90 border-zinc-800 text-zinc-300 hover:border-rose-800/60 hover:text-white'
+                        }`}
+                      >
+                        <Skull className="w-3 h-3 text-rose-400" />
+                        <span>{p.name}</span>
+                      </button>
+                    );
+                  })}
+              </div>
             </div>
-            <button
-              id="confirm-serial-killer-btn"
-              onClick={() => targetPlayer && handleConfirm('SERIAL_KILLER_KILL', targetPlayer.id)}
-              disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-800 hover:bg-rose-700 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-rose-950/50 min-h-[44px]"
-            >
-              <Skull className="w-3.5 h-3.5" />
-              <span>{submitting ? 'Hunting...' : confirmedTargetId === targetPlayer?.id ? 'Target Slated' : 'Execute Target'}</span>
-            </button>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+              <div className="text-xs">
+                {effectiveVictim && effectiveVictim.id !== me?.id ? (
+                  <span>
+                    Target: <strong className="text-rose-400 font-semibold">{effectiveVictim.name}</strong>
+                  </span>
+                ) : (
+                  <span className="text-zinc-500 italic">Select a player above or from the cards</span>
+                )}
+              </div>
+              <button
+                id="confirm-serial-killer-btn"
+                type="button"
+                onClick={() => effectiveVictim && handleConfirm('SERIAL_KILLER_KILL', effectiveVictim.id)}
+                disabled={!effectiveVictim || effectiveVictim.id === me?.id || submitting}
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-800 hover:bg-rose-700 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-rose-950/50 min-h-[44px] cursor-pointer"
+              >
+                <Skull className="w-3.5 h-3.5" />
+                <span>
+                  {submitting
+                    ? 'Hunting...'
+                    : activeSkTarget && (!targetPlayer || targetPlayer.id === activeSkTarget.id)
+                    ? `✓ Execute ${activeSkTarget.name} (Slated)`
+                    : effectiveVictim
+                    ? `Execute ${effectiveVictim.name}`
+                    : 'Select Target'}
+                </span>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 12. SPELLCASTER (SILENCER) */}
-      {role === 'SPELLCASTER' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-purple-400 font-bold font-cinzel text-sm">
-              <VolumeX className="w-4 h-4 text-purple-400 animate-pulse" />
-              <span>Spellcaster's Silence Hex</span>
+      {role === 'SPELLCASTER' && (() => {
+        const activeSilencedTargetId =
+          (gameState.myNightAction?.type === 'SILENCE' ? gameState.myNightAction.targetId : null) ||
+          confirmedTargetId;
+        const activeSilencedTarget = activeSilencedTargetId
+          ? gameState.players.find((p) => p.id === activeSilencedTargetId)
+          : null;
+        const effectiveSilenceTarget = targetPlayer || activeSilencedTarget;
+
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-purple-400 font-bold font-cinzel text-sm">
+                <VolumeX className="w-4 h-4 text-purple-400 animate-pulse" />
+                <span>Spellcaster's Silence Hex</span>
+              </div>
+              <span className="text-[11px] text-purple-300/80 font-mono">Instant Death Hex</span>
             </div>
-            <span className="text-[11px] text-purple-300/80 font-mono">Instant Death Hex</span>
-          </div>
-          <p className="text-xs text-zinc-300">
-            Cast a magical hex of silence upon a player. Tomorrow, they are forbidden from sending a single message in chat. If they speak even once, they die immediately!
-          </p>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
-            <div className="text-xs">
-              {targetPlayer ? (
-                <span>
-                  Hex Target: <strong className="text-purple-400 font-semibold">{targetPlayer.name}</strong>
+            <p className="text-xs text-zinc-300">
+              Cast a magical hex of silence upon a player. Tomorrow, they are forbidden from sending a single message in chat. If they speak even once, they die immediately!
+            </p>
+
+            {activeSilencedTarget && (
+              <div className="p-2.5 rounded-xl bg-purple-950/70 border border-purple-600/60 flex items-center justify-between text-xs text-purple-200">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-purple-400" />
+                  <span>
+                    Slated for Silence: <strong className="text-white font-cinzel">{activeSilencedTarget.name}</strong>
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/80 font-mono text-purple-300 border border-purple-700/60">
+                  Hex Queued
                 </span>
-              ) : (
-                <span className="text-zinc-500 italic">Select a player card on the board to silence tomorrow</span>
-              )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <div className="text-[11px] text-zinc-400 font-medium">Select Player to Silence:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {gameState.players
+                  .filter((p) => p.isAlive && p.id !== me?.id)
+                  .map((p) => {
+                    const isSelected = targetPlayer?.id === p.id || (!targetPlayer && activeSilencedTargetId === p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => onSelectTarget?.(p.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-purple-900 border-purple-400 text-purple-100 ring-2 ring-purple-400/50 font-bold shadow-lg shadow-purple-950/60'
+                            : 'bg-zinc-900/90 border-zinc-800 text-zinc-300 hover:border-purple-800/60 hover:text-white'
+                        }`}
+                      >
+                        <VolumeX className="w-3 h-3 text-purple-400" />
+                        <span>{p.name}</span>
+                      </button>
+                    );
+                  })}
+              </div>
             </div>
-            <button
-              id="confirm-silence-btn"
-              onClick={() => targetPlayer && handleConfirm('SILENCE', targetPlayer.id)}
-              disabled={!targetPlayer || submitting}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-purple-950/50 min-h-[44px]"
-            >
-              <VolumeX className="w-3.5 h-3.5" />
-              <span>{submitting ? 'Casting Hex...' : confirmedTargetId === targetPlayer?.id ? 'Silence Hexed' : 'Cast Silence'}</span>
-            </button>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+              <div className="text-xs">
+                {effectiveSilenceTarget ? (
+                  <span>
+                    Hex Target: <strong className="text-purple-400 font-semibold">{effectiveSilenceTarget.name}</strong>
+                  </span>
+                ) : (
+                  <span className="text-zinc-500 italic">Select a player to silence tomorrow</span>
+                )}
+              </div>
+              <button
+                id="confirm-silence-btn"
+                type="button"
+                onClick={() => effectiveSilenceTarget && handleConfirm('SILENCE', effectiveSilenceTarget.id)}
+                disabled={!effectiveSilenceTarget || submitting}
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-purple-950/50 min-h-[44px] cursor-pointer"
+              >
+                <VolumeX className="w-3.5 h-3.5" />
+                <span>
+                  {submitting
+                    ? 'Casting Hex...'
+                    : activeSilencedTarget && (!targetPlayer || targetPlayer.id === activeSilencedTarget.id)
+                    ? `✓ Silence ${activeSilencedTarget.name} (Slated)`
+                    : effectiveSilenceTarget
+                    ? `Cast Silence on ${effectiveSilenceTarget.name}`
+                    : 'Select Target'}
+                </span>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 13. ARSONIST */}
-      {role === 'ARSONIST' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-amber-500 font-bold font-cinzel text-sm">
-              <Flame className="w-4 h-4 text-amber-500 animate-bounce" />
-              <span>Arsonist's Gasoline & Blaze</span>
-            </div>
-            <span className="text-[11px] text-amber-400/80 font-mono">Night Immune vs Wolves</span>
-          </div>
-          <p className="text-xs text-zinc-300">
-            Douse a player in gasoline tonight, or ignite all previously doused players simultaneously! You are immune to werewolf attacks at night (only Witch poison can kill you). Win alone when the village burns to ash!
-          </p>
+      {role === 'ARSONIST' && (() => {
+        const activeArsonistAction =
+          gameState.myNightAction?.type === 'ARSONIST_DOUSE'
+            ? 'DOUSE'
+            : gameState.myNightAction?.type === 'ARSONIST_IGNITE'
+            ? 'IGNITE'
+            : null;
+        const dousedCount = gameState.dousedPlayerIds?.length || 0;
+        const activeDouseTarget =
+          activeArsonistAction === 'DOUSE' && gameState.myNightAction?.targetId
+            ? gameState.players.find((p) => p.id === gameState.myNightAction?.targetId)
+            : confirmedTargetId
+            ? gameState.players.find((p) => p.id === confirmedTargetId)
+            : null;
+        const effectiveDouseTarget = targetPlayer || activeDouseTarget;
 
-          {gameState.dousedPlayerIds && gameState.dousedPlayerIds.length > 0 && (
-            <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-600/40 text-xs">
-              <span className="text-amber-300 font-bold font-mono">⛽ Currently Doused: </span>
-              <span className="text-amber-100 font-semibold">
-                {gameState.dousedPlayerIds
-                  .map((id) => gameState.players.find((p) => p.id === id)?.name || id)
-                  .join(', ')}
-              </span>
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-500 font-bold font-cinzel text-sm">
+                <Flame className="w-4 h-4 text-amber-500 animate-bounce" />
+                <span>Arsonist's Gasoline & Blaze</span>
+              </div>
+              <span className="text-[11px] text-amber-400/80 font-mono">Night Immune vs Wolves</span>
             </div>
-          )}
+            <p className="text-xs text-zinc-300">
+              Douse a player in gasoline tonight, or ignite all previously doused players simultaneously! You are immune to werewolf attacks at night (only Witch poison can kill you). Win alone when the village burns to ash!
+            </p>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
-            <div className="text-xs">
-              {targetPlayer && targetPlayer.id !== me?.id ? (
-                <span>
-                  Target: <strong className="text-amber-400 font-semibold">{targetPlayer.name}</strong>
-                  {gameState.dousedPlayerIds?.includes(targetPlayer.id) && (
-                    <span className="ml-2 text-amber-400/90 font-mono text-[11px]">(Already Doused)</span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-zinc-500 italic">Select a player to douse with fuel, or ignite all</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                id="confirm-arsonist-douse-btn"
-                onClick={() => targetPlayer && handleConfirm('ARSONIST_DOUSE', targetPlayer.id)}
-                disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-amber-950/50 min-h-[44px]"
-              >
-                <span>⛽ Douse</span>
-              </button>
-              <button
-                id="confirm-arsonist-ignite-btn"
-                onClick={() => me && handleConfirm('ARSONIST_IGNITE', me.id)}
-                disabled={!gameState.dousedPlayerIds || gameState.dousedPlayerIds.length === 0 || submitting}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-red-950/50 min-h-[44px]"
-              >
-                <Flame className="w-3.5 h-3.5" />
-                <span>🔥 Ignite ({gameState.dousedPlayerIds?.length || 0})</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 14. WILD CHILD */}
-      {role === 'WILD_CHILD' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold font-cinzel text-sm">
-              <UserPlus className="w-4 h-4 text-emerald-400" />
-              <span>Wild Child's Role Model</span>
-            </div>
-            <span className="text-[11px] text-emerald-300/80 font-mono">Feral Bond</span>
-          </div>
-          {gameState.wildChildModelId ? (
-            <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-600/40 text-xs text-emerald-200">
-              🐺 Your beloved Role Model is{' '}
-              <strong className="text-white font-cinzel text-sm">{gameState.wildChildModelName || 'your Idol'}</strong>.
-              As long as they live, you fight with the Villagers. The moment your Role Model perishes, you will transform into a Werewolf!
-            </div>
-          ) : gameState.round === 1 ? (
-            <div className="space-y-2">
-              <p className="text-xs text-zinc-300">
-                Night 1: Choose any living player to be your Role Model. If they die during the game, your inner beast will awaken and turn you into a Werewolf!
-              </p>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
-                <div className="text-xs">
-                  {targetPlayer && targetPlayer.id !== me?.id ? (
-                    <span>
-                      Role Model Target: <strong className="text-emerald-400 font-semibold">{targetPlayer.name}</strong>
-                    </span>
-                  ) : (
-                    <span className="text-zinc-500 italic">Select a player on the board to bond with</span>
-                  )}
+            {/* Active Queued Action Banner */}
+            {activeArsonistAction === 'DOUSE' && activeDouseTarget && (
+              <div className="p-2.5 rounded-xl bg-amber-950/70 border border-amber-600/60 flex items-center justify-between text-xs text-amber-200">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-amber-400" />
+                  <span>
+                    Slated for Dousing: <strong className="text-white font-cinzel">{activeDouseTarget.name}</strong>
+                  </span>
                 </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-900/80 font-mono text-amber-300 border border-amber-700/60">
+                  Douse Queued
+                </span>
+              </div>
+            )}
+
+            {activeArsonistAction === 'IGNITE' && (
+              <div className="p-2.5 rounded-xl bg-red-950/70 border border-red-600/60 flex items-center justify-between text-xs text-red-200">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-red-400 animate-pulse" />
+                  <span>
+                    Slated for Blaze: <strong className="text-white font-cinzel">IGNITING ALL {dousedCount} DOUSED SOULS!</strong>
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-900/80 font-mono text-red-300 border border-red-700/60">
+                  Ignition Queued
+                </span>
+              </div>
+            )}
+
+            {dousedCount > 0 && (
+              <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-600/40 text-xs">
+                <span className="text-amber-300 font-bold font-mono">⛽ Currently Doused ({dousedCount}): </span>
+                <span className="text-amber-100 font-semibold">
+                  {gameState.dousedPlayerIds
+                    ?.map((id) => gameState.players.find((p) => p.id === id)?.name || id)
+                    .join(', ')}
+                </span>
+              </div>
+            )}
+
+            {/* Quick Player Target Chips */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] text-zinc-400 font-medium">Select Player to Douse:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {gameState.players
+                  .filter((p) => p.isAlive && p.id !== me?.id)
+                  .map((p) => {
+                    const isDoused = gameState.dousedPlayerIds?.includes(p.id);
+                    const isSelected = targetPlayer?.id === p.id || (!targetPlayer && activeDouseTarget?.id === p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => onSelectTarget?.(p.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-amber-900 border-amber-400 text-amber-100 ring-2 ring-amber-400/50 font-bold shadow-lg shadow-amber-950/60'
+                            : isDoused
+                            ? 'bg-amber-950/50 border-amber-700/70 text-amber-300 hover:border-amber-500'
+                            : 'bg-zinc-900/90 border-zinc-800 text-zinc-300 hover:border-amber-800/60 hover:text-white'
+                        }`}
+                      >
+                        <span>{isDoused ? '⛽' : '👤'}</span>
+                        <span>{p.name}</span>
+                        {isDoused && (
+                          <span className="text-[10px] bg-amber-900/80 px-1.5 py-0.5 rounded font-mono text-amber-200">
+                            Doused
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+              <div className="text-xs">
+                {effectiveDouseTarget && effectiveDouseTarget.id !== me?.id ? (
+                  <span>
+                    Douse Target: <strong className="text-amber-400 font-semibold">{effectiveDouseTarget.name}</strong>
+                    {gameState.dousedPlayerIds?.includes(effectiveDouseTarget.id) && (
+                      <span className="ml-2 text-amber-400/90 font-mono text-[11px]">(Already Doused)</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-zinc-500 italic">Select a player to douse with fuel, or ignite all</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
                 <button
-                  id="confirm-wild-child-btn"
-                  onClick={() => targetPlayer && handleConfirm('WILD_CHILD_CHOOSE', targetPlayer.id)}
-                  disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-emerald-950/50 min-h-[44px]"
+                  id="confirm-arsonist-douse-btn"
+                  type="button"
+                  onClick={() => effectiveDouseTarget && handleConfirm('ARSONIST_DOUSE', effectiveDouseTarget.id)}
+                  disabled={!effectiveDouseTarget || effectiveDouseTarget.id === me?.id || submitting}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-amber-950/50 min-h-[44px] cursor-pointer"
                 >
-                  <Heart className="w-3.5 h-3.5" />
-                  <span>Bind Role Model</span>
+                  <span>⛽</span>
+                  <span>
+                    {submitting
+                      ? 'Dousing...'
+                      : activeArsonistAction === 'DOUSE' && (!targetPlayer || targetPlayer.id === activeDouseTarget?.id)
+                      ? `✓ Douse ${activeDouseTarget?.name || 'Target'} (Slated)`
+                      : effectiveDouseTarget
+                      ? `Douse ${effectiveDouseTarget.name}`
+                      : 'Select to Douse'}
+                  </span>
+                </button>
+                <button
+                  id="confirm-arsonist-ignite-btn"
+                  type="button"
+                  onClick={() => me && dousedCount > 0 && handleConfirm('ARSONIST_IGNITE', me.id)}
+                  disabled={dousedCount === 0 || submitting}
+                  className={`flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg min-h-[44px] ${
+                    dousedCount > 0
+                      ? 'bg-red-700 hover:bg-red-600 text-white shadow-red-950/60 cursor-pointer animate-pulse'
+                      : 'bg-zinc-900 border border-zinc-800 text-zinc-500 opacity-50 cursor-not-allowed'
+                  }`}
+                  title={dousedCount === 0 ? 'Douse players in gasoline first before igniting' : 'Ignite all doused players tonight'}
+                >
+                  <Flame className="w-3.5 h-3.5" />
+                  <span>
+                    {submitting
+                      ? 'Igniting...'
+                      : activeArsonistAction === 'IGNITE'
+                      ? `🔥 Igniting ${dousedCount} Player(s) Slated`
+                      : dousedCount > 0
+                      ? `🔥 Ignite All (${dousedCount})`
+                      : '🔥 Ignite (0 Doused)'}
+                  </span>
                 </button>
               </div>
             </div>
-          ) : null}
-        </div>
-      )}
+          </div>
+        );
+      })()}
+
+      {/* 14. WILD CHILD */}
+      {role === 'WILD_CHILD' && (() => {
+        const effectiveModel = targetPlayer;
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold font-cinzel text-sm">
+                <UserPlus className="w-4 h-4 text-emerald-400" />
+                <span>Wild Child's Role Model</span>
+              </div>
+              <span className="text-[11px] text-emerald-300/80 font-mono">Feral Bond</span>
+            </div>
+            {gameState.wildChildModelId ? (
+              <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-600/40 text-xs text-emerald-200">
+                🐺 Your beloved Role Model is{' '}
+                <strong className="text-white font-cinzel text-sm">{gameState.wildChildModelName || 'your Idol'}</strong>.
+                As long as they live, you fight with the Villagers. The moment your Role Model perishes, you will transform into a Werewolf!
+              </div>
+            ) : gameState.round === 1 ? (
+              <div className="space-y-2">
+                <p className="text-xs text-zinc-300">
+                  Night 1: Choose any living player to be your Role Model. If they die during the game, your inner beast will awaken and turn you into a Werewolf!
+                </p>
+
+                <div className="space-y-1.5">
+                  <div className="text-[11px] text-zinc-400 font-medium">Select Role Model:</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {gameState.players
+                      .filter((p) => p.isAlive && p.id !== me?.id)
+                      .map((p) => {
+                        const isSelected = targetPlayer?.id === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => onSelectTarget?.(p.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-emerald-900 border-emerald-400 text-emerald-100 ring-2 ring-emerald-400/50 font-bold shadow-lg shadow-emerald-950/60'
+                                : 'bg-zinc-900/90 border-zinc-800 text-zinc-300 hover:border-emerald-800/60 hover:text-white'
+                            }`}
+                          >
+                            <Heart className="w-3 h-3 text-emerald-400" />
+                            <span>{p.name}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+                  <div className="text-xs">
+                    {effectiveModel && effectiveModel.id !== me?.id ? (
+                      <span>
+                        Role Model Target: <strong className="text-emerald-400 font-semibold">{effectiveModel.name}</strong>
+                      </span>
+                    ) : (
+                      <span className="text-zinc-500 italic">Select a player to bond with</span>
+                    )}
+                  </div>
+                  <button
+                    id="confirm-wild-child-btn"
+                    type="button"
+                    onClick={() => effectiveModel && handleConfirm('WILD_CHILD_CHOOSE', effectiveModel.id)}
+                    disabled={!effectiveModel || effectiveModel.id === me?.id || submitting}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-emerald-950/50 min-h-[44px] cursor-pointer"
+                  >
+                    <Heart className="w-3.5 h-3.5" />
+                    <span>{submitting ? 'Binding...' : effectiveModel ? `Bind ${effectiveModel.name}` : 'Select Role Model'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        );
+      })()}
 
       {/* 15. THE VETERAN */}
       {role === 'VETERAN' && (

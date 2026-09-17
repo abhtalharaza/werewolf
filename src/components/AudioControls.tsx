@@ -1,81 +1,44 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { sounds } from '../utils/audio.js';
 
 interface AudioControlsProps {
   showFxTest?: boolean;
 }
 
-export const AudioControls: React.FC<AudioControlsProps> = ({ showFxTest = false }) => {
+export const AudioControls: React.FC<AudioControlsProps> = () => {
   const [muted, setMuted] = useState(sounds.getMuted());
-  const [vol, setVol] = useState(sounds.getVolume());
-  const [showSlider, setShowSlider] = useState(false);
 
   const toggleMute = () => {
     const next = !muted;
     sounds.setMuted(next);
     setMuted(next);
-    if (!next) {
-      sounds.playChatPing();
-    }
-  };
-
-  const onVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    sounds.setVolume(val);
-    setVol(val);
-    if (muted && val > 0) {
-      sounds.setMuted(false);
-      setMuted(false);
-    }
+    // Strictly do NOT play any sound on click (user requirement: bs mute aur unmute hona chahiye)
   };
 
   return (
-    <div
-      id="audio-controls-container"
-      className="relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-800 backdrop-blur-md text-zinc-300 hover:text-white transition shadow-lg"
-      onMouseEnter={() => setShowSlider(true)}
-      onMouseLeave={() => setShowSlider(false)}
+    <button
+      id="audio-mute-toggle"
+      type="button"
+      onClick={toggleMute}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition shadow-md cursor-pointer select-none ${
+        muted
+          ? 'bg-rose-950/70 hover:bg-rose-900/80 border-rose-800/80 text-rose-300 hover:text-rose-200'
+          : 'bg-zinc-900/80 hover:bg-zinc-800/90 border-zinc-700/80 text-zinc-300 hover:text-white'
+      }`}
+      title={muted ? 'Audio is Muted — Click to Unmute' : 'Audio is On — Click to Mute'}
     >
-      <button
-        id="audio-mute-toggle"
-        onClick={toggleMute}
-        className="p-1 hover:text-purple-400 transition"
-        title={muted ? 'Unmute Audio' : 'Mute Audio'}
-      >
-        {muted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-purple-400" />}
-      </button>
-
-      {showSlider && (
-        <input
-          id="audio-volume-slider"
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={muted ? 0 : vol}
-          onChange={onVolumeChange}
-          className="w-16 h-1 accent-purple-500 bg-zinc-700 rounded-lg cursor-pointer"
-        />
+      {muted ? (
+        <>
+          <VolumeX className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+          <span className="text-[11px] font-semibold text-rose-300">Unmute</span>
+        </>
+      ) : (
+        <>
+          <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="text-[11px] font-semibold text-zinc-300">Mute</span>
+        </>
       )}
-
-      {showFxTest && (
-        <button
-          id="audio-test-howl"
-          onClick={() => {
-            if (muted) {
-              sounds.setMuted(false);
-              setMuted(false);
-            }
-            sounds.playWolfHowl();
-          }}
-          className="flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-300 transition pl-1 border-l border-zinc-700 cursor-pointer"
-          title="Listen to Wolf Howl Sound"
-        >
-          <Sparkles className="w-3 h-3 text-purple-400" />
-          <span className="text-[10px]">Wolf FX</span>
-        </button>
-      )}
-    </div>
+    </button>
   );
 };

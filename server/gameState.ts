@@ -1108,8 +1108,22 @@ export class GameRoom {
       return { success: true };
     }
 
-    // Advance directly to night
-    this.startNightPhase();
+    // Check if target was the Hunter taking revenge shot
+    if (target.role === 'HUNTER') {
+      this.room.hunterPendingId = target.id;
+      this.room.hunterContext = 'DAY_VOTE';
+      this.room.hunterEliminationReason = 'DICTATOR';
+      this.setPhase('HUNTER_ACTION', 15);
+      const hunter = this.getPlayer(this.room.hunterPendingId);
+      this.addEvent(
+        'HUNTER_SHOT',
+        `🎯 ${hunter?.name || 'The Hunter'} was condemned by the Dictator's decree! With their dying breath, they raise their rifle for one final revenge shot!`
+      );
+      return { success: true };
+    }
+
+    // Transition through VOTE_RESULT so all players see the execution card and announcement
+    this.setPhase('VOTE_RESULT', 7);
     return { success: true };
   }
 

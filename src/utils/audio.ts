@@ -1,14 +1,9 @@
-import { WOLF_HOWL_BASE64 } from './wolfAudioData.js';
-
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
   private volume: number = 0.5;
   private ambientGain: GainNode | null = null;
   private ambientSource: OscillatorNode | null = null;
-  private wolfBuffer: AudioBuffer | null = null;
-  private isWolfLoading: boolean = false;
-  private wolfAudio: HTMLAudioElement | null = null;
 
   constructor() {
     // Load preference from localStorage if available
@@ -20,44 +15,17 @@ class SoundEngine {
     } catch {
       // ignore
     }
-
-    // Preload actual wolf howl audio element
-    if (typeof window !== 'undefined') {
-      try {
-        this.wolfAudio = new Audio(WOLF_HOWL_BASE64);
-        this.wolfAudio.preload = 'auto';
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  public async preloadWolfBuffer() {
-    if (this.wolfBuffer || this.isWolfLoading) return;
-    this.isWolfLoading = true;
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const resp = await fetch(WOLF_HOWL_BASE64);
-      const arrayBuf = await resp.arrayBuffer();
-      this.wolfBuffer = await this.ctx.decodeAudioData(arrayBuf);
-    } catch {
-      // ignore, fallback will be used
-    } finally {
-      this.isWolfLoading = false;
-    }
   }
 
   public init() {
     if (!this.ctx) {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new AudioContextClass();
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
-    }
-    if (!this.wolfBuffer && !this.isWolfLoading) {
-      this.preloadWolfBuffer().catch(() => {});
     }
   }
 
@@ -93,57 +61,8 @@ class SoundEngine {
     }
   }
 
-  // Authentic Wild Wolf Howl (~2.4s, actual recorded wolf vocalization)
+  // Crisp, powerful short Alpha Wolf call (~1.4s duration, rich chest resonance, natural breath & quick echo)
   public playWolfHowl() {
-    if (this.isMuted) return;
-    this.init();
-
-    // 1. Primary: Use pre-decoded Web Audio API buffer of actual wolf howl
-    if (this.wolfBuffer && this.ctx) {
-      try {
-        const source = this.ctx.createBufferSource();
-        source.buffer = this.wolfBuffer;
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.95 * this.volume, this.ctx.currentTime);
-        source.connect(gain);
-        gain.connect(this.ctx.destination);
-        source.start();
-        return;
-      } catch {
-        // fallback to HTMLAudio
-      }
-    }
-
-    // 2. Immediate HTML5 Audio element fallback using authentic wolf howl audio
-    try {
-      if (typeof window !== 'undefined') {
-        if (!this.wolfAudio) {
-          this.wolfAudio = new Audio(WOLF_HOWL_BASE64);
-        }
-        this.wolfAudio.volume = Math.max(0, Math.min(1, 0.95 * this.volume));
-        this.wolfAudio.currentTime = 0;
-        const playPromise = this.wolfAudio.play();
-        if (playPromise) {
-          playPromise.catch(() => {
-            this.playSynthesizedWolfHowl();
-          });
-        }
-        // Decode in background for subsequent calls
-        if (!this.wolfBuffer) {
-          this.preloadWolfBuffer().catch(() => {});
-        }
-        return;
-      }
-    } catch {
-      // fallback to synth
-    }
-
-    // 3. Fallback: Concise ~2.2s synthesized wolf howl
-    this.playSynthesizedWolfHowl();
-  }
-
-  // Heavy, deep & loud 2.5s synthesized wolf howl fallback
-  public playSynthesizedWolfHowl() {
     if (this.isMuted) return;
     this.init();
     if (!this.ctx) return;
@@ -152,79 +71,149 @@ class SoundEngine {
     const t = ctx.currentTime;
     const vol = this.volume;
 
+    // Master bus (direct sound, zero echo)
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(vol * 0.9, t);
     masterGain.connect(ctx.destination);
 
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const subOsc = ctx.createOscillator();
-    const voiceGain = ctx.createGain();
-    const subGain = ctx.createGain();
+    // --- 1. NATURAL CHEST & THROAT VOCAL CORDS ---
+    // Primary warm canine core (Triangle for thick warm body)
+    const oscBody = ctx.createOscillator();
+    oscBody.type = 'triangle';
 
-    osc1.type = 'sawtooth';
-    osc2.type = 'triangle';
-    subOsc.type = 'sine'; // Deep chest vibration
+    // Vocal cord texture (Warm Sawtooth for harmonic presence)
+    const oscGrit = ctx.createOscillator();
+    oscGrit.type = 'sawtooth';
 
-    // Heavy low pitch contour: 140Hz throat growl -> 380Hz deep roar -> 240Hz finish
-    const setPitch = (osc: OscillatorNode, detune: number) => {
-      osc.frequency.setValueAtTime(140 + detune, t);
-      osc.frequency.exponentialRampToValueAtTime(380 + detune, t + 0.5);
-      osc.frequency.linearRampToValueAtTime(395 + detune, t + 1.2);
-      osc.frequency.exponentialRampToValueAtTime(240 + detune, t + 2.1);
-      osc.frequency.exponentialRampToValueAtTime(130 + detune, t + 2.5);
+    // Sub-bass chest foundation (Sine for solid, non-shrill weight)
+    const oscSub = ctx.createOscillator();
+    oscSub.type = 'sine';
+
+    // Concise, confident pitch curve (~1.3s total active vocal):
+    // Powerful chest launch (210Hz) -> swift confident rise to Alpha howl (355Hz) in 0.28s -> steady roar -> clean, smooth fade (290Hz)
+    const setShortHowlPitch = (osc: OscillatorNode, offset: number) => {
+      osc.frequency.setValueAtTime(210 + offset, t);
+      osc.frequency.exponentialRampToValueAtTime(355 + offset, t + 0.28);
+      osc.frequency.linearRampToValueAtTime(365 + offset, t + 0.75);
+      osc.frequency.exponentialRampToValueAtTime(290 + offset, t + 1.25);
     };
 
-    setPitch(osc1, 0);
-    setPitch(osc2, 3);
-    setPitch(subOsc, -60); // Heavy sub bass
+    setShortHowlPitch(oscBody, 0);
+    setShortHowlPitch(oscGrit, 2);
 
-    // Natural 4.8 Hz heavy animal vibrato
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.setValueAtTime(4.8, t);
-    lfoGain.gain.setValueAtTime(0, t);
-    lfoGain.gain.linearRampToValueAtTime(14, t + 0.6);
-    lfoGain.gain.exponentialRampToValueAtTime(2, t + 2.2);
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc1.frequency);
-    lfoGain.connect(osc2.frequency);
+    // Sub oscillator stays deep in the chest
+    oscSub.frequency.setValueAtTime(105, t);
+    oscSub.frequency.exponentialRampToValueAtTime(178, t + 0.28);
+    oscSub.frequency.linearRampToValueAtTime(182, t + 0.75);
+    oscSub.frequency.exponentialRampToValueAtTime(145, t + 1.25);
 
-    // Resonant low-mid formant filter for deep guttural roar/howl
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.Q.setValueAtTime(3.5, t);
-    filter.frequency.setValueAtTime(420, t);
-    filter.frequency.linearRampToValueAtTime(750, t + 0.6);
-    filter.frequency.exponentialRampToValueAtTime(300, t + 2.3);
+    // Fast, subtle animal throat tremor (natural canine vocal tension)
+    const tremor = ctx.createOscillator();
+    const tremorGain = ctx.createGain();
+    tremor.type = 'sine';
+    tremor.frequency.setValueAtTime(5.2, t);
+    tremorGain.gain.setValueAtTime(0, t);
+    tremorGain.gain.linearRampToValueAtTime(3.5, t + 0.3);
+    tremorGain.gain.exponentialRampToValueAtTime(1.0, t + 1.1);
+    tremor.connect(tremorGain);
+    tremorGain.connect(oscBody.frequency);
+    tremorGain.connect(oscGrit.frequency);
 
-    // Loud volume envelope
+    // --- 2. DUAL CANINE FORMANT FILTERS (Removes synthetic tone, creates real animal vocal tract) ---
+    // Throat formant: amplifies natural chest fullness at 460Hz
+    const throatFormant = ctx.createBiquadFilter();
+    throatFormant.type = 'peaking';
+    throatFormant.frequency.setValueAtTime(460, t);
+    throatFormant.Q.setValueAtTime(2.0, t);
+    throatFormant.gain.setValueAtTime(6.0, t);
+
+    // Muzzle formant: shapes natural "Auuu" sound without harshness
+    const mouthFormant = ctx.createBiquadFilter();
+    mouthFormant.type = 'lowpass';
+    mouthFormant.frequency.setValueAtTime(750, t);
+    mouthFormant.frequency.linearRampToValueAtTime(1300, t + 0.28);
+    mouthFormant.frequency.exponentialRampToValueAtTime(700, t + 1.25);
+    mouthFormant.Q.setValueAtTime(2.2, t);
+
+    // Smooth warmth filter: cuts all ear-piercing frequencies
+    const warmthFilter = ctx.createBiquadFilter();
+    warmthFilter.type = 'lowpass';
+    warmthFilter.frequency.setValueAtTime(1900, t);
+
+    // Amplitude envelope: fast punchy start, solid 0.7s body, clean natural decay by 1.35s
+    const voiceGain = ctx.createGain();
     voiceGain.gain.setValueAtTime(0.001, t);
-    voiceGain.gain.linearRampToValueAtTime(0.65, t + 0.25);
-    voiceGain.gain.setValueAtTime(0.65, t + 1.3);
-    voiceGain.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
+    voiceGain.gain.linearRampToValueAtTime(0.7, t + 0.15); // Quick authoritative attack
+    voiceGain.gain.setValueAtTime(0.65, t + 0.75); // Strong sustained crest
+    voiceGain.gain.exponentialRampToValueAtTime(0.001, t + 1.35); // Clean decay
 
+    // Sub gain
+    const subGain = ctx.createGain();
     subGain.gain.setValueAtTime(0.001, t);
-    subGain.gain.linearRampToValueAtTime(0.35, t + 0.3);
-    subGain.gain.exponentialRampToValueAtTime(0.001, t + 2.3);
+    subGain.gain.linearRampToValueAtTime(0.35, t + 0.18);
+    subGain.gain.setValueAtTime(0.32, t + 0.7);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 1.3);
 
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(voiceGain);
-    voiceGain.connect(masterGain);
+    // Mix vocal oscillators
+    const mix = ctx.createGain();
+    mix.gain.setValueAtTime(0.55, t);
+    oscBody.connect(mix);
+    oscGrit.connect(mix);
 
-    subOsc.connect(subGain);
+    mix.connect(throatFormant);
+    throatFormant.connect(mouthFormant);
+    mouthFormant.connect(warmthFilter);
+    warmthFilter.connect(voiceGain);
+
+    oscSub.connect(subGain);
     subGain.connect(masterGain);
 
-    osc1.start(t);
-    osc2.start(t);
-    subOsc.start(t);
-    lfo.start(t);
+    // Direct output to master, zero echo
+    voiceGain.connect(masterGain);
 
-    osc1.stop(t + 2.55);
-    osc2.stop(t + 2.55);
-    subOsc.stop(t + 2.55);
-    lfo.stop(t + 2.55);
+    // --- 3. SUBTLE INITIAL BREATH ATTACK (Lungs expelling cold air) ---
+    try {
+      const sampleRate = ctx.sampleRate;
+      const breathSamples = Math.floor(sampleRate * 0.4);
+      const breathBuffer = ctx.createBuffer(1, breathSamples, sampleRate);
+      const breathData = breathBuffer.getChannelData(0);
+      for (let i = 0; i < breathSamples; i++) {
+        breathData[i] = (Math.random() * 2 - 1) * 0.2;
+      }
+      const breathSrc = ctx.createBufferSource();
+      breathSrc.buffer = breathBuffer;
+
+      const breathFilter = ctx.createBiquadFilter();
+      breathFilter.type = 'bandpass';
+      breathFilter.frequency.setValueAtTime(550, t);
+      breathFilter.Q.setValueAtTime(2.0, t);
+
+      const breathGain = ctx.createGain();
+      breathGain.gain.setValueAtTime(0.001, t);
+      breathGain.gain.linearRampToValueAtTime(0.12, t + 0.08);
+      breathGain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+
+      breathSrc.connect(breathFilter);
+      breathFilter.connect(breathGain);
+      breathGain.connect(masterGain);
+
+      breathSrc.start(t);
+      breathSrc.stop(t + 0.4);
+    } catch {
+      // ignore
+    }
+
+    // Start & stop active audio nodes (short 1.4s overall runtime)
+    oscBody.start(t);
+    oscGrit.start(t);
+    oscSub.start(t);
+    tremor.start(t);
+
+    const stopTime = t + 1.4;
+    oscBody.stop(stopTime);
+    oscGrit.stop(stopTime);
+    oscSub.stop(stopTime);
+    tremor.stop(stopTime);
   }
 
   // Church Bell / Daybreak Gong

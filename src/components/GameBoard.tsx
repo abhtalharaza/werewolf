@@ -5,6 +5,7 @@ import { PhaseBanner } from './PhaseBanner.js';
 import { PlayerCard } from './PlayerCard.js';
 import { NightActionPanel } from './NightActionPanel.js';
 import { VotingPanel } from './VotingPanel.js';
+import { DictatorCoupPanel } from './DictatorCoupPanel.js';
 import { ChatPanel } from './ChatPanel.js';
 import { HunterActionModal } from './HunterActionModal.js';
 import { EliminationModal } from './EliminationModal.js';
@@ -157,6 +158,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         if (gameState.seerResult) return false; // Seer restricted to 1 check per night
         return playerId !== gameState.myPlayerId;
       }
+      if (gameState.myRole === 'APPRENTICE_SEER') {
+        const hasLivingTrueSeer = gameState.players.some((p) => p.role === 'SEER' && p.isAlive);
+        if (!hasLivingTrueSeer) {
+          if (gameState.seerResult) return false;
+          return playerId !== gameState.myPlayerId;
+        }
+        return false;
+      }
       if (gameState.myRole === 'DOCTOR') return true;
       if (gameState.myRole === 'BODYGUARD') return playerId !== gameState.myPlayerId;
       if (gameState.myRole === 'WITCH') return true;
@@ -165,6 +174,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         return !isCupidBound;
       }
       if (gameState.myRole === 'DOPPELGANGER' && gameState.round === 1) {
+        return playerId !== gameState.myPlayerId;
+      }
+      if (gameState.myRole === 'SERIAL_KILLER') {
+        return playerId !== gameState.myPlayerId;
+      }
+      if (gameState.myRole === 'ARSONIST') {
+        return playerId !== gameState.myPlayerId;
+      }
+      if (gameState.myRole === 'SPELLCASTER') {
+        return playerId !== gameState.myPlayerId;
+      }
+      if (gameState.myRole === 'WILD_CHILD' && gameState.round === 1 && !gameState.wildChildModelId) {
+        return playerId !== gameState.myPlayerId;
+      }
+      return false;
+    }
+    if (gameState.phase === 'DISCUSSION') {
+      // The Dictator can stage a Coup during Discussion
+      if (me?.role === 'DICTATOR' && !gameState.dictatorCoupUsed) {
         return playerId !== gameState.myPlayerId;
       }
       return false;
@@ -424,6 +452,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               onCupidBound={() => setIsCupidBoundLocal(true)}
               onUnselectCupidLover={handleUnselectCupidLover}
               onResetCupidLovers={handleResetCupidLovers}
+              onSelectTarget={setSelectedTargetId}
               onSubmitAction={onSubmitNightAction}
             />
           )}
@@ -432,6 +461,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <VotingPanel
               gameState={gameState}
               selectedTargetId={selectedTargetId}
+              onSelectTarget={setSelectedTargetId}
               onSubmitVote={onSubmitVote}
               onDictatorCoup={onDictatorCoup}
             />
@@ -457,14 +487,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           )}
 
           {gameState.phase === 'DISCUSSION' && (
-            <div className="p-4 rounded-2xl bg-zinc-950/90 border border-amber-900/40 text-center text-xs text-zinc-300 max-w-xl mx-auto backdrop-blur-md">
-              <div className="font-cinzel font-bold text-amber-300 mb-1 flex items-center justify-center gap-1.5">
-                <Sun className="w-4 h-4" />
-                <span>Open Council Deliberation</span>
+            <div className="space-y-4 max-w-2xl mx-auto">
+              <div className="p-4 rounded-2xl bg-zinc-950/90 border border-amber-900/40 text-center text-xs text-zinc-300 backdrop-blur-md">
+                <div className="font-cinzel font-bold text-amber-300 mb-1 flex items-center justify-center gap-1.5">
+                  <Sun className="w-4 h-4" />
+                  <span>Open Council Deliberation</span>
+                </div>
+                <p className="text-zinc-400">
+                  Discuss suspect claims, cross-examine alibis in the chat, and prepare your voting strategy.
+                </p>
               </div>
-              <p className="text-zinc-400">
-                Discuss suspect claims, cross-examine alibis in the chat, and prepare your voting strategy.
-              </p>
+
+              {/* Dictator can stage coup during Discussion! */}
+              {me?.role === 'DICTATOR' && !gameState.dictatorCoupUsed && me.isAlive && (
+                <DictatorCoupPanel
+                  gameState={gameState}
+                  selectedTargetId={selectedTargetId}
+                  onSelectTarget={setSelectedTargetId}
+                  onDictatorCoup={onDictatorCoup}
+                />
+              )}
             </div>
           )}
 

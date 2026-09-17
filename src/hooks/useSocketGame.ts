@@ -294,7 +294,13 @@ export function useSocketGame() {
         | 'THIEF_CHOOSE'
         | 'DOPPELGANGER_BIND'
         | 'WHITE_WOLF_KILL'
-        | 'LITTLE_GIRL_PEEK',
+        | 'LITTLE_GIRL_PEEK'
+        | 'SERIAL_KILLER_KILL'
+        | 'SILENCE'
+        | 'ARSONIST_DOUSE'
+        | 'ARSONIST_IGNITE'
+        | 'WILD_CHILD_CHOOSE'
+        | 'VETERAN_ALERT',
       targetId: string,
       secondaryTargetId?: string,
       chosenRole?: Role

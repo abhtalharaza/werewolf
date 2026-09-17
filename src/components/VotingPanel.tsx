@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Vote, Check, ShieldAlert, SkipForward, Crown } from 'lucide-react';
+import { Vote, Check, ShieldAlert, SkipForward } from 'lucide-react';
 import { ClientGameState } from '../types/game.js';
+import { DictatorCoupPanel } from './DictatorCoupPanel.js';
 
 interface VotingPanelProps {
   gameState: ClientGameState;
   selectedTargetId: string | null;
+  onSelectTarget?: (id: string | null) => void;
   onSubmitVote: (targetId: string | null) => Promise<boolean>;
   onDictatorCoup?: (targetId: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -12,6 +14,7 @@ interface VotingPanelProps {
 export const VotingPanel: React.FC<VotingPanelProps> = ({
   gameState,
   selectedTargetId,
+  onSelectTarget,
   onSubmitVote,
   onDictatorCoup,
 }) => {
@@ -38,13 +41,6 @@ export const VotingPanel: React.FC<VotingPanelProps> = ({
     if (submitting || hasVoted) return;
     setSubmitting(true);
     await onSubmitVote(targetId);
-    setSubmitting(false);
-  };
-
-  const handleDictatorCoup = async () => {
-    if (!targetPlayer || submitting || !onDictatorCoup) return;
-    setSubmitting(true);
-    await onDictatorCoup(targetPlayer.id);
     setSubmitting(false);
   };
 
@@ -121,35 +117,14 @@ export const VotingPanel: React.FC<VotingPanelProps> = ({
 
       {/* Dictator Coup Section */}
       {isDictator && !gameState.dictatorCoupUsed && (
-        <div className="pt-3 border-t border-amber-900/50 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-amber-400 font-bold font-cinzel text-xs">
-              <Crown className="w-4 h-4 text-amber-400" />
-              <span>Dictator's Coup d'État</span>
-            </div>
-            <span className="text-[10px] text-amber-400/80 font-mono">1x Per Game</span>
-          </div>
-          <p className="text-[11px] text-zinc-300">
-            Seize absolute power and unilaterally execute the accused suspect today!
-            <span className="text-amber-400 font-semibold ml-1">
-              Warning: If they are innocent, you will die of guilt tomorrow morning!
-            </span>
-          </p>
-          <div className="flex justify-end">
-            <button
-              id="stage-dictator-coup-btn"
-              onClick={handleDictatorCoup}
-              disabled={!targetPlayer || targetPlayer.id === me?.id || submitting}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-black text-xs font-bold transition shadow-lg shadow-amber-950/60 min-h-[44px]"
-            >
-              <Crown className="w-3.5 h-3.5" />
-              <span>
-                {targetPlayer
-                  ? `Stage Coup & Execute ${targetPlayer.name}`
-                  : 'Select Suspect for Coup'}
-              </span>
-            </button>
-          </div>
+        <div className="pt-2 border-t border-amber-900/50">
+          <DictatorCoupPanel
+            gameState={gameState}
+            selectedTargetId={selectedTargetId}
+            onSelectTarget={onSelectTarget || (() => {})}
+            onDictatorCoup={onDictatorCoup}
+            isCompact={true}
+          />
         </div>
       )}
     </div>
