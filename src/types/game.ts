@@ -146,6 +146,7 @@ export interface WitchPotions {
   poisonActiveTonight?: boolean;
   poisonTargetId?: string | null;
   poisonTargetName?: string | null;
+  isWitchDecisionTime?: boolean;
 }
 
 export interface GameDeathRecord {

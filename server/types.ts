@@ -38,7 +38,10 @@ export interface ServerNightAction {
     | 'ARSONIST_DOUSE'
     | 'ARSONIST_IGNITE'
     | 'WILD_CHILD_CHOOSE'
-    | 'VETERAN_ALERT';
+    | 'VETERAN_ALERT'
+    | 'CANCEL_HEAL'
+    | 'CANCEL_POISON'
+    | 'PASS_HEAL';
   targetId: string;
   secondaryTargetId?: string;
   chosenRole?: Role;
@@ -66,6 +69,7 @@ export interface ServerRoom {
   nightActions: ServerNightAction[];
   witchHealUsed: boolean;
   witchPoisonUsed: boolean;
+  witchGracePeriodGiven: boolean;
   votes: Record<string, string | null>; // voterId -> targetId
   events: GameEvent[];
   latestDeaths: GameDeathRecord[];

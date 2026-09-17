@@ -17,6 +17,8 @@ import {
   ShieldAlert,
   UserPlus,
   Crown,
+  Clock,
+  XCircle,
 } from 'lucide-react';
 import { ClientGameState, ClientPlayer, Role } from '../types/game.js';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
@@ -644,6 +646,49 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               )}
             </div>
           )}
+
+          {/* Dedicated 5-Second Decision Buffer Banner for Witch */}
+          {gameState.witchPotions?.nightVictimId &&
+            gameState.witchPotions?.healAvailable &&
+            !gameState.witchPotions?.healActiveTonight && (
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/80 via-emerald-950/80 to-zinc-950 border-2 border-emerald-500/80 shadow-[0_0_25px_rgba(16,185,129,0.35)] animate-pulse space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-bold text-xs text-emerald-300 font-cinzel">
+                    <Clock className="w-4 h-4 text-amber-400 animate-spin" />
+                    <span>5-Second Decision Window: Bachana Hai Ya Nahi?</span>
+                  </div>
+                  <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-emerald-900/90 border border-emerald-400 text-emerald-100 shadow">
+                    ⏳ {gameState.timer}s Left
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-200 leading-relaxed">
+                  Bhediyon ne <strong>{gameState.witchPotions.nightVictimName}</strong> par hamla kiya hai! Aapke paas faisla lene ke liye <strong>{gameState.timer} second</strong> hain: unhe Elixir of Life se bachaana hai ya apni dawai aage ke liye surakshit rakhni hai?
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 pt-0.5">
+                  <button
+                    id="witch-instant-save-btn"
+                    onClick={() =>
+                      gameState.witchPotions?.nightVictimId &&
+                      handleConfirm('HEAL', gameState.witchPotions.nightVictimId)
+                    }
+                    disabled={submitting}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-950/50 min-h-[42px] cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                    <span>✓ Bchana Hai (Save {gameState.witchPotions.nightVictimName})</span>
+                  </button>
+                  <button
+                    id="witch-pass-heal-btn"
+                    onClick={() => handleConfirm('PASS_HEAL', '')}
+                    disabled={submitting}
+                    className="py-2.5 px-3.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-bold transition border border-zinc-600 min-h-[42px] cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <XCircle className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Nahi Bachana (Pass & End Night)</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             {/* Healing Potion (Elixir of Life) */}

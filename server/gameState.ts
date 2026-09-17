@@ -99,6 +99,7 @@ export class GameRoom {
       nightActions: [],
       witchHealUsed: false,
       witchPoisonUsed: false,
+      witchGracePeriodGiven: false,
       votes: {},
       events: [
         {
@@ -407,9 +408,42 @@ export class GameRoom {
       case 'ROLE_REVEAL':
         this.startNightPhase();
         break;
-      case 'NIGHT':
+      case 'NIGHT': {
+        const aliveWitch = this.room.players.find(
+          (p) => p.role === 'WITCH' && p.isAlive
+        );
+        const hasWolfKill = this.room.nightActions.some(
+          (a) => a.type === 'KILL'
+        );
+        const healUsed = this.room.witchHealUsed;
+        const alreadyHealedTonight = this.room.nightActions.some(
+          (a) => a.type === 'HEAL'
+        );
+
+        // If werewolves struck and the Witch has not yet used or cast her Elixir of Life,
+        // grant the Witch a dedicated 5-second decision buffer so she is not cut off by last-second wolf attacks.
+        if (
+          aliveWitch &&
+          !healUsed &&
+          hasWolfKill &&
+          !alreadyHealedTonight &&
+          !this.room.witchGracePeriodGiven
+        ) {
+          this.room.witchGracePeriodGiven = true;
+          this.room.timer = 5;
+          this.room.timerMax = 5;
+          this.addEvent(
+            'SYSTEM',
+            `⏳ Werewolves struck in the dark! The Witch is granted 5 seconds to decide whether to save the victim with the Elixir of Life!`
+          );
+          this.notify();
+          this.startWitchGraceTimer();
+          return;
+        }
+
         this.resolveNightAndStartDay();
         break;
+      }
       case 'DAY_ANNOUNCEMENT':
         if (this.room.hunterPendingId) {
           this.setPhase('HUNTER_ACTION', 15);
@@ -445,8 +479,22 @@ export class GameRoom {
     }
   }
 
+  private startWitchGraceTimer() {
+    this.clearTimer();
+    this.room.intervalId = setInterval(() => {
+      this.room.timer--;
+      if (this.room.timer <= 0) {
+        this.clearTimer();
+        this.resolveNightAndStartDay();
+      } else {
+        this.notify();
+      }
+    }, 1000);
+  }
+
   private startNightPhase() {
     this.room.nightActions = [];
+    this.room.witchGracePeriodGiven = false;
     this.room.players.forEach((p) => {
       p.targetId = null;
     });
@@ -1288,6 +1336,7 @@ export class GameRoom {
       | 'HEAL'
       | 'CANCEL_HEAL'
       | 'CANCEL_POISON'
+      | 'PASS_HEAL'
       | 'CUPID_LOVERS'
       | 'THIEF_CHOOSE'
       | 'DOPPELGANGER_BIND'
@@ -1332,6 +1381,19 @@ export class GameRoom {
         (a) => !(a.actorId === playerId && a.type === 'POISON')
       );
       this.notify();
+      return { success: true };
+    }
+
+    if (type === 'PASS_HEAL') {
+      if (player.role !== 'WITCH') {
+        return { success: false, error: 'Only the Witch can pass healing' };
+      }
+      // If the Witch explicitly passes during the 5s grace period, immediately conclude the night
+      if (this.room.witchGracePeriodGiven) {
+        this.clearTimer();
+        this.resolveNightAndStartDay();
+        return { success: true };
+      }
       return { success: true };
     }
 
@@ -1594,6 +1656,28 @@ export class GameRoom {
     });
 
     player.targetId = targetId;
+
+    // If werewolves locked in an attack, ensure the Witch gets at least 5 seconds to decide whether to use the Elixir
+    if (type === 'KILL') {
+      const aliveWitch = this.room.players.find(
+        (p) => p.role === 'WITCH' && p.isAlive
+      );
+      const healUsed = this.room.witchHealUsed;
+      const alreadyHealedTonight = this.room.nightActions.some(
+        (a) => a.type === 'HEAL'
+      );
+      if (aliveWitch && !healUsed && !alreadyHealedTonight) {
+        if (this.room.timer < 5) {
+          this.room.timer = 5;
+          this.room.timerMax = Math.max(this.room.timerMax, 5);
+          this.room.witchGracePeriodGiven = true;
+          this.addEvent(
+            'SYSTEM',
+            `⏳ Werewolves have struck! The Witch is granted 5 seconds to decide whether to save the victim with the Elixir of Life!`
+          );
+        }
+      }
+    }
 
     let computedSeerResult: SeerResult | undefined = undefined;
     if (type === 'INVESTIGATE') {
@@ -1913,6 +1997,10 @@ export class GameRoom {
         poisonActiveTonight: Boolean(poisonAction),
         poisonTargetId: poisonAction?.targetId || null,
         poisonTargetName: poisonTarget?.name || null,
+        isWitchDecisionTime: Boolean(
+          this.room.witchGracePeriodGiven ||
+            (this.room.timer <= 5 && !this.room.witchHealUsed && victim !== null)
+        ),
       };
     }
 
