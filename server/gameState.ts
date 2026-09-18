@@ -283,7 +283,13 @@ export class GameRoom {
 
   public updateSettings(settings: Partial<GameSettings>, newHostName?: string) {
     if (this.room.phase !== 'LOBBY') return;
-    this.room.settings = { ...this.room.settings, ...settings };
+    this.room.settings = {
+      ...this.room.settings,
+      ...settings,
+      roleDistribution: settings.roleDistribution
+        ? { ...this.room.settings.roleDistribution, ...settings.roleDistribution }
+        : this.room.settings.roleDistribution,
+    };
     if (settings.roomName && settings.roomName.trim()) {
       this.room.name = settings.roomName.trim();
       this.room.settings.roomName = settings.roomName.trim();

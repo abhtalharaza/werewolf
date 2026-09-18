@@ -53,6 +53,21 @@ export function useSocketGame() {
     s.on('connect', () => {
       setConnected(true);
       setError(null);
+
+      // Auto-reconnect if we were already in an active room
+      const activeCode = currentRoomCodeRef.current;
+      const activePlayerId = myPlayerIdRef.current;
+      if (activeCode && activePlayerId && !isLeavingRef.current) {
+        s.emit(
+          'room:reconnect',
+          { roomCode: activeCode, playerId: activePlayerId },
+          (res: { success: boolean; state?: ClientGameState; error?: string }) => {
+            if (res && res.success && res.state) {
+              setGameState(res.state);
+            }
+          }
+        );
+      }
     });
 
     s.on('disconnect', () => {
@@ -67,9 +82,9 @@ export function useSocketGame() {
       // If user chose to leave, ignore lingering packets
       if (isLeavingRef.current) return;
 
-      // Verify this player belongs to the room and is marked connected
+      // Verify this player belongs to the room (do not self-destruct if momentarily disconnected)
       const me = state.players.find((p) => p.id === state.myPlayerId);
-      if (!me || !me.connected) {
+      if (!me) {
         if (currentRoomCodeRef.current === state.roomCode) {
           currentRoomCodeRef.current = null;
           myPlayerIdRef.current = null;
@@ -259,9 +274,36 @@ export function useSocketGame() {
   );
 
   const updateSettings = useCallback(
-    (settings: Partial<GameSettings>, hostName?: string) => {
-      if (!socket || !gameState) return;
-      socket.emit('room:settings', { roomCode: gameState.roomCode, settings, hostName });
+    (settings: Partial<GameSettings>, hostName?: string): Promise<boolean> => {
+      if (!socket || !gameState) return Promise.resolve(false);
+      // Optimistically update local gameState.settings so UI reflects changes immediately!
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          settings: {
+            ...prev.settings,
+            ...settings,
+            roleDistribution: settings.roleDistribution
+              ? { ...settings.roleDistribution }
+              : prev.settings.roleDistribution,
+          },
+        };
+      });
+      return new Promise((resolve) => {
+        socket.emit(
+          'room:settings',
+          { roomCode: gameState.roomCode, settings, hostName },
+          (res?: { success: boolean; error?: string; settings?: GameSettings }) => {
+            if (res && res.success && res.settings) {
+              setGameState((prev) => (prev ? { ...prev, settings: res.settings! } : prev));
+              resolve(true);
+            } else {
+              resolve(true);
+            }
+          }
+        );
+      });
     },
     [socket, gameState]
   );

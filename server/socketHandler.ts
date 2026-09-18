@@ -3,6 +3,10 @@ import { gameManager } from './gameManager.js';
 import { GameRoom } from './gameState.js';
 import { ChatMessage, ChatChannel } from '../src/types/game.js';
 
+// Grace period timers for disconnected human players (playerId -> NodeJS.Timeout)
+// Prevents host or players from being unexpectedly kicked on transient network disconnects
+const disconnectTimers = new Map<string, NodeJS.Timeout>();
+
 export function broadcastRoomState(io: Server, room: GameRoom) {
   const players = room.getPlayers();
   for (const player of players) {
@@ -136,6 +140,13 @@ export function setupSocketHandlers(io: Server) {
         }
 
         const playerId = existingPlayerId || 'p-' + Math.random().toString(36).substring(2, 9);
+
+        // Cancel any pending disconnect timer if player is reconnecting
+        if (existingPlayerId && disconnectTimers.has(existingPlayerId)) {
+          clearTimeout(disconnectTimers.get(existingPlayerId)!);
+          disconnectTimers.delete(existingPlayerId);
+        }
+
         const result = room.addPlayer({
           id: playerId,
           socketId: socket.id,
@@ -172,6 +183,50 @@ export function setupSocketHandlers(io: Server) {
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to join room';
+        if (callback) callback({ success: false, error: message });
+      }
+    });
+
+    // 2.5 RECONNECT PLAYER
+    socket.on('room:reconnect', ({ roomCode, playerId }, callback) => {
+      try {
+        const normalizedCode = (roomCode || '').trim().toUpperCase();
+        const room = gameManager.getRoom(normalizedCode);
+        if (!room) {
+          if (callback) callback({ success: false, error: 'Room not found' });
+          return;
+        }
+
+        const player = room.getPlayer(playerId);
+        if (!player) {
+          if (callback) callback({ success: false, error: 'Player not found in room' });
+          return;
+        }
+
+        // Cancel any pending disconnect grace timer
+        if (disconnectTimers.has(playerId)) {
+          clearTimeout(disconnectTimers.get(playerId)!);
+          disconnectTimers.delete(playerId);
+        }
+
+        player.connected = true;
+        player.socketId = socket.id;
+        gameManager.linkPlayer(socket.id, room.getCode());
+        gameManager.linkPlayer(playerId, room.getCode());
+
+        socket.join(room.getCode());
+        broadcastRoomState(io, room);
+
+        if (callback) {
+          callback({
+            success: true,
+            roomCode: room.getCode(),
+            playerId,
+            state: room.getSanitizedState(playerId),
+          });
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to reconnect';
         if (callback) callback({ success: false, error: message });
       }
     });
@@ -222,10 +277,18 @@ export function setupSocketHandlers(io: Server) {
     });
 
     // 6. UPDATE SETTINGS
-    socket.on('room:settings', ({ roomCode, settings, hostName }: { roomCode: string; settings: any; hostName?: string }) => {
+    socket.on('room:settings', ({ roomCode, settings, hostName }: { roomCode: string; settings: any; hostName?: string }, callback) => {
       const room = gameManager.getRoom(roomCode);
       if (room) {
         room.updateSettings(settings, hostName);
+        broadcastRoomState(io, room);
+        if (typeof callback === 'function') {
+          callback({ success: true, settings: room.room.settings });
+        }
+      } else {
+        if (typeof callback === 'function') {
+          callback({ success: false, error: 'Room not found' });
+        }
       }
     });
 
@@ -377,7 +440,13 @@ export function setupSocketHandlers(io: Server) {
     socket.on('room:leave', ({ roomCode, playerId }, callback) => {
       socket.leave(roomCode);
       gameManager.unlinkPlayer(socket.id);
-      if (playerId) gameManager.unlinkPlayer(playerId);
+      if (playerId) {
+        gameManager.unlinkPlayer(playerId);
+        if (disconnectTimers.has(playerId)) {
+          clearTimeout(disconnectTimers.get(playerId)!);
+          disconnectTimers.delete(playerId);
+        }
+      }
 
       const room = gameManager.getRoom(roomCode);
       if (room) {
@@ -385,6 +454,8 @@ export function setupSocketHandlers(io: Server) {
         const humanPlayers = room.getPlayers().filter((p) => !p.isBot && p.connected);
         if (humanPlayers.length === 0) {
           gameManager.removeRoom(roomCode);
+        } else {
+          broadcastRoomState(io, room);
         }
       }
       if (typeof callback === 'function') {
@@ -392,17 +463,41 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
-    // 14. DISCONNECT
+    // 14. DISCONNECT (Grace period so host and players are NOT kicked on connection drops)
     socket.on('disconnect', () => {
       const room = gameManager.getRoomByPlayer(socket.id);
       if (room) {
         const player = room.getPlayers().find((p) => p.socketId === socket.id);
         if (player) {
-          room.removePlayer(player.id);
-          const humanPlayers = room.getPlayers().filter((p) => !p.isBot && p.connected);
-          if (humanPlayers.length === 0) {
-            gameManager.removeRoom(room.getCode());
+          player.connected = false;
+          player.socketId = '';
+          broadcastRoomState(io, room);
+
+          // Clear any existing timer for this player
+          if (disconnectTimers.has(player.id)) {
+            clearTimeout(disconnectTimers.get(player.id)!);
           }
+
+          // 60-second grace period for the player/host to reconnect
+          const timer = setTimeout(() => {
+            disconnectTimers.delete(player.id);
+            const activeRoom = gameManager.getRoom(room.getCode());
+            if (!activeRoom) return;
+
+            const target = activeRoom.getPlayer(player.id);
+            // If the player did not reconnect:
+            if (target && !target.connected) {
+              activeRoom.removePlayer(player.id);
+              const remainingHumans = activeRoom.getPlayers().filter((p) => !p.isBot && p.connected);
+              if (remainingHumans.length === 0) {
+                gameManager.removeRoom(activeRoom.getCode());
+              } else {
+                broadcastRoomState(io, activeRoom);
+              }
+            }
+          }, 60000);
+
+          disconnectTimers.set(player.id, timer);
         }
       }
       gameManager.unlinkPlayer(socket.id);

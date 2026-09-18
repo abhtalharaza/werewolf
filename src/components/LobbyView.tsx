@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Copy,
   Check,
@@ -19,6 +19,7 @@ import {
   Plus,
   Minus,
   X,
+  RotateCcw,
 } from 'lucide-react';
 import { ClientGameState, ChatMessage, Role, GameSettings } from '../types/game.js';
 import { ALL_ROLES_META } from '../types/roleMeta.js';
@@ -31,7 +32,7 @@ interface LobbyViewProps {
   onAddBot: () => void;
   onRemoveBot: (botId?: string) => void;
   onKickPlayer: (playerId: string) => void;
-  onUpdateSettings: (settings: Partial<GameSettings>, hostName?: string) => void;
+  onUpdateSettings: (settings: Partial<GameSettings>, hostName?: string) => Promise<boolean> | void;
   onStartGame: () => Promise<boolean>;
   onLeaveRoom: () => void;
   onSendChat: (text: string) => void;
@@ -147,6 +148,15 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [deckDraft, setDeckDraft] = useState<Record<Role, number>>(() =>
     createDefaultDeckDraft(gameState.settings.roleDistribution)
   );
+  const [deckSaveToast, setDeckSaveToast] = useState(false);
+  const [isSavingDeck, setIsSavingDeck] = useState(false);
+
+  // Synchronize deck draft whenever game settings are updated
+  useEffect(() => {
+    if (gameState.settings?.roleDistribution) {
+      setDeckDraft(createDefaultDeckDraft(gameState.settings.roleDistribution));
+    }
+  }, [gameState.settings?.roleDistribution]);
 
   const currentDeck = gameState.settings.roleDistribution || {
     WEREWOLF: 2,
@@ -183,13 +193,59 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     setIsEditingDeck(true);
   };
 
-  const saveDeckSettings = () => {
+  const applyDeckPreset = (preset: 'CLASSIC' | 'BALANCED' | 'MYSTIC_AMNESIAC') => {
+    const base = createDefaultDeckDraft();
+    if (preset === 'CLASSIC') {
+      setDeckDraft({
+        ...base,
+        WEREWOLF: 2,
+        VILLAGER: 3,
+        SEER: 1,
+        DOCTOR: 1,
+        HUNTER: 1,
+      });
+    } else if (preset === 'BALANCED') {
+      setDeckDraft({
+        ...base,
+        WEREWOLF: 2,
+        VILLAGER: 2,
+        SEER: 1,
+        DOCTOR: 1,
+        HUNTER: 1,
+        WITCH: 1,
+        BODYGUARD: 1,
+      });
+    } else if (preset === 'MYSTIC_AMNESIAC') {
+      setDeckDraft({
+        ...base,
+        WEREWOLF: 2,
+        VILLAGER: 2,
+        AMNESIAC: 1,
+        SEER: 1,
+        DOCTOR: 1,
+        HUNTER: 1,
+        WITCH: 1,
+      });
+    }
+  };
+
+  const saveDeckSettings = async () => {
+    if (isSavingDeck) return;
+    setIsSavingDeck(true);
     const safeCounts = {
       ...deckDraft,
       WEREWOLF: Math.max(1, deckDraft.WEREWOLF || 1),
     };
-    onUpdateSettings({ roleDistribution: safeCounts });
-    setIsEditingDeck(false);
+    try {
+      await onUpdateSettings({ roleDistribution: safeCounts });
+      setDeckSaveToast(true);
+      setTimeout(() => setDeckSaveToast(false), 3000);
+      setIsEditingDeck(false);
+    } catch {
+      // ignore
+    } finally {
+      setIsSavingDeck(false);
+    }
   };
 
   const updateDraftCount = (role: Role, delta: number) => {
@@ -203,8 +259,21 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     });
   };
 
+  const totalCardsInDraft = Object.values(deckDraft).reduce((sum, n) => sum + (n || 0), 0);
+
   return (
     <div className="relative min-h-screen flex flex-col p-3 sm:p-4 md:p-8 z-10 max-w-6xl mx-auto w-full justify-between">
+      {/* Role Deck Saved Toast Notification */}
+      {deckSaveToast && (
+        <div
+          id="deck-saved-notification"
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-950/95 border border-emerald-500/70 text-emerald-100 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-none"
+        >
+          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>Village role deck saved! Settings updated for all players.</span>
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 bg-zinc-950/70 border border-zinc-800/80 rounded-2xl p-3.5 sm:p-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -599,7 +668,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             className="relative w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-2xl text-zinc-100 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
               <div className="flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-purple-400" />
                 <h3 className="font-cinzel font-bold text-lg text-zinc-100">Customize Role Deck</h3>
@@ -612,11 +681,40 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </button>
             </div>
 
-            <p className="text-xs text-zinc-400 mb-4">
-              Set the number of each role to be dealt out to players.
-            </p>
+            {/* Quick Deck Presets */}
+            <div className="flex items-center gap-1.5 flex-wrap mb-3 p-2 bg-zinc-900/80 rounded-xl border border-zinc-800">
+              <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mr-1">Presets:</span>
+              <button
+                type="button"
+                onClick={() => applyDeckPreset('CLASSIC')}
+                className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition cursor-pointer"
+              >
+                Classic (8)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyDeckPreset('BALANCED')}
+                className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition cursor-pointer"
+              >
+                Balanced (9)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyDeckPreset('MYSTIC_AMNESIAC')}
+                className="px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-800/60 hover:bg-purple-900 text-purple-200 text-xs font-medium transition cursor-pointer"
+              >
+                Amnesiac Special
+              </button>
+            </div>
 
-            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+            <div className="flex items-center justify-between text-xs text-zinc-400 mb-3 px-1">
+              <span>Adjust role frequencies for the village deck:</span>
+              <span className="font-mono px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-purple-300 font-bold text-[11px]">
+                Total Cards: {totalCardsInDraft} (Players: {playerCount})
+              </span>
+            </div>
+
+            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {ALL_ROLES_META.map((meta) => {
                 const Icon = meta.icon;
                 const role = meta.role;
@@ -670,21 +768,40 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               })}
             </div>
 
-            <div className="flex items-center justify-end gap-3 mt-5 pt-3 border-t border-zinc-800">
+            <div className="flex items-center justify-between gap-3 mt-5 pt-3 border-t border-zinc-800">
               <button
                 type="button"
-                onClick={() => setIsEditingDeck(false)}
-                className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white text-xs transition cursor-pointer"
+                onClick={() => setDeckDraft(createDefaultDeckDraft())}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 text-xs transition cursor-pointer"
+                title="Reset to default deck"
               >
-                Cancel
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Default</span>
               </button>
-              <button
-                type="button"
-                onClick={saveDeckSettings}
-                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold font-cinzel transition shadow-lg shadow-purple-900/40 cursor-pointer"
-              >
-                Save Deck
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingDeck(false)}
+                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white text-xs transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveDeckSettings}
+                  disabled={isSavingDeck}
+                  className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold font-cinzel transition shadow-lg shadow-purple-900/40 cursor-pointer"
+                >
+                  {isSavingDeck ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save Deck</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
