@@ -20,6 +20,7 @@ import {
   Baby,
   Crown,
   AlertTriangle,
+  Brain,
 } from 'lucide-react';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
 
@@ -67,6 +68,8 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
         return <Crown className="w-4 h-4 text-amber-300" />;
       case 'VETERAN':
         return <AlertTriangle className="w-4 h-4 text-orange-500" />;
+      case 'AMNESIAC':
+        return <Brain className="w-4 h-4 text-teal-400" />;
       default:
         return <Users className="w-4 h-4 text-zinc-400" />;
     }

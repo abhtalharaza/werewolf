@@ -24,6 +24,7 @@ import {
   Baby,
   Gavel,
   ShieldAlert,
+  Brain,
 } from 'lucide-react';
 import { Role, Team } from './game.js';
 
@@ -289,5 +290,14 @@ export const ALL_ROLES_META: RoleConfigMeta[] = [
     color: 'text-emerald-300',
     badgeClass: 'bg-emerald-950/80 text-emerald-200 border-emerald-700/50',
     description: 'Can go on high Alert 3 times per game. While on Alert, anyone who visits or targets your house tonight is shot and killed!',
+  },
+  {
+    role: 'AMNESIAC',
+    name: 'The Amnesiac',
+    team: 'NEUTRAL',
+    icon: Brain,
+    color: 'text-teal-400',
+    badgeClass: 'bg-teal-950/80 text-teal-300 border-teal-700/50',
+    description: 'Starts with no team (Neutral). Each night, inspect all deceased players and their true roles. Once per game, choose a fallen soul to remember and permanently adopt their role and team!',
   },
 ];

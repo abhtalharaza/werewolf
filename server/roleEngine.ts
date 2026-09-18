@@ -7,6 +7,7 @@ export function getRoleTeam(role: Role): Team {
   if (role === 'WHITE_WOLF') return 'WHITE_WOLF';
   if (role === 'SERIAL_KILLER') return 'SERIAL_KILLER';
   if (role === 'ARSONIST') return 'ARSONIST';
+  if (role === 'AMNESIAC') return 'NEUTRAL';
   return 'VILLAGERS';
 }
 
@@ -484,6 +485,7 @@ export function checkWinCondition(players: ServerPlayer[]): {
       p.role !== 'SERIAL_KILLER' &&
       p.role !== 'ARSONIST'
   );
+  const aliveNeutral = alivePlayers.filter((p) => p.team === 'NEUTRAL' || p.role === 'AMNESIAC');
 
   // 1. Arsonist Solo Win:
   if (aliveArsonist.length > 0) {
@@ -598,7 +600,10 @@ export function checkWinCondition(players: ServerPlayer[]): {
     aliveArsonist.length === 0 &&
     aliveRegularWolves.length > 0
   ) {
-    if (aliveVillagers.length === 0 || aliveRegularWolves.length >= aliveVillagers.length) {
+    if (
+      (aliveVillagers.length === 0 && aliveNeutral.length === 0) ||
+      aliveRegularWolves.length >= aliveVillagers.length + aliveNeutral.length
+    ) {
       return {
         gameOver: true,
         winnerTeam: 'WEREWOLVES',

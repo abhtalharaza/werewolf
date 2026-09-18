@@ -68,6 +68,7 @@ const createDefaultDeckDraft = (dist?: Partial<Record<Role, number>>): Record<Ro
     WILD_CHILD: 0,
     DICTATOR: 0,
     VETERAN: 0,
+    AMNESIAC: 0,
   };
   if (dist) {
     Object.entries(dist).forEach(([r, count]) => {

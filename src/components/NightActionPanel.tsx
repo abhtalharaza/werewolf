@@ -19,6 +19,7 @@ import {
   Crown,
   Clock,
   XCircle,
+  Brain,
 } from 'lucide-react';
 import { ClientGameState, ClientPlayer, Role } from '../types/game.js';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
@@ -72,6 +73,12 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   const targetPlayer = gameState.players.find((p) => p.id === selectedTargetId);
   const cupidLover1 = gameState.players.find((p) => p.id === cupidLover1Id);
   const cupidLover2 = gameState.players.find((p) => p.id === cupidLover2Id);
+
+  // Werewolf hunting time lock (15s for wolves when Witch is present, full night when no Witch)
+  const isWolfHuntingLocked = Boolean(
+    gameState.werewolfHuntingLocked ||
+    (gameState.hasAliveWitch && gameState.timer <= 5)
+  );
 
   // Werewolf pack kill lock
   const myWolfVote = gameState.werewolfVotes?.find((v) => v.werewolfId === me?.id);
@@ -236,11 +243,50 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             </div>
           )}
 
+          {/* Werewolf Hunting Window info / 15s limit */}
+          {gameState.hasAliveWitch ? (
+            isWolfHuntingLocked ? (
+              <div className="p-3 rounded-xl bg-amber-950/70 border border-amber-500/60 flex items-center gap-2.5 text-xs text-amber-200">
+                <Clock className="w-4 h-4 text-amber-400 shrink-0 animate-spin" />
+                <div>
+                  <span className="font-bold font-cinzel">Shikar ka samay samapt (15s pure hue)!</span>
+                  <p className="text-[11px] text-zinc-300 mt-0.5">
+                    Aakhri 5 second Witch ke aakhri faisle ke liye hain. Ab werewolf kisi ko nahi maar sakte.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-900/50 text-[11px]">
+                <span className="text-red-300 flex items-center gap-1.5 font-medium">
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  Werewolf Hunting Window (Pehle 15s):
+                </span>
+                <span className="font-mono font-bold text-amber-300 bg-red-950/80 px-2 py-0.5 rounded border border-red-800">
+                  ⏳ {Math.max(0, gameState.timer - 5)}s bache hain
+                </span>
+              </div>
+            )
+          ) : (
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-[11px]">
+              <span className="text-zinc-300 flex items-center gap-1.5">
+                <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                Witch game me nahi hai: Puri raat bhediyon ke liye hai!
+              </span>
+              <span className="font-mono font-bold text-zinc-200 bg-zinc-800 px-2 py-0.5 rounded">
+                ⏳ {gameState.timer}s
+              </span>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
             <div className="text-xs">
               {isWolfKillLocked ? (
                 <span className="text-emerald-400 font-mono font-semibold">
                   Locked Strike: <strong>{lockedWolfTargetName || 'Prey'}</strong> (Locked in)
+                </span>
+              ) : isWolfHuntingLocked ? (
+                <span className="text-amber-400 font-semibold">
+                  Hunting Window Expired: Witch holds the remaining 5s
                 </span>
               ) : targetPlayer ? (
                 <span>
@@ -257,11 +303,12 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 
             <button
               id="confirm-werewolf-kill-btn"
-              onClick={() => targetPlayer && !isWolfKillLocked && handleConfirm('KILL', targetPlayer.id)}
+              onClick={() => targetPlayer && !isWolfKillLocked && !isWolfHuntingLocked && handleConfirm('KILL', targetPlayer.id)}
               disabled={
                 !targetPlayer ||
                 submitting ||
                 isWolfKillLocked ||
+                isWolfHuntingLocked ||
                 targetPlayer.id === me?.id ||
                 targetPlayer.role === 'WEREWOLF' ||
                 targetPlayer.role === 'WOLF_CUB' ||
@@ -270,6 +317,8 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               className={`flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg min-h-[44px] ${
                 isWolfKillLocked
                   ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-200 cursor-not-allowed shadow-emerald-950/50'
+                  : isWolfHuntingLocked
+                  ? 'bg-zinc-850 border border-amber-500/50 text-amber-300/80 cursor-not-allowed'
                   : 'bg-red-800 hover:bg-red-700 text-white shadow-red-950/50 disabled:opacity-40 cursor-pointer'
               }`}
             >
@@ -282,6 +331,11 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
                   <span>✓ Strike Locked: {lockedWolfTargetName || 'Target'} (Cannot be undone)</span>
+                </>
+              ) : isWolfHuntingLocked ? (
+                <>
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Hunting Expired (15s Done) - Witch's Time</span>
                 </>
               ) : (
                 <>
@@ -590,6 +644,34 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             </div>
           </div>
 
+          {/* Night Timing Split Banner (20s Total: 15s Wolves, 5s Exclusive Witch Window) */}
+          <div className="p-3 rounded-xl bg-gradient-to-r from-purple-950/70 via-pink-950/60 to-zinc-950 border border-purple-500/50 space-y-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-pink-300 font-cinzel">
+                <Moon className="w-3.5 h-3.5 text-purple-400" />
+                <span>Total Night: 20s (Witch 20s • Bhediye 15s)</span>
+              </div>
+              <span className={`text-[11px] font-mono font-extrabold px-2 py-0.5 rounded border ${
+                gameState.timer <= 5
+                  ? 'bg-amber-900 border-amber-400 text-amber-100 animate-pulse'
+                  : 'bg-purple-900 border-purple-400 text-purple-100'
+              }`}>
+                ⏳ {gameState.timer}s Left
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-300 leading-relaxed">
+              {gameState.timer <= 5 ? (
+                <strong className="text-amber-300">
+                  ✨ Aakhri 5 Second Window: Bhediyon ka samay khatam ho chuka hai! Ab werewolf shikar nahi kar sakte. Aap aaraam se apna faisla le sakti hain.
+                </strong>
+              ) : (
+                <span>
+                  Bhediye pehle 15s me shikar karenge (<strong className="text-amber-300">{Math.max(0, gameState.timer - 5)}s bache</strong>). Lekin aap iss pure 20s me kabhi bhi apna jadu chala sakti hain! Aakhri 5 second sirf aapke liye reserved rahenge.
+                </span>
+              )}
+            </p>
+          </div>
+
           {/* Werewolves Target Notification Alert for Witch */}
           {gameState.witchPotions?.isWitchTargeted ? (
             <div className="p-3.5 rounded-xl bg-red-950/70 border-2 border-red-500/80 text-red-200 animate-pulse space-y-1">
@@ -655,14 +737,27 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-bold text-xs text-emerald-300 font-cinzel">
                     <Clock className="w-4 h-4 text-amber-400 animate-spin" />
-                    <span>5-Second Decision Window: Bachana Hai Ya Nahi?</span>
+                    <span>
+                      {gameState.timer <= 5
+                        ? 'Exclusive 5-Second Window: Bachana Hai Ya Nahi?'
+                        : 'Bhediye Ka Shikar Samne Hai: Bachana Hai Ya Nahi?'}
+                    </span>
                   </div>
                   <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-emerald-900/90 border border-emerald-400 text-emerald-100 shadow">
                     ⏳ {gameState.timer}s Left
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-200 leading-relaxed">
-                  Bhediyon ne <strong>{gameState.witchPotions.nightVictimName}</strong> par hamla kiya hai! Aapke paas faisla lene ke liye <strong>{gameState.timer} second</strong> hain: unhe Elixir of Life se bachaana hai ya apni dawai aage ke liye surakshit rakhni hai?
+                  Bhediyon ne <strong>{gameState.witchPotions.nightVictimName}</strong> par hamla kiya hai!{' '}
+                  {gameState.timer <= 5 ? (
+                    <span>
+                      Bhediyon ka shikar ab band ho chuka hai (15s pure hue). Aapke paas bachaane ya dawai bachaane ke liye pure <strong>{gameState.timer} second</strong> hain!
+                    </span>
+                  ) : (
+                    <span>
+                      Aap abhi bhi unhe bacha sakti hain, ya aakhri 5 second ke exclusive window tak intezar kar sakti hain ({gameState.timer}s bache).
+                    </span>
+                  )}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2 pt-0.5">
                   <button
@@ -1079,6 +1174,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   (targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB') &&
                   targetPlayer.id !== me?.id &&
                   !isWhiteWolfSoloKillLocked &&
+                  !isWolfHuntingLocked &&
                   handleConfirm('WHITE_WOLF_KILL', targetPlayer.id)
                 }
                 disabled={
@@ -1086,11 +1182,14 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   (targetPlayer.role !== 'WEREWOLF' && targetPlayer.role !== 'WOLF_CUB') ||
                   targetPlayer.id === me?.id ||
                   isWhiteWolfSoloKillLocked ||
+                  isWolfHuntingLocked ||
                   submitting
                 }
                 className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all min-h-[46px] ${
                   isWhiteWolfSoloKillLocked
                     ? 'bg-emerald-950/80 border border-emerald-500/80 text-emerald-200 cursor-not-allowed shadow-emerald-950/50'
+                    : isWolfHuntingLocked
+                    ? 'bg-zinc-850 border border-amber-500/50 text-amber-300/80 cursor-not-allowed'
                     : targetPlayer && (targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB') && targetPlayer.id !== me?.id
                     ? 'bg-gradient-to-r from-red-700 via-zinc-800 to-slate-800 hover:from-red-600 hover:to-slate-700 text-white border border-red-500/60 shadow-lg shadow-red-950/50 cursor-pointer'
                     : 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed'
@@ -1105,6 +1204,11 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   <>
                     <Check className="w-4 h-4 text-emerald-300" />
                     <span>✓ Werewolf Target Slain: {lockedWhiteWolfSoloTarget?.name || 'Werewolf'} (Cannot be undone)</span>
+                  </>
+                ) : isWolfHuntingLocked ? (
+                  <>
+                    <Clock className="w-4 h-4 text-amber-400" />
+                    <span>Hunting Window Expired (15s Done) - Witch's Time</span>
                   </>
                 ) : targetPlayer && (targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB') && targetPlayer.id !== me?.id ? (
                   <>
@@ -1865,7 +1969,152 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
         </div>
       )}
 
-      {/* 17. PASSIVE OR SLUMBERING ROLES AT NIGHT */}
+      {/* 17. THE AMNESIAC */}
+      {role === 'AMNESIAC' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-teal-400 font-bold font-cinzel text-sm">
+              <Brain className="w-4 h-4 text-teal-400" />
+              <span>Amnesiac: The Whispering Graveyard</span>
+            </div>
+            <span className="text-[11px] text-teal-300 font-mono bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/40">
+              Neutral • Awaken Once
+            </span>
+          </div>
+
+          <p className="text-xs text-zinc-300 leading-relaxed">
+            You wander with no memory of your past loyalties. Each night you may gaze into the graveyard where the true roles of all fallen souls are revealed. You may choose one soul to remember and permanently awaken as their role at dawn, joining their team!
+          </p>
+
+          {/* If already chosen a role tonight */}
+          {gameState.myNightAction?.type === 'AMNESIAC_REMEMBER' || confirmedTargetId ? (() => {
+            const chosenId = gameState.myNightAction?.targetId || confirmedTargetId;
+            const chosenTarget = gameState.players.find((p) => p.id === chosenId);
+            return (
+              <div className="p-3.5 rounded-xl bg-teal-950/70 border border-teal-500/60 text-center space-y-2">
+                <div className="text-xs text-teal-200 font-semibold font-mono">
+                  ✨ Memory Returning: Selected <strong className="text-white">{chosenTarget?.name || 'Fallen Soul'}</strong>
+                  {chosenTarget?.role && (
+                    <span className="ml-1 text-amber-300">({ROLE_DEFINITIONS[chosenTarget.role]?.name || chosenTarget.role})</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-300">
+                  At sunrise, you will permanently awaken into this role and fight for their team!
+                </p>
+                <button
+                  id="amnesiac-cancel-choice-btn"
+                  onClick={() => {
+                    handleConfirm('PASS_AMNESIAC', me?.id || '');
+                    setConfirmedTargetId(null);
+                  }}
+                  disabled={submitting}
+                  className="mt-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs transition cursor-pointer min-h-[36px]"
+                >
+                  Change Mind / Skip Tonight
+                </button>
+              </div>
+            );
+          })() : (
+            <>
+              {/* Dead players list */}
+              {(() => {
+                const deadPlayers = gameState.amnesiacGraveyard || gameState.players.filter((p) => !p.isAlive && p.role !== 'AMNESIAC');
+                if (deadPlayers.length === 0) {
+                  return (
+                    <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 text-center space-y-1.5">
+                      <div className="text-xs font-semibold text-zinc-300">
+                        🌑 The Graveyard is Silent (Shuruati Sannata)
+                      </div>
+                      <p className="text-xs text-zinc-400">
+                        All villagers are currently alive. With no fallen souls in the graveyard yet, you have no identities to remember tonight. Rest peacefully until souls begin to fall!
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                      <span>Select a fallen soul from the graveyard:</span>
+                      <span className="text-teal-400 font-mono">{deadPlayers.length} Fallen Souls</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {deadPlayers.map((dead) => {
+                        const isSelected = selectedTargetId === dead.id;
+                        const roleDef = dead.role ? ROLE_DEFINITIONS[dead.role] : undefined;
+                        const isWolf = roleDef?.team === 'WEREWOLVES';
+
+                        return (
+                          <div
+                            key={dead.id}
+                            onClick={() => onSelectTarget && onSelectTarget(dead.id)}
+                            className={`p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 ${
+                              isSelected
+                                ? 'bg-teal-950/80 border-teal-500 shadow-md shadow-teal-950/50'
+                                : 'bg-zinc-900/80 hover:bg-zinc-800/80 border-zinc-800'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-300 shrink-0">
+                                ✝
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-zinc-200 truncate">{dead.name}</div>
+                                <div className={`text-[10px] font-mono ${isWolf ? 'text-red-400' : 'text-teal-300'}`}>
+                                  True Role: {roleDef?.name || dead.role || 'Unknown'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              {isSelected ? (
+                                <div className="w-5 h-5 rounded-full bg-teal-500 flex items-center justify-center text-zinc-950">
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full border border-zinc-600" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-zinc-800/80">
+                      <button
+                        id="amnesiac-skip-night-btn"
+                        onClick={() => {
+                          handleConfirm('PASS_AMNESIAC', me?.id || '');
+                        }}
+                        disabled={submitting}
+                        className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition cursor-pointer min-h-[40px] flex items-center justify-center"
+                      >
+                        Skip & Slumber Tonight
+                      </button>
+
+                      <button
+                        id="confirm-amnesiac-remember-btn"
+                        onClick={() => {
+                          if (selectedTargetId) {
+                            handleConfirm('AMNESIAC_REMEMBER', selectedTargetId);
+                          }
+                        }}
+                        disabled={!selectedTargetId || submitting}
+                        className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-zinc-950 font-bold text-xs transition shadow-lg shadow-teal-950/50 min-h-[40px] cursor-pointer"
+                      >
+                        <Brain className="w-3.5 h-3.5 text-zinc-950" />
+                        <span>{submitting ? 'Remembering...' : 'Remember This Soul (Yaddash Lein)'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 18. PASSIVE OR SLUMBERING ROLES AT NIGHT */}
       {!isWerewolfPackMember &&
         role !== 'SEER' &&
         !(role === 'APPRENTICE_SEER' && gameState.isApprenticeSeerActive) &&
@@ -1878,6 +2127,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
         role !== 'SPELLCASTER' &&
         role !== 'ARSONIST' &&
         role !== 'VETERAN' &&
+        role !== 'AMNESIAC' &&
         !(role === 'WILD_CHILD' && !gameState.wildChildModelId && gameState.round === 1) &&
         !(role === 'CUPID' && gameState.round === 1) &&
         !(role === 'DOPPELGANGER' && gameState.round === 1) &&

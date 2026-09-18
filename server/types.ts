@@ -39,6 +39,8 @@ export interface ServerNightAction {
     | 'ARSONIST_IGNITE'
     | 'WILD_CHILD_CHOOSE'
     | 'VETERAN_ALERT'
+    | 'AMNESIAC_REMEMBER'
+    | 'PASS_AMNESIAC'
     | 'CANCEL_HEAL'
     | 'CANCEL_POISON'
     | 'PASS_HEAL';
@@ -97,4 +99,5 @@ export interface ServerRoom {
   dictatorGuiltPending: boolean;
   dictatorPlayerId: string | null;
   veteranAlertsRemaining: Record<string, number>; // playerId -> count
+  amnesiacRememberedIds: string[];
 }

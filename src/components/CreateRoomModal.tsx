@@ -63,6 +63,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     WILD_CHILD: 0,
     DICTATOR: 0,
     VETERAN: 0,
+    AMNESIAC: 0,
   });
 
   if (!isOpen) return null;
@@ -124,6 +125,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       WILD_CHILD: 0,
       DICTATOR: 0,
       VETERAN: 0,
+      AMNESIAC: 0,
     };
 
     if (preset === 'ALL_ROLES') {

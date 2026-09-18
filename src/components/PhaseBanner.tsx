@@ -9,6 +9,8 @@ interface PhaseBannerProps {
   timerMax: number;
   bearGrowl?: boolean | null;
   silencedPlayerName?: string | null;
+  hasAliveWitch?: boolean;
+  amnesiacAwakened?: boolean;
 }
 
 export const PhaseBanner: React.FC<PhaseBannerProps> = ({
@@ -18,6 +20,8 @@ export const PhaseBanner: React.FC<PhaseBannerProps> = ({
   timerMax,
   bearGrowl,
   silencedPlayerName,
+  hasAliveWitch,
+  amnesiacAwakened,
 }) => {
   const isUrgent = timer <= 5 && timer > 0;
   const progress = timerMax > 0 ? (timer / timerMax) * 100 : 0;
@@ -27,10 +31,14 @@ export const PhaseBanner: React.FC<PhaseBannerProps> = ({
       case 'NIGHT':
         return {
           title: 'NIGHTFELL',
-          subtitle: 'Shadows envelop the village. Nocturnal powers take their toll.',
+          subtitle: hasAliveWitch
+            ? timer <= 5
+              ? "✨ Exclusive Witch Window: Werewolf hunting closed. Witch's decision time!"
+              : "Shadows deepen. Werewolves hunt (first 15s) • Witch active (all 20s)."
+            : 'Shadows envelop the village. Nocturnal powers take their toll.',
           icon: <Moon className="w-5 h-5 text-indigo-400" />,
           accent: 'border-indigo-500/40 bg-indigo-950/40 text-indigo-200',
-          barColor: 'bg-indigo-500',
+          barColor: hasAliveWitch && timer <= 5 ? 'bg-amber-500' : 'bg-indigo-500',
         };
       case 'DAY_ANNOUNCEMENT':
         return {
@@ -162,6 +170,13 @@ export const PhaseBanner: React.FC<PhaseBannerProps> = ({
               <span>
                 <strong>{silencedPlayerName}</strong> is silenced today! If they speak in chat, they will die instantly!
               </span>
+            </div>
+          )}
+          {amnesiacAwakened && (
+            <div className="px-4 py-2 bg-teal-950/90 border-t border-teal-500/50 text-xs text-teal-200 flex items-center justify-center gap-2 font-mono">
+              <span>📢</span>
+              <strong className="font-cinzel tracking-wider text-teal-300">AMNESIAC AWAKENED:</strong>
+              <span>Ek Amnesiac ko apni yaddash wapas mil gayi hai! (An Amnesiac remembered who they were!)</span>
             </div>
           )}
         </>

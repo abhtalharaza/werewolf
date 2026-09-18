@@ -301,6 +301,8 @@ export function useSocketGame() {
         | 'ARSONIST_IGNITE'
         | 'WILD_CHILD_CHOOSE'
         | 'VETERAN_ALERT'
+        | 'AMNESIAC_REMEMBER'
+        | 'PASS_AMNESIAC'
         | 'CANCEL_HEAL'
         | 'CANCEL_POISON'
         | 'PASS_HEAL',

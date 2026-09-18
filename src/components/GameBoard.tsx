@@ -355,18 +355,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         round={gameState.round}
         timer={gameState.timer}
         timerMax={
-          isNight
+          gameState.timerMax ||
+          (isNight
             ? gameState.settings.nightTime
             : isVoting
             ? gameState.settings.votingTime
-            : gameState.settings.discussionTime
+            : gameState.settings.discussionTime)
         }
+        hasAliveWitch={gameState.hasAliveWitch}
         bearGrowl={gameState.bearGrowl}
         silencedPlayerName={
           gameState.silencedPlayerId
             ? gameState.players.find((p) => p.id === gameState.silencedPlayerId)?.name
             : null
         }
+        amnesiacAwakened={Boolean(
+          gameState.events?.some(
+            (e) => e.type === 'AMNESIAC_REMEMBER' && e.round === gameState.round
+          )
+        )}
       />
 
       {/* Main Board Layout: Centered Full-Width Arena */}

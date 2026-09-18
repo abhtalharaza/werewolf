@@ -70,6 +70,7 @@ export class GameRoom {
         WILD_CHILD: 0,
         DICTATOR: 0,
         VETERAN: 0,
+        AMNESIAC: 0,
       },
     };
 
@@ -134,6 +135,7 @@ export class GameRoom {
       dictatorGuiltPending: false,
       dictatorPlayerId: null,
       veteranAlertsRemaining: {},
+      amnesiacRememberedIds: [],
     };
 
     if (initialSettings?.autoPopulateBots) {
@@ -352,6 +354,7 @@ export class GameRoom {
     this.room.dictatorGuiltPending = false;
     this.room.dictatorPlayerId = null;
     this.room.veteranAlertsRemaining = {};
+    this.room.amnesiacRememberedIds = [];
     this.room.players.forEach((p) => {
       if (p.role === 'VETERAN') {
         this.room.veteranAlertsRemaining[p.id] = 3;
@@ -408,42 +411,9 @@ export class GameRoom {
       case 'ROLE_REVEAL':
         this.startNightPhase();
         break;
-      case 'NIGHT': {
-        const aliveWitch = this.room.players.find(
-          (p) => p.role === 'WITCH' && p.isAlive
-        );
-        const hasWolfKill = this.room.nightActions.some(
-          (a) => a.type === 'KILL'
-        );
-        const healUsed = this.room.witchHealUsed;
-        const alreadyHealedTonight = this.room.nightActions.some(
-          (a) => a.type === 'HEAL'
-        );
-
-        // If werewolves struck and the Witch has not yet used or cast her Elixir of Life,
-        // grant the Witch a dedicated 5-second decision buffer so she is not cut off by last-second wolf attacks.
-        if (
-          aliveWitch &&
-          !healUsed &&
-          hasWolfKill &&
-          !alreadyHealedTonight &&
-          !this.room.witchGracePeriodGiven
-        ) {
-          this.room.witchGracePeriodGiven = true;
-          this.room.timer = 5;
-          this.room.timerMax = 5;
-          this.addEvent(
-            'SYSTEM',
-            `⏳ Werewolves struck in the dark! The Witch is granted 5 seconds to decide whether to save the victim with the Elixir of Life!`
-          );
-          this.notify();
-          this.startWitchGraceTimer();
-          return;
-        }
-
+      case 'NIGHT':
         this.resolveNightAndStartDay();
         break;
-      }
       case 'DAY_ANNOUNCEMENT':
         if (this.room.hunterPendingId) {
           this.setPhase('HUNTER_ACTION', 15);
@@ -507,8 +477,18 @@ export class GameRoom {
       this.room.wolfCubKilledByVote = false;
     }
 
-    this.setPhase('NIGHT', this.room.settings.nightTime);
-    this.addEvent('PHASE_CHANGE', `Night fell upon the village. Round ${this.room.round}.`);
+    const hasAliveWitch = this.room.players.some(
+      (p) => p.role === 'WITCH' && p.isAlive
+    );
+    const nightDuration = hasAliveWitch ? 20 : this.room.settings.nightTime;
+
+    this.setPhase('NIGHT', nightDuration);
+    this.addEvent(
+      'PHASE_CHANGE',
+      hasAliveWitch
+        ? `Night fell upon the village (20s). Werewolves hunt for 15s; the Witch holds nocturnal sway for 20s with an exclusive 5s decision window!`
+        : `Night fell upon the village (${nightDuration}s). Werewolves hunt throughout the entire night!`
+    );
   }
 
   private resolveNightAndStartDay() {
@@ -725,6 +705,30 @@ export class GameRoom {
             );
           }
         }
+      }
+    }
+
+    // Amnesiac Awakening: Has any living Amnesiac chosen to remember a fallen soul?
+    const amnesiacActions = this.room.nightActions.filter((a) => a.type === 'AMNESIAC_REMEMBER');
+    for (const act of amnesiacActions) {
+      const amnPlayer = this.getPlayer(act.actorId);
+      const deadTarget = this.getPlayer(act.targetId);
+      if (amnPlayer && amnPlayer.isAlive && deadTarget) {
+        const rememberedRole = deadTarget.role;
+        amnPlayer.role = rememberedRole;
+        amnPlayer.team = getRoleTeam(rememberedRole);
+        if (rememberedRole === 'VETERAN' && !this.room.veteranAlertsRemaining[amnPlayer.id]) {
+          this.room.veteranAlertsRemaining[amnPlayer.id] = 3;
+        }
+        if (!this.room.amnesiacRememberedIds.includes(amnPlayer.id)) {
+          this.room.amnesiacRememberedIds.push(amnPlayer.id);
+        }
+
+        // Public announcement: Suspense! Everyone knows an Amnesiac remembered, but not what role they became!
+        this.addEvent(
+          'AMNESIAC_REMEMBER',
+          `📢 Ek Amnesiac ko yaad aa gaya hai ki wo kaun tha! (An Amnesiac remembered who they were!)`
+        );
       }
     }
 
@@ -1347,7 +1351,9 @@ export class GameRoom {
       | 'ARSONIST_DOUSE'
       | 'ARSONIST_IGNITE'
       | 'WILD_CHILD_CHOOSE'
-      | 'VETERAN_ALERT',
+      | 'VETERAN_ALERT'
+      | 'AMNESIAC_REMEMBER'
+      | 'PASS_AMNESIAC',
     targetId: string,
     secondaryTargetId?: string,
     chosenRole?: Role
@@ -1405,6 +1411,15 @@ export class GameRoom {
 
     // Role validation
     if (type === 'KILL') {
+      const hasAliveWitch = this.room.players.some(
+        (p) => p.role === 'WITCH' && p.isAlive
+      );
+      if (hasAliveWitch && this.room.timer <= 5) {
+        return {
+          success: false,
+          error: 'Werewolf hunting time has ended (15 seconds passed)! The remaining 5 seconds are exclusively for the Witch.',
+        };
+      }
       if (!isWolfPack) {
         return { success: false, error: 'Only werewolves can attack' };
       }
@@ -1516,6 +1531,15 @@ export class GameRoom {
 
     // WHITE WOLF
     if (type === 'WHITE_WOLF_KILL') {
+      const hasAliveWitch = this.room.players.some(
+        (p) => p.role === 'WITCH' && p.isAlive
+      );
+      if (hasAliveWitch && this.room.timer <= 5) {
+        return {
+          success: false,
+          error: 'Werewolf hunting time has ended (15 seconds passed)! The remaining 5 seconds are exclusively for the Witch.',
+        };
+      }
       if (player.role !== 'WHITE_WOLF') return { success: false, error: 'Only the White Wolf can strike wolves' };
       if (this.room.round % 2 !== 0) return { success: false, error: 'White Wolf may only strike on alternate (even) rounds' };
       if (targetId === playerId) return { success: false, error: 'White Wolf cannot target themselves' };
@@ -1631,6 +1655,43 @@ export class GameRoom {
       this.room.veteranAlertsRemaining[playerId] = remaining - 1;
     }
 
+    // AMNESIAC PASS (Skip choosing tonight)
+    if (type === 'PASS_AMNESIAC') {
+      if (player.role !== 'AMNESIAC') return { success: false, error: 'Only the Amnesiac can pass' };
+      this.room.nightActions = this.room.nightActions.filter((a) => a.actorId !== playerId);
+      player.targetId = null;
+      this.notify();
+      return { success: true };
+    }
+
+    // AMNESIAC REMEMBER
+    if (type === 'AMNESIAC_REMEMBER') {
+      if (player.role !== 'AMNESIAC') return { success: false, error: 'Only the Amnesiac can remember a role' };
+      if (this.room.amnesiacRememberedIds.includes(playerId)) {
+        return { success: false, error: 'You have already recovered your true identity!' };
+      }
+      const target = this.getPlayer(targetId);
+      if (!target) return { success: false, error: 'Invalid soul selected' };
+      if (target.isAlive) {
+        return { success: false, error: 'The Amnesiac can only remember the role of a dead (eliminated) player!' };
+      }
+      if (target.role === 'AMNESIAC') {
+        return { success: false, error: 'You cannot remember another Amnesiac!' };
+      }
+
+      this.room.nightActions = this.room.nightActions.filter((a) => a.actorId !== playerId);
+      this.room.nightActions.push({
+        actorId: playerId,
+        role: 'AMNESIAC',
+        type: 'AMNESIAC_REMEMBER',
+        targetId,
+        chosenRole: target.role,
+      });
+      player.targetId = targetId;
+      this.notify();
+      return { success: true };
+    }
+
     // Seer restriction: only 1 player inspection per night
     if (type === 'INVESTIGATE') {
       const alreadyInvestigated = this.room.nightActions.some(
@@ -1656,28 +1717,6 @@ export class GameRoom {
     });
 
     player.targetId = targetId;
-
-    // If werewolves locked in an attack, ensure the Witch gets at least 5 seconds to decide whether to use the Elixir
-    if (type === 'KILL') {
-      const aliveWitch = this.room.players.find(
-        (p) => p.role === 'WITCH' && p.isAlive
-      );
-      const healUsed = this.room.witchHealUsed;
-      const alreadyHealedTonight = this.room.nightActions.some(
-        (a) => a.type === 'HEAL'
-      );
-      if (aliveWitch && !healUsed && !alreadyHealedTonight) {
-        if (this.room.timer < 5) {
-          this.room.timer = 5;
-          this.room.timerMax = Math.max(this.room.timerMax, 5);
-          this.room.witchGracePeriodGiven = true;
-          this.addEvent(
-            'SYSTEM',
-            `⏳ Werewolves have struck! The Witch is granted 5 seconds to decide whether to save the victim with the Elixir of Life!`
-          );
-        }
-      }
-    }
 
     let computedSeerResult: SeerResult | undefined = undefined;
     if (type === 'INVESTIGATE') {
@@ -1895,6 +1934,9 @@ export class GameRoom {
       } else if (seerOrApprentice && seerKnown && seerKnown.has(p.id)) {
         // The Seer or active Apprentice Seer has investigated this player!
         roleToReveal = seerKnown.get(p.id)!.revealedRole;
+      } else if (!p.isAlive && requester?.role === 'AMNESIAC') {
+        // Amnesiac inspects all deceased players and their true roles in the graveyard
+        roleToReveal = p.role;
       }
 
       // Werewolves can see what each werewolf teammate is targeting at night
@@ -2081,6 +2123,26 @@ export class GameRoom {
       ? { type: currentNightAction.type, targetId: currentNightAction.targetId }
       : undefined;
 
+    // Amnesiac graveyard with real roles
+    let amnesiacGraveyard: { id: string; name: string; role: Role }[] | undefined = undefined;
+    if (requester?.role === 'AMNESIAC') {
+      amnesiacGraveyard = this.room.players
+        .filter((p) => !p.isAlive && p.role !== 'AMNESIAC')
+        .map((p) => ({ id: p.id, name: p.name, role: p.role }));
+    }
+
+    const hasAliveWitch = this.room.players.some(
+      (p) => p.role === 'WITCH' && p.isAlive
+    );
+    const werewolfHuntingLocked =
+      this.room.phase === 'NIGHT' && hasAliveWitch && this.room.timer <= 5;
+    const werewolfHuntingTimeRemaining =
+      this.room.phase === 'NIGHT'
+        ? hasAliveWitch
+          ? Math.max(0, this.room.timer - 5)
+          : this.room.timer
+        : 0;
+
     return {
       roomId: this.room.id,
       roomCode: this.room.code,
@@ -2100,6 +2162,9 @@ export class GameRoom {
       seerResult: this.seerResults.get(forPlayerId) || null,
       seerHistory: (isSeer || isApprenticeActive) && seerKnown ? Array.from(seerKnown.values()) : undefined,
       witchPotions,
+      hasAliveWitch,
+      werewolfHuntingLocked,
+      werewolfHuntingTimeRemaining,
       lovers,
       cupidLovers,
       masonTeammates,
@@ -2145,6 +2210,8 @@ export class GameRoom {
         (a) => a.actorId === forPlayerId && a.type === 'VETERAN_ALERT'
       ),
       isApprenticeSeerActive: isApprenticeActive,
+      amnesiacRemembered: requester ? this.room.amnesiacRememberedIds.includes(requester.id) : false,
+      amnesiacGraveyard,
     };
   }
 

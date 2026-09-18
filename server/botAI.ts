@@ -224,6 +224,24 @@ export function getBotNightActions(players: ServerPlayer[]): ServerNightAction[]
     }
   }
 
+  // Amnesiac bots: inspect deceased souls and choose a fallen role to awaken!
+  const deadPlayers = players.filter((p) => !p.isAlive && p.role !== 'AMNESIAC');
+  if (deadPlayers.length > 0) {
+    const amnesiacBots = aliveBots.filter((p) => p.role === 'AMNESIAC');
+    for (const amn of amnesiacBots) {
+      if (Math.random() < 0.7) {
+        const chosen = deadPlayers[Math.floor(Math.random() * deadPlayers.length)];
+        actions.push({
+          actorId: amn.id,
+          role: 'AMNESIAC',
+          type: 'AMNESIAC_REMEMBER',
+          targetId: chosen.id,
+          chosenRole: chosen.role,
+        });
+      }
+    }
+  }
+
   return actions;
 }
 

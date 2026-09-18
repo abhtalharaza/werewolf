@@ -26,7 +26,8 @@ export type Role =
   | 'MINION'
   | 'WILD_CHILD'
   | 'DICTATOR'
-  | 'VETERAN';
+  | 'VETERAN'
+  | 'AMNESIAC';
 
 export type Team =
   | 'VILLAGERS'
@@ -34,7 +35,8 @@ export type Team =
   | 'JESTER'
   | 'WHITE_WOLF'
   | 'SERIAL_KILLER'
-  | 'ARSONIST';
+  | 'ARSONIST'
+  | 'NEUTRAL';
 
 export type GamePhase =
   | 'LOBBY'
@@ -106,6 +108,7 @@ export interface GameEvent {
     | 'WILD_CHILD_TRANSFORM'
     | 'DICTATOR_COUP'
     | 'VETERAN_SHOT'
+    | 'AMNESIAC_REMEMBER'
     | 'SYSTEM';
   message: string;
   round: number;
@@ -203,6 +206,9 @@ export interface ClientGameState {
   seerResult?: SeerResult | null;
   seerHistory?: SeerResult[];
   witchPotions?: WitchPotions;
+  hasAliveWitch?: boolean;
+  werewolfHuntingLocked?: boolean;
+  werewolfHuntingTimeRemaining?: number;
   lovers?: { partnerId: string; partnerName: string };
   loverPartner?: { id: string; name: string };
   cupidLovers?: { lover1Id: string; lover1Name: string; lover2Id: string; lover2Name: string };
@@ -242,6 +248,10 @@ export interface ClientGameState {
   veteranOnAlertTonight?: boolean;
   isApprenticeSeerActive?: boolean;
   toughGuyWounded?: boolean;
+  amnesiacRemembered?: boolean;
+  amnesiacChosenRole?: Role;
+  amnesiacChosenPlayerName?: string;
+  amnesiacGraveyard?: { id: string; name: string; role: Role }[];
 }
 
 export interface RoomListItem {

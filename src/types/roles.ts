@@ -253,4 +253,13 @@ export const ROLE_DEFINITIONS: Record<Role, RoleInfo> = {
     ability: 'Up to 3 times per game, enter Alert mode at night. Anyone who visits or targets your house while you are on Alert is instantly shot and killed!',
     nightPriority: 8,
   },
+  AMNESIAC: {
+    role: 'AMNESIAC',
+    name: 'The Amnesiac',
+    team: 'NEUTRAL',
+    icon: 'Brain',
+    description: 'A wandering soul who has forgotten their past identity and allegiances.',
+    ability: 'Starts with no team (Neutral). Each night, you inspect all fallen players and their true roles. Choose any deceased soul to permanently remember and awaken as their role!',
+    nightPriority: 10,
+  },
 };
