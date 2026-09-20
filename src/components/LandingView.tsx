@@ -52,9 +52,9 @@ export const LandingView: React.FC<LandingViewProps> = ({
           <button
             id="nav-how-to-play-btn"
             onClick={onHowToPlayClick}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-300 hover:text-purple-300 hover:border-purple-800/60 transition backdrop-blur-md min-h-[38px]"
+            className="h-9 px-3.5 sm:px-4 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-300 hover:text-purple-300 hover:border-purple-800/60 transition backdrop-blur-md inline-flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
           >
-            <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+            <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
             <span className="hidden xs:inline sm:inline">How to Play</span>
             <span className="xs:hidden sm:hidden">Rules</span>
           </button>
@@ -87,18 +87,18 @@ export const LandingView: React.FC<LandingViewProps> = ({
           <button
             id="landing-create-game-btn"
             onClick={onCreateClick}
-            className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 min-h-[48px] rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-semibold font-cinzel text-sm tracking-wider shadow-xl shadow-purple-950/60 border border-purple-500/30 transition transform active:scale-98 cursor-pointer"
+            className="w-full sm:w-auto flex-1 h-12 flex items-center justify-center gap-2.5 px-6 rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-semibold font-cinzel text-sm tracking-wider shadow-xl shadow-purple-950/60 border border-purple-500/30 transition transform active:scale-98 cursor-pointer whitespace-nowrap"
           >
-            <PlusCircle className="w-4 h-4" />
+            <PlusCircle className="w-4 h-4 shrink-0" />
             <span>Create Game</span>
           </button>
 
           <button
             id="landing-join-game-btn"
             onClick={() => onJoinClick()}
-            className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 min-h-[48px] rounded-xl bg-zinc-900/90 hover:bg-zinc-800/90 text-zinc-100 font-semibold font-cinzel text-sm tracking-wider border border-zinc-700/80 transition transform active:scale-98 backdrop-blur-sm cursor-pointer"
+            className="w-full sm:w-auto flex-1 h-12 flex items-center justify-center gap-2.5 px-6 rounded-xl bg-zinc-900/90 hover:bg-zinc-800/90 text-zinc-100 font-semibold font-cinzel text-sm tracking-wider border border-zinc-700/80 transition transform active:scale-98 backdrop-blur-sm cursor-pointer whitespace-nowrap"
           >
-            <LogIn className="w-4 h-4 text-purple-400" />
+            <LogIn className="w-4 h-4 text-purple-400 shrink-0" />
             <span>Join with Code</span>
           </button>
         </div>
