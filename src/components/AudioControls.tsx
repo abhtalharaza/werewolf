@@ -21,7 +21,7 @@ export const AudioControls: React.FC<AudioControlsProps> = () => {
       id="audio-mute-toggle"
       type="button"
       onClick={toggleMute}
-      className={`h-9 px-3.5 rounded-full border text-xs font-medium inline-flex items-center justify-center gap-1.5 transition shadow-sm cursor-pointer select-none whitespace-nowrap ${
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition shadow-md cursor-pointer select-none ${
         muted
           ? 'bg-rose-950/70 hover:bg-rose-900/80 border-rose-800/80 text-rose-300 hover:text-rose-200'
           : 'bg-zinc-900/80 hover:bg-zinc-800/90 border-zinc-700/80 text-zinc-300 hover:text-white'
