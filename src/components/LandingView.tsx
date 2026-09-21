@@ -19,14 +19,14 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
   useEffect(() => {
     // Fetch active rooms & stats
-    fetch('/api/rooms')
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/rooms`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.rooms) setPublicRooms(data.rooms);
       })
       .catch(() => {});
 
-    fetch('/api/stats')
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/stats`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.stats) setStats(data.stats);
