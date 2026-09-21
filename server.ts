@@ -9,6 +9,11 @@ import { db } from './server/db.js';
 
 async function startServer() {
   const app = express();
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+  });
   const PORT = 3000;
   const httpServer = http.createServer(app);
 
