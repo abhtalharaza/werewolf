@@ -13,27 +13,27 @@ export const EliminationModal: React.FC<EliminationModalProps> = ({ deaths, onDi
   return (
     <div
       id="elimination-modal-backdrop"
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={onDismiss}
     >
       <div
         id="elimination-modal-content"
-        className="relative w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl text-center my-auto overflow-hidden animate-glow max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-lg grass-glass-modal grass-glass border border-white/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 md:p-8 shadow-2xl text-center my-auto overflow-hidden max-h-[90vh] overflow-y-auto backdrop-blur-2xl text-slate-800 dark:text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Blood Red Ambient Fog */}
-        <div className="absolute inset-0 bg-gradient-to-b from-red-950/20 via-transparent to-black pointer-events-none" />
+        {/* Soft Lavender / Rose Glow */}
+        <div className="absolute inset-0 bg-gradient-to-b from-rose-100/30 via-indigo-100/20 to-white/40 dark:from-rose-950/20 dark:via-black/30 dark:to-black/60 pointer-events-none" />
 
         {/* Skull Icon Emblem */}
-        <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-950/50 border border-red-800/60 flex items-center justify-center mb-4 sm:mb-5 shadow-[0_0_30px_rgba(220,38,38,0.3)]">
-          <Skull className="w-8 h-8 sm:w-10 sm:h-10 text-red-400 animate-pulse" />
+        <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 flex items-center justify-center mb-4 sm:mb-5 shadow-sm">
+          <Skull className="w-8 h-8 sm:w-10 sm:h-10 text-rose-500 animate-pulse" />
         </div>
 
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-black font-cinzel text-zinc-100 tracking-wider mb-2">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-black font-cinzel text-slate-900 dark:text-white tracking-wide mb-2">
           Grim Tidings Upon the Village
         </h2>
-        <p className="text-xs text-zinc-400 mb-4 sm:mb-6 font-serif italic">
-          The shadows have claimed their tribute.
+        <p className="text-xs text-slate-600 dark:text-slate-400 mb-4 sm:mb-6 font-serif italic">
+          The shadows have claimed their tribute from the village.
         </p>
 
         {/* Deceased Roster */}
@@ -41,32 +41,32 @@ export const EliminationModal: React.FC<EliminationModalProps> = ({ deaths, onDi
           {deaths.map((death) => (
             <div
               key={death.id}
-              className="p-3 sm:p-4 rounded-2xl bg-zinc-900/80 border border-red-950/60 text-left flex items-center justify-between gap-2"
+              className="p-3 sm:p-4 rounded-2xl bg-white/90 dark:bg-[#15141e] border border-indigo-100 dark:border-white/10 text-left flex items-center justify-between gap-2 shadow-xs"
             >
               <div>
-                <div className="font-bold text-sm sm:text-base text-zinc-100 font-cinzel">{death.name}</div>
-                <div className="text-[11px] sm:text-xs text-red-400 flex items-center gap-1.5 mt-0.5">
+                <div className="font-bold text-sm sm:text-base text-slate-900 dark:text-white font-cinzel">{death.name}</div>
+                <div className="text-[11px] sm:text-xs text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1.5 mt-0.5">
                   {death.reason === 'WEREWOLF' && (
                     <>
-                      <Moon className="w-3.5 h-3.5 shrink-0" />
+                      <Moon className="w-3.5 h-3.5 shrink-0 text-rose-500" />
                       <span>Mauled by Werewolves in the night</span>
                     </>
                   )}
                   {death.reason === 'VOTE' && (
                     <>
-                      <Vote className="w-3.5 h-3.5 shrink-0" />
+                      <Vote className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
                       <span>Condemned by Village Vote</span>
                     </>
                   )}
                   {death.reason === 'POISON' && (
                     <>
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
                       <span>Succumbed to deadly Witch's poison</span>
                     </>
                   )}
                   {death.reason === 'HUNTER' && (
                     <>
-                      <Crosshair className="w-3.5 h-3.5 shrink-0" />
+                      <Crosshair className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
                       <span>Felled by Hunter's vengeful arrow</span>
                     </>
                   )}
@@ -75,12 +75,12 @@ export const EliminationModal: React.FC<EliminationModalProps> = ({ deaths, onDi
 
               {death.role && (
                 <div className="text-right shrink-0">
-                  <div className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest font-mono">
+                  <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-widest font-mono font-medium">
                     True Role
                   </div>
                   <div
                     className={`font-bold font-cinzel text-xs sm:text-sm ${
-                      death.role === 'WEREWOLF' ? 'text-red-400' : 'text-purple-300'
+                      death.role === 'WEREWOLF' ? 'text-rose-600' : 'text-indigo-600'
                     }`}
                   >
                     {death.role}
@@ -94,7 +94,7 @@ export const EliminationModal: React.FC<EliminationModalProps> = ({ deaths, onDi
         <button
           id="dismiss-elimination-btn"
           onClick={onDismiss}
-          className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold font-cinzel transition active:scale-98"
+          className="w-full sm:w-auto px-7 py-3 min-h-[44px] rounded-2xl grass-button gradient-brand-btn text-white text-xs font-semibold font-cinzel transition cursor-pointer active:scale-98 shadow-md"
         >
           Acknowledge Tragedy
         </button>

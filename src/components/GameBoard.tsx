@@ -11,6 +11,8 @@ import { HunterActionModal } from './HunterActionModal.js';
 import { EliminationModal } from './EliminationModal.js';
 import { MorningProtectionCard } from './MorningProtectionCard.js';
 import { AudioControls } from './AudioControls.js';
+import { NightModeToggle } from './NightModeToggle.js';
+import { SkipDiscussionCard } from './SkipDiscussionCard.js';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
 
 interface GameBoardProps {
@@ -28,6 +30,7 @@ interface GameBoardProps {
   onDictatorCoup?: (targetId: string) => Promise<{ success: boolean; error?: string }>;
   onLeaveGame: () => void;
   onOpenHowToPlay: () => void;
+  onToggleSkipDiscussion?: () => Promise<{ success: boolean; skipped?: boolean; error?: string }>;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -40,6 +43,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onDictatorCoup,
   onLeaveGame,
   onOpenHowToPlay,
+  onToggleSkipDiscussion,
 }) => {
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [cupidLover1Id, setCupidLover1Id] = useState<string | null>(null);
@@ -261,15 +265,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   return (
     <div className="relative min-h-screen flex flex-col justify-between p-3 md:p-6 z-10 max-w-7xl mx-auto w-full">
       {/* Top Bar: Role badge, Atmosphere status, Controls */}
-      <header className="flex flex-wrap items-center justify-between gap-3 bg-zinc-950/70 border border-zinc-800/80 rounded-2xl p-3 md:px-5 backdrop-blur-md mb-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 glass-card-prominent rounded-3xl p-3 md:px-5 backdrop-blur-xl mb-4 border border-white/80 dark:border-white/10 shadow-md">
         {/* My Secret Role Pill */}
         {roleInfo && (
           <div className="flex items-center gap-2.5">
             <div
-              className={`p-2 rounded-xl border ${
+              className={`p-2 rounded-2xl border backdrop-blur-md shadow-sm ${
                 roleInfo.team === 'WEREWOLVES'
-                  ? 'bg-red-950/80 border-red-700 text-red-300'
-                  : 'bg-purple-950/80 border-purple-700 text-purple-300'
+                  ? 'bg-rose-500/15 border-rose-400/50 text-rose-700 dark:text-rose-400'
+                  : 'bg-indigo-500/15 border-indigo-400/50 text-indigo-700 dark:text-indigo-400'
               }`}
             >
               {roleInfo.team === 'WEREWOLVES' ? (
@@ -280,19 +284,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-mono">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-mono font-semibold">
                   Your Role:
                 </span>
-                <span className="font-bold text-sm font-cinzel text-zinc-100">
+                <span className="font-bold text-sm font-cinzel text-slate-900 dark:text-white">
                   {roleInfo.name}
                 </span>
               </div>
-              <div className="text-[11px] text-zinc-400 hidden sm:block">
-                Team <span className="font-semibold text-zinc-200">{roleInfo.team}</span> •{' '}
+              <div className="text-[11px] text-slate-600 dark:text-slate-400 hidden sm:block">
+                Team <span className="font-semibold text-slate-800 dark:text-slate-200">{roleInfo.team}</span> •{' '}
                 {isMeAlive ? (
-                  <span className="text-emerald-400 font-semibold">Alive</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Alive</span>
                 ) : (
-                  <span className="text-red-400 font-semibold">Dead (Spirit)</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-semibold">Dead (Spirit)</span>
                 )}
               </div>
             </div>
@@ -300,27 +304,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         )}
 
         {/* Room Info, Audio & Chat Trigger */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <div className="text-xs text-zinc-400 font-mono hidden md:block">
-            Room: <span className="text-purple-400 font-bold">{gameState.roomCode}</span>
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="text-xs text-slate-600 dark:text-slate-400 font-mono hidden md:block font-medium">
+            Room: <span className="text-indigo-600 dark:text-indigo-400 font-bold drop-shadow-sm">{gameState.roomCode}</span>
           </div>
 
           {/* Header Chat Button */}
           <button
             id="header-chat-btn"
             onClick={handleToggleChat}
-            className={`relative p-2 rounded-xl border transition flex items-center gap-1.5 min-h-[40px] min-w-[40px] justify-center ${
+            className={`relative p-2 rounded-2xl border transition flex items-center gap-1.5 min-h-[40px] min-w-[40px] justify-center cursor-pointer shrink-0 ${
               isChatOpen
-                ? 'bg-purple-900/60 border-purple-600/70 text-purple-200 shadow-md shadow-purple-950/50'
-                : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300 hover:text-white'
+                ? 'grass-button gradient-brand-btn text-white shadow-md'
+                : 'grass-glass-subtle hover:bg-white/80 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white border-white/80 dark:border-white/10'
             }`}
             title="Village Chat"
             aria-label="Village Chat"
           >
-            <MessageSquare className="w-4 h-4 text-purple-400" />
+            <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <span className="text-xs font-semibold hidden sm:inline">Chat</span>
             {unreadCount > 0 && !isChatOpen && (
-              <span className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-[17px] text-[10px] font-black text-white bg-red-600 rounded-full flex items-center justify-center animate-bounce shadow-md">
+              <span className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-[17px] text-[10px] font-black text-white bg-rose-500 rounded-full flex items-center justify-center animate-bounce shadow-md">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -329,18 +333,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           <button
             id="board-rules-btn"
             onClick={onOpenHowToPlay}
-            className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition"
+            className="p-2 rounded-2xl grass-glass-subtle hover:bg-white/80 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border-white/80 dark:border-white/10 transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center shrink-0"
             title="Review Rules"
           >
             <HelpCircle className="w-4 h-4" />
           </button>
 
-          <AudioControls />
+          <NightModeToggle compact={true} />
+          <AudioControls compact={true} />
 
           <button
             id="board-leave-btn"
             onClick={onLeaveGame}
-            className="p-2 rounded-xl bg-zinc-900 hover:bg-red-950/40 border border-zinc-800 hover:border-red-800/50 text-zinc-400 hover:text-red-300 transition"
+            className="p-2 rounded-2xl grass-glass-subtle hover:bg-rose-100 hover:border-rose-300 dark:hover:bg-rose-950/40 dark:hover:border-rose-800 text-slate-600 dark:text-slate-300 hover:text-rose-700 dark:hover:text-rose-400 transition cursor-pointer border-white/80 dark:border-white/10 min-h-[40px] min-w-[40px] flex items-center justify-center shrink-0"
             title="Leave Village"
             aria-label="Leave Village"
           >
@@ -374,14 +379,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             (e) => e.type === 'AMNESIAC_REMEMBER' && e.round === gameState.round
           )
         )}
+        onToggleSkipDiscussion={onToggleSkipDiscussion}
+        skipDiscussionVotes={gameState.skipDiscussionVotes}
+        skipDiscussionTotalRequired={gameState.skipDiscussionTotalRequired}
+        myPlayerId={gameState.myPlayerId}
+        isAlive={isMeAlive}
       />
 
       {/* Main Board Layout: Centered Full-Width Arena */}
       <div className="flex-1 flex flex-col justify-between space-y-4 my-2 max-w-5xl mx-auto w-full">
-          {/* Players Arena */}
+          {/* Players Arena in Frosted Glass */}
           <div
             id="players-arena"
-            className="bg-zinc-950/60 border border-zinc-800/80 rounded-3xl p-4 md:p-6 backdrop-blur-md flex-1 flex flex-col justify-center"
+            className="grass-glass glass-card rounded-3xl p-4 md:p-6 backdrop-blur-xl flex-1 flex flex-col justify-center border border-white/80 dark:border-white/10 shadow-lg"
           >
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 justify-items-center">
               {gameState.players.map((p) => {
@@ -491,18 +501,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           )}
 
           {gameState.phase === 'DAY_ANNOUNCEMENT' && (
-            <div className="p-5 rounded-2xl bg-zinc-950/90 border border-amber-800/50 text-center text-xs text-zinc-300 max-w-xl mx-auto backdrop-blur-md space-y-2 shadow-2xl animate-fade-in">
-              <div className="font-cinzel font-bold text-amber-300 text-sm flex items-center justify-center gap-2">
-                <Sun className="w-5 h-5 text-amber-400 animate-pulse" />
+            <div className="p-5 rounded-3xl glass-card-prominent text-center text-xs text-slate-800 max-w-xl mx-auto backdrop-blur-xl space-y-2 shadow-lg animate-fade-in border border-amber-300/60">
+              <div className="font-cinzel font-bold text-amber-700 text-sm flex items-center justify-center gap-2">
+                <Sun className="w-5 h-5 text-amber-500 animate-pulse" />
                 <span>Morning Dawn: Shadows Recede</span>
               </div>
               {gameState.latestDeaths && gameState.latestDeaths.length > 0 ? (
-                <p className="text-zinc-300">
+                <p className="text-slate-700 font-medium">
                   The village mourns the fallen souls claimed in the night. The town council prepares to deliberate.
                 </p>
               ) : (
-                <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-700/60 text-emerald-300 font-medium flex items-center justify-center gap-2">
-                  <Shield className="w-4 h-4 text-emerald-400" />
+                <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-medium flex items-center justify-center gap-2 shadow-sm">
+                  <Shield className="w-4 h-4 text-emerald-600" />
                   <span>A peaceful dawn: No villagers fell to the darkness tonight!</span>
                 </div>
               )}
@@ -511,15 +521,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
           {gameState.phase === 'DISCUSSION' && (
             <div className="space-y-4 max-w-2xl mx-auto">
-              <div className="p-4 rounded-2xl bg-zinc-950/90 border border-amber-900/40 text-center text-xs text-zinc-300 backdrop-blur-md">
-                <div className="font-cinzel font-bold text-amber-300 mb-1 flex items-center justify-center gap-1.5">
-                  <Sun className="w-4 h-4" />
+              <div className="p-4 rounded-3xl glass-card text-center text-xs text-slate-800 dark:text-slate-100 backdrop-blur-xl border border-indigo-200 dark:border-white/10 shadow-md">
+                <div className="font-cinzel font-bold text-indigo-900 dark:text-indigo-300 mb-1 flex items-center justify-center gap-1.5">
+                  <Sun className="w-4 h-4 text-amber-500" />
                   <span>Open Council Deliberation</span>
                 </div>
-                <p className="text-zinc-400">
+                <p className="text-slate-600 dark:text-slate-400 font-medium">
                   Discuss suspect claims, cross-examine alibis in the chat, and prepare your voting strategy.
                 </p>
               </div>
+
+              {/* Skip Discussion Time Card */}
+              <SkipDiscussionCard
+                gameState={gameState}
+                onToggleSkipDiscussion={onToggleSkipDiscussion}
+              />
 
               {/* Dictator can stage coup during Discussion! */}
               {me?.role === 'DICTATOR' && !gameState.dictatorCoupUsed && me.isAlive && (
@@ -534,12 +550,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           )}
 
           {gameState.phase === 'VOTE_RESULT' && (
-            <div className="p-4 rounded-2xl bg-zinc-950/90 border border-zinc-800 text-center text-xs text-zinc-300 max-w-xl mx-auto backdrop-blur-md space-y-1">
-              <div className="font-cinzel font-bold text-purple-300 flex items-center justify-center gap-1.5">
-                <Skull className="w-4 h-4 text-purple-400" />
+            <div className="p-4 rounded-3xl grass-glass glass-card text-center text-xs text-slate-800 dark:text-slate-100 max-w-xl mx-auto backdrop-blur-xl space-y-1 shadow-md border border-white/80 dark:border-white/10">
+              <div className="font-cinzel font-bold text-indigo-900 dark:text-indigo-300 flex items-center justify-center gap-1.5">
+                <Skull className="w-4 h-4 text-slate-700 dark:text-slate-300" />
                 <span>Verdict Carried Out</span>
               </div>
-              <p className="text-zinc-400">The executioner takes their leave as darkness descends once again.</p>
+              <p className="text-slate-600 dark:text-slate-400">The executioner takes their leave as twilight descends once again.</p>
             </div>
           )}
       </div>
@@ -549,14 +565,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         <div
           id="chat-drawer-backdrop"
           onClick={() => setIsChatOpen(false)}
-          className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 transition-opacity duration-300"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 transition-opacity duration-300"
         />
       )}
 
       {/* Slide-over Chat Drawer */}
       <div
         id="chat-slide-drawer"
-        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] md:w-[460px] z-50 flex flex-col bg-zinc-950 border-l border-zinc-800 shadow-2xl transition-transform duration-300 ease-out transform ${
+        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] md:w-[460px] z-50 flex flex-col grass-glass-modal grass-glass border-l border-white/80 dark:border-white/10 shadow-2xl transition-transform duration-300 ease-out transform backdrop-blur-2xl ${
           isChatOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
         aria-hidden={!isChatOpen}

@@ -22,6 +22,14 @@ export class GameRoom {
   private onChatMessage: (channel: string, message: unknown) => void;
   private seerResults: Map<string, SeerResult> = new Map(); // seerId -> current night result
   private seerHistory: Map<string, Map<string, SeerResult>> = new Map(); // seerId -> (targetId -> result)
+  private botSkipTimeouts: NodeJS.Timeout[] = [];
+
+  private clearBotSkipTimeouts() {
+    for (const t of this.botSkipTimeouts) {
+      clearTimeout(t);
+    }
+    this.botSkipTimeouts = [];
+  }
 
   constructor(
     code: string,
@@ -136,6 +144,7 @@ export class GameRoom {
       dictatorPlayerId: null,
       veteranAlertsRemaining: {},
       amnesiacRememberedIds: [],
+      skipDiscussionVotes: [],
     };
 
     if (initialSettings?.autoPopulateBots) {
@@ -800,11 +809,15 @@ export class GameRoom {
   }
 
   private startDiscussionPhase() {
+    this.clearBotSkipTimeouts();
+    this.room.skipDiscussionVotes = [];
     this.setPhase('DISCUSSION', this.room.settings.discussionTime);
     this.addEvent('PHASE_CHANGE', 'Dawn breaks. The village council convenes for discussion.');
   }
 
   private startVotingPhase() {
+    this.clearBotSkipTimeouts();
+    this.room.skipDiscussionVotes = [];
     this.room.votes = {};
     this.room.players.forEach((p) => {
       p.hasVoted = false;
@@ -1311,6 +1324,7 @@ export class GameRoom {
     if (!requester || !requester.isHost) return;
 
     this.clearTimer();
+    this.clearBotSkipTimeouts();
     this.room.phase = 'LOBBY';
     this.room.round = 0;
     this.room.timer = 0;
@@ -1318,6 +1332,7 @@ export class GameRoom {
     this.room.winReason = null;
     this.room.latestDeaths = [];
     this.room.votes = {};
+    this.room.skipDiscussionVotes = [];
     this.room.nightActions = [];
     this.seerResults.clear();
     this.seerHistory.clear();
@@ -1332,6 +1347,121 @@ export class GameRoom {
 
     this.addEvent('SYSTEM', 'The village gathers once more in the tavern square.');
     this.notify();
+  }
+
+  // VOTE TO SKIP DISCUSSION PHASE
+  public toggleSkipDiscussionVote(playerId: string): { success: boolean; skipped?: boolean; error?: string } {
+    if (this.room.phase !== 'DISCUSSION') {
+      return { success: false, error: 'Discussion time can only be skipped during the Discussion phase.' };
+    }
+
+    const player = this.getPlayer(playerId);
+    if (!player || !player.isAlive) {
+      return { success: false, error: 'Only living players can vote to skip discussion.' };
+    }
+
+    if (!Array.isArray(this.room.skipDiscussionVotes)) {
+      this.room.skipDiscussionVotes = [];
+    }
+
+    // Toggle current player's vote
+    const index = this.room.skipDiscussionVotes.indexOf(playerId);
+    if (index >= 0) {
+      this.room.skipDiscussionVotes.splice(index, 1);
+    } else {
+      this.room.skipDiscussionVotes.push(playerId);
+    }
+
+    const livingPlayers = this.room.players.filter((p) => p.isAlive);
+
+    // Keep only IDs of living players
+    this.room.skipDiscussionVotes = this.room.skipDiscussionVotes.filter((id) =>
+      livingPlayers.some((p) => p.id === id)
+    );
+
+    // CRITICAL: Discussion MUST NOT skip unless ALL living players in the game have cast their vote!
+    const allLivingVoted =
+      livingPlayers.length > 0 &&
+      livingPlayers.every((p) => this.room.skipDiscussionVotes.includes(p.id));
+
+    if (allLivingVoted) {
+      this.clearBotSkipTimeouts();
+      this.addEvent(
+        'PHASE_CHANGE',
+        '⏩ All living council members agreed to skip discussion! Commencing vote immediately.'
+      );
+      this.startVotingPhase();
+      return { success: true, skipped: true };
+    }
+
+    // If not all living players have voted yet:
+    const livingHumans = livingPlayers.filter((p) => !p.isBot);
+    const livingHumanVotes = livingHumans.filter((h) => this.room.skipDiscussionVotes.includes(h.id));
+
+    if (livingHumanVotes.length === 0) {
+      // If all human players have retracted their skip vote, cancel bot timeouts and clear bot skip votes
+      this.clearBotSkipTimeouts();
+      this.room.skipDiscussionVotes = this.room.skipDiscussionVotes.filter(
+        (id) => !livingPlayers.some((p) => p.id === id && p.isBot)
+      );
+    } else {
+      // If there are bots in the game who haven't voted yet, let them deliberate and vote one by one with realistic delays
+      this.scheduleBotSkipVotes();
+    }
+
+    this.notify();
+    return { success: true, skipped: false };
+  }
+
+  // Schedule bots to consider skipping one-by-one so votes accumulate naturally rather than skipping instantly
+  private scheduleBotSkipVotes() {
+    const livingPlayers = this.room.players.filter((p) => p.isAlive);
+    const unvotedBots = livingPlayers.filter(
+      (p) => p.isBot && !this.room.skipDiscussionVotes.includes(p.id)
+    );
+
+    if (unvotedBots.length === 0) return;
+
+    // Clear previously scheduled bot timeouts to prevent duplication
+    this.clearBotSkipTimeouts();
+
+    unvotedBots.forEach((bot, idx) => {
+      // Stagger each bot's vote so the user sees other council members deliberating
+      const delayMs = (idx + 1) * 3000 + Math.floor(Math.random() * 1200);
+      const timer = setTimeout(() => {
+        if (this.room.phase !== 'DISCUSSION') return;
+        if (!bot.isAlive) return;
+
+        // Ensure at least one living human player still has an active skip vote
+        const currentLiving = this.room.players.filter((p) => p.isAlive);
+        const hasActiveHumanSkip = currentLiving.some(
+          (p) => !p.isBot && this.room.skipDiscussionVotes.includes(p.id)
+        );
+        if (!hasActiveHumanSkip) return;
+
+        if (!this.room.skipDiscussionVotes.includes(bot.id)) {
+          this.room.skipDiscussionVotes.push(bot.id);
+        }
+
+        // Check if ALL living players have now voted to skip
+        const allNowVoted =
+          currentLiving.length > 0 &&
+          currentLiving.every((p) => this.room.skipDiscussionVotes.includes(p.id));
+
+        if (allNowVoted) {
+          this.clearBotSkipTimeouts();
+          this.addEvent(
+            'PHASE_CHANGE',
+            '⏩ All living council members agreed to skip discussion! Commencing vote immediately.'
+          );
+          this.startVotingPhase();
+        } else {
+          this.notify();
+        }
+      }, delayMs);
+
+      this.botSkipTimeouts.push(timer);
+    });
   }
 
   // NIGHT ACTION SUBMISSION
@@ -2218,6 +2348,8 @@ export class GameRoom {
       isApprenticeSeerActive: isApprenticeActive,
       amnesiacRemembered: requester ? this.room.amnesiacRememberedIds.includes(requester.id) : false,
       amnesiacGraveyard,
+      skipDiscussionVotes: this.room.phase === 'DISCUSSION' ? (this.room.skipDiscussionVotes || []) : [],
+      skipDiscussionTotalRequired: this.room.phase === 'DISCUSSION' ? this.room.players.filter((p) => p.isAlive).length : 0,
     };
   }
 

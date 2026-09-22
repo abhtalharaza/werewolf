@@ -37,6 +37,7 @@ export default function App() {
     startGame,
     submitNightAction,
     submitVote,
+    toggleSkipDiscussion,
     hunterShoot,
     dictatorCoup,
     sendChatMessage,
@@ -121,7 +122,7 @@ export default function App() {
     gameState?.phase === 'VOTE_RESULT';
 
   return (
-    <div id="werewolf-app-root" className="relative min-h-screen text-zinc-100 font-sans selection:bg-purple-600 selection:text-white overflow-x-hidden">
+    <div id="werewolf-app-root" className="relative min-h-screen text-slate-800 dark:text-zinc-100 font-sans selection:bg-purple-600 selection:text-white overflow-x-hidden">
       {/* Dynamic Gothic Atmosphere */}
       <AtmosphereBackground phase={gameState?.phase} />
 
@@ -191,6 +192,7 @@ export default function App() {
               onSendMessage={sendChatMessage}
               onSubmitNightAction={submitNightAction}
               onSubmitVote={submitVote}
+              onToggleSkipDiscussion={toggleSkipDiscussion}
               onHunterShoot={hunterShoot}
               onDictatorCoup={dictatorCoup}
               onLeaveGame={leaveRoom}

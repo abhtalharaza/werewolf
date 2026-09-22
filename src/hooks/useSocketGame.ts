@@ -473,6 +473,26 @@ export function useSocketGame() {
     [socket, gameState]
   );
 
+  const toggleSkipDiscussion = useCallback((): Promise<{ success: boolean; skipped?: boolean; error?: string }> => {
+    if (!socket || !gameState) return Promise.resolve({ success: false, error: 'Not connected' });
+    sounds.playVoteCast();
+    return new Promise((resolve) => {
+      socket.emit(
+        'discussion:skip_vote',
+        {
+          roomCode: gameState.roomCode,
+          playerId: gameState.myPlayerId,
+        },
+        (res: { success: boolean; skipped?: boolean; error?: string }) => {
+          if (!res.success && res.error) {
+            setTimedError(res.error);
+          }
+          resolve(res);
+        }
+      );
+    });
+  }, [socket, gameState, setTimedError]);
+
   const restartGame = useCallback(() => {
     if (!socket || !gameState) return;
     socket.emit('game:restart', {
@@ -499,6 +519,7 @@ export function useSocketGame() {
     startGame,
     submitNightAction,
     submitVote,
+    toggleSkipDiscussion,
     hunterShoot,
     dictatorCoup,
     sendChatMessage,

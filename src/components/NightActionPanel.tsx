@@ -149,7 +149,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 
   if (isDead) {
     return (
-      <div className="p-4 rounded-2xl bg-zinc-950/80 border border-zinc-800 text-center text-xs text-zinc-500 italic max-w-xl mx-auto backdrop-blur-md">
+      <div className="p-4 rounded-2xl glass-card-subtle border border-white/80 dark:border-white/10 text-center text-xs text-slate-500 dark:text-slate-400 italic max-w-xl mx-auto backdrop-blur-md">
         Your spirit observes from beyond the veil. Dead players rest in silent peace.
       </div>
     );
@@ -189,7 +189,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   return (
     <div
       id="night-action-panel"
-      className="w-full max-w-2xl mx-auto p-3.5 sm:p-5 rounded-2xl bg-zinc-950/90 border border-zinc-800/90 shadow-2xl backdrop-blur-md"
+      className="w-full max-w-2xl mx-auto p-4 sm:p-5 rounded-3xl glass-card border border-white/80 dark:border-white/10 shadow-2xl backdrop-blur-2xl"
     >
       {/* 1. WEREWOLF PANEL */}
       {isWerewolfPackMember && (
@@ -281,7 +281,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
             <div className="text-xs">
               {isWolfKillLocked ? (
-                <span className="text-emerald-400 font-mono font-semibold">
+                <span className="text-indigo-400 font-mono font-semibold">
                   Locked Strike: <strong>{lockedWolfTargetName || 'Prey'}</strong> (Locked in)
                 </span>
               ) : isWolfHuntingLocked ? (
@@ -316,7 +316,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               }
               className={`flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg min-h-[44px] ${
                 isWolfKillLocked
-                  ? 'bg-emerald-950/80 border border-emerald-500/70 text-emerald-200 cursor-not-allowed shadow-emerald-950/50'
+                  ? 'bg-indigo-900/80 border border-indigo-500/70 text-indigo-200 cursor-not-allowed shadow-md'
                   : isWolfHuntingLocked
                   ? 'bg-zinc-850 border border-amber-500/50 text-amber-300/80 cursor-not-allowed'
                   : 'bg-red-800 hover:bg-red-700 text-white shadow-red-950/50 disabled:opacity-40 cursor-pointer'
@@ -329,7 +329,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                 </>
               ) : isWolfKillLocked ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <Check className="w-3.5 h-3.5 text-indigo-300" />
                   <span>✓ Strike Locked: {lockedWolfTargetName || 'Target'} (Cannot be undone)</span>
                 </>
               ) : isWolfHuntingLocked ? (
@@ -388,7 +388,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   className={`font-bold font-mono px-3 py-1 rounded-lg text-xs border ${
                     gameState.seerResult.isWerewolf
                       ? 'bg-red-950 text-red-200 border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.4)]'
-                      : 'bg-emerald-950 text-emerald-200 border-emerald-600'
+                      : 'bg-indigo-950 text-indigo-200 border-indigo-600'
                   }`}
                 >
                   {gameState.seerResult.isWerewolf ? '🐺 Werewolf' : '🛡️ Good Team'}
@@ -399,7 +399,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                 <span className="text-zinc-400 font-mono">Status:</span>
                 <span
                   className={`font-bold font-cinzel text-sm ${
-                    gameState.seerResult.isWerewolf ? 'text-red-400' : 'text-emerald-400'
+                    gameState.seerResult.isWerewolf ? 'text-red-400' : 'text-indigo-400'
                   }`}
                 >
                   {gameState.seerResult.isWerewolf ? 'Werewolf' : 'Good Team'}
@@ -424,7 +424,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                     className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border ${
                       h.isWerewolf
                         ? 'bg-red-950/70 border-red-700 text-red-300'
-                        : 'bg-emerald-950/70 border-emerald-700 text-emerald-300'
+                        : 'bg-indigo-950/70 border-indigo-700 text-indigo-300'
                     }`}
                   >
                     {h.targetName}: {h.isWerewolf ? 'Werewolf' : 'Good Team'}
@@ -474,7 +474,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
       {/* 3. DOCTOR PANEL */}
       {role === 'DOCTOR' && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold font-cinzel text-sm">
+          <div className="flex items-center gap-2 text-indigo-400 font-bold font-cinzel text-sm">
             <HeartPulse className="w-4 h-4" />
             <span>Doctor's Protection</span>
           </div>
@@ -488,7 +488,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               {targetPlayer ? (
                 <span>
                   Protecting:{' '}
-                  <strong className="text-emerald-400 font-semibold">{targetPlayer.name}</strong>
+                  <strong className="text-indigo-400 font-semibold">{targetPlayer.name}</strong>
                 </span>
               ) : (
                 <span className="text-zinc-500 italic">Select a patient</span>
@@ -499,11 +499,11 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               id="confirm-doctor-protect-btn"
               onClick={() => targetPlayer && handleConfirm('PROTECT', targetPlayer.id)}
               disabled={!targetPlayer || submitting || confirmedTargetId === targetPlayer?.id}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-emerald-950/50 min-h-[44px]"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg min-h-[44px]"
             >
               {confirmedTargetId === targetPlayer?.id ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-emerald-200" />
+                  <Check className="w-3.5 h-3.5 text-indigo-200" />
                   <span>Ward In Place</span>
                 </>
               ) : (
@@ -551,7 +551,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   <span className="text-zinc-400">Target Ally: </span>
                   <strong className="text-cyan-300 font-semibold">{targetPlayer.name}</strong>
                   {isSelectedPlayerGuarded && (
-                    <span className="ml-2 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-mono text-[10px] font-bold">
+                    <span className="ml-2 px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/60 text-cyan-300 font-mono text-[10px] font-bold">
                       ✓ Guard Stationed
                     </span>
                   )}
@@ -571,7 +571,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               disabled={!targetPlayer || isTargetingSelf || submitting || isSelectedPlayerGuarded}
               className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition min-h-[44px] cursor-pointer shadow-lg ${
                 isSelectedPlayerGuarded
-                  ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 border border-emerald-400 text-white shadow-[0_0_20px_rgba(16,185,129,0.35)] opacity-100 cursor-default'
+                  ? 'bg-gradient-to-r from-teal-600 via-cyan-600 to-indigo-600 border border-cyan-400 text-white shadow-md opacity-100 cursor-default'
                   : !targetPlayer || isTargetingSelf
                   ? 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-50'
                   : activeGuardedPlayer && activeGuardedPlayer.id !== targetPlayer.id
@@ -586,7 +586,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                 </>
               ) : isSelectedPlayerGuarded ? (
                 <>
-                  <Check className="w-4 h-4 text-emerald-200" />
+                  <Check className="w-4 h-4 text-cyan-200" />
                   <span>✓ Shield Active: Guarding {targetPlayer.name}!</span>
                 </>
               ) : activeGuardedPlayer && targetPlayer && activeGuardedPlayer.id !== targetPlayer.id ? (
@@ -615,7 +615,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 font-bold text-cyan-200 text-xs sm:text-sm">
                   <span>🛡️ Guard Assigned: Shield Active!</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300 text-[10px] font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500 text-cyan-300 text-[10px] font-mono font-bold">
                     Protected Tonight
                   </span>
                 </div>
@@ -703,12 +703,12 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           {(gameState.witchPotions?.healActiveTonight || gameState.witchPotions?.poisonActiveTonight) && (
             <div className="flex flex-wrap gap-2 pt-1">
               {gameState.witchPotions?.healActiveTonight && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 text-xs font-mono">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-950/80 border border-indigo-500/60 text-indigo-300 text-xs font-mono">
                   <span>✨ Elixir Active: Saving <strong>{gameState.witchPotions.healTargetName}</strong></span>
                   <button
                     onClick={() => handleConfirm('CANCEL_HEAL', '')}
                     disabled={submitting}
-                    className="ml-1 text-[10px] text-emerald-200 hover:text-white bg-emerald-900/80 hover:bg-emerald-800 px-1.5 py-0.5 rounded transition cursor-pointer font-bold"
+                    className="ml-1 text-[10px] text-indigo-200 hover:text-white bg-indigo-900/80 hover:bg-indigo-800 px-1.5 py-0.5 rounded transition cursor-pointer font-bold"
                   >
                     Cancel
                   </button>
@@ -733,9 +733,9 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           {gameState.witchPotions?.nightVictimId &&
             gameState.witchPotions?.healAvailable &&
             !gameState.witchPotions?.healActiveTonight && (
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/80 via-emerald-950/80 to-zinc-950 border-2 border-emerald-500/80 shadow-[0_0_25px_rgba(16,185,129,0.35)] animate-pulse space-y-2.5">
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/80 via-indigo-950/80 to-zinc-950 border-2 border-indigo-500/80 shadow-[0_0_25px_rgba(99,102,241,0.35)] animate-pulse space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-bold text-xs text-emerald-300 font-cinzel">
+                  <div className="flex items-center gap-2 font-bold text-xs text-indigo-300 font-cinzel">
                     <Clock className="w-4 h-4 text-amber-400 animate-spin" />
                     <span>
                       {gameState.timer <= 5
@@ -743,7 +743,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                         : 'Bhediye Ka Shikar Samne Hai: Bachana Hai Ya Nahi?'}
                     </span>
                   </div>
-                  <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-emerald-900/90 border border-emerald-400 text-emerald-100 shadow">
+                  <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-indigo-900/90 border border-indigo-400 text-indigo-100 shadow">
                     ⏳ {gameState.timer}s Left
                   </span>
                 </div>
@@ -767,9 +767,9 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                       handleConfirm('HEAL', gameState.witchPotions.nightVictimId)
                     }
                     disabled={submitting}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-950/50 min-h-[42px] cursor-pointer flex items-center justify-center gap-1.5"
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold transition shadow-lg shadow-indigo-950/50 min-h-[42px] cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
                     <span>✓ Bchana Hai (Save {gameState.witchPotions.nightVictimName})</span>
                   </button>
                   <button
@@ -790,14 +790,14 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             <div className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between space-y-2">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-emerald-400 font-cinzel">
+                  <span className="font-bold text-xs text-indigo-400 font-cinzel">
                     Elixir of Life (Bachao)
                   </span>
                   <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                     gameState.witchPotions?.healActiveTonight
-                      ? 'bg-emerald-950 border-emerald-500 text-emerald-300 font-bold animate-pulse'
+                      ? 'bg-indigo-950 border-indigo-500 text-indigo-300 font-bold animate-pulse'
                       : gameState.witchPotions?.healAvailable
-                      ? 'bg-zinc-950 border-zinc-800 text-emerald-400'
+                      ? 'bg-zinc-950 border-zinc-800 text-indigo-400'
                       : 'bg-zinc-950 border-zinc-800 text-zinc-500'
                   }`}>
                     {gameState.witchPotions?.healActiveTonight
@@ -845,7 +845,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                         !gameState.witchPotions?.healAvailable ||
                         submitting
                       }
-                      className="w-full py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 disabled:opacity-30 disabled:hover:bg-emerald-800 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
+                      className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
                     >
                       {gameState.witchPotions?.healAvailable
                         ? gameState.witchPotions?.isWitchTargeted
@@ -861,7 +861,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                       id="witch-heal-custom-btn"
                       onClick={() => handleConfirm('HEAL', targetPlayer.id)}
                       disabled={!gameState.witchPotions?.healAvailable || submitting}
-                      className="w-full py-2 rounded-lg bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-600/70 text-emerald-100 text-xs font-bold transition min-h-[40px] cursor-pointer"
+                      className="w-full py-2 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 border border-indigo-500/70 text-indigo-100 text-xs font-bold transition min-h-[40px] cursor-pointer"
                     >
                       Protect Selected: {targetPlayer.name}
                     </button>
@@ -871,7 +871,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   {!gameState.witchPotions?.nightVictimId && !targetPlayer && (
                     <button
                       disabled={true}
-                      className="w-full py-2.5 rounded-lg bg-emerald-950 border border-emerald-900/60 opacity-50 text-emerald-300 text-xs font-medium min-h-[44px]"
+                      className="w-full py-2.5 rounded-lg bg-indigo-950/60 border border-indigo-900/60 opacity-50 text-indigo-300 text-xs font-medium min-h-[44px]"
                     >
                       {gameState.witchPotions?.healAvailable
                         ? 'Waiting for Wolf Victim (or select player)'
@@ -983,7 +983,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   className={`p-3 rounded-xl border transition-all duration-200 flex flex-col justify-between min-h-[76px] ${
                     cupidLover1
                       ? isLoversLocked
-                        ? 'bg-rose-950/40 border-emerald-600/70 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                        ? 'bg-rose-950/40 border-rose-500/70 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
                         : 'bg-rose-950/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.25)]'
                       : 'bg-zinc-900/40 border-dashed border-zinc-700 text-zinc-400'
                   }`}
@@ -1012,8 +1012,8 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                       <div className="truncate">
                         <div className="font-bold text-sm text-white truncate">{cupidLover1.name}</div>
                         {isLoversLocked ? (
-                          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                            <Heart className="w-3 h-3 fill-emerald-400 text-emerald-400" />
+                          <div className="text-[10px] text-rose-300 font-semibold flex items-center gap-1">
+                            <Heart className="w-3 h-3 fill-rose-400 text-rose-400" />
                             <span>Bound in Eternal Love • Locked</span>
                           </div>
                         ) : (
@@ -1033,7 +1033,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   className={`p-3 rounded-xl border transition-all duration-200 flex flex-col justify-between min-h-[76px] ${
                     cupidLover2
                       ? isLoversLocked
-                        ? 'bg-rose-950/40 border-emerald-600/70 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                        ? 'bg-rose-950/40 border-rose-500/70 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
                         : 'bg-rose-950/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.25)]'
                       : 'bg-zinc-900/40 border-dashed border-zinc-700 text-zinc-400'
                   }`}
@@ -1062,8 +1062,8 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                       <div className="truncate">
                         <div className="font-bold text-sm text-white truncate">{cupidLover2.name}</div>
                         {isLoversLocked ? (
-                          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                            <Heart className="w-3 h-3 fill-emerald-400 text-emerald-400" />
+                          <div className="text-[10px] text-rose-300 font-semibold flex items-center gap-1">
+                            <Heart className="w-3 h-3 fill-rose-400 text-rose-400" />
                             <span>Bound in Eternal Love • Locked</span>
                           </div>
                         ) : (
@@ -1085,9 +1085,9 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   id="cupid-bind-lovers-btn"
                   type="button"
                   disabled={true}
-                  className="w-full py-3 px-4 rounded-xl font-bold font-cinzel text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[46px] bg-emerald-950/60 border border-emerald-700/60 text-emerald-300 cursor-not-allowed opacity-90 shadow-lg select-none"
+                  className="w-full py-3 px-4 rounded-xl font-bold font-cinzel text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[46px] bg-rose-950/60 border border-rose-500/60 text-rose-300 cursor-not-allowed opacity-90 shadow-lg select-none"
                 >
-                  <Heart className="w-4 h-4 fill-emerald-400 text-emerald-400 shrink-0" />
+                  <Heart className="w-4 h-4 fill-rose-400 text-rose-400 shrink-0" />
                   <span>Cupid's arrow struck true! Lovers have been bound together.</span>
                 </button>
               ) : (
@@ -1146,7 +1146,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 
               <div className="text-xs">
                 {isWhiteWolfSoloKillLocked ? (
-                  <span className="text-emerald-400 font-semibold font-mono">
+                  <span className="text-slate-200 font-semibold font-mono">
                     ✓ Werewolf Target Slain: <strong>{lockedWhiteWolfSoloTarget?.name || 'Pack Wolf'}</strong> (Assassinated)
                   </span>
                 ) : targetPlayer ? (
@@ -1156,7 +1156,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                     {targetPlayer.id === me?.id ? (
                       <span className="text-amber-400 font-mono text-[11px] ml-1.5">(Cannot target yourself)</span>
                     ) : targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB' ? (
-                      <span className="text-emerald-400 font-mono text-[11px] ml-1.5">(Valid Werewolf Target)</span>
+                      <span className="text-indigo-400 font-mono text-[11px] ml-1.5">(Valid Werewolf Target)</span>
                     ) : (
                       <span className="text-amber-400 font-mono text-[11px] ml-1.5">(Must target a Werewolf)</span>
                     )}
@@ -1187,7 +1187,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                 }
                 className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all min-h-[46px] ${
                   isWhiteWolfSoloKillLocked
-                    ? 'bg-emerald-950/80 border border-emerald-500/80 text-emerald-200 cursor-not-allowed shadow-emerald-950/50'
+                    ? 'bg-slate-800 border border-slate-600 text-slate-200 cursor-not-allowed shadow-md'
                     : isWolfHuntingLocked
                     ? 'bg-zinc-850 border border-amber-500/50 text-amber-300/80 cursor-not-allowed'
                     : targetPlayer && (targetPlayer.role === 'WEREWOLF' || targetPlayer.role === 'WOLF_CUB') && targetPlayer.id !== me?.id
@@ -1202,7 +1202,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   </>
                 ) : isWhiteWolfSoloKillLocked ? (
                   <>
-                    <Check className="w-4 h-4 text-emerald-300" />
+                    <Check className="w-4 h-4 text-slate-300" />
                     <span>✓ Werewolf Target Slain: {lockedWhiteWolfSoloTarget?.name || 'Werewolf'} (Cannot be undone)</span>
                   </>
                 ) : isWolfHuntingLocked ? (
@@ -1252,7 +1252,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                 className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
                   gameState.littleGirlPeekResult.caught
                     ? 'bg-red-950/80 text-red-300 border-red-700'
-                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-700'
+                    : 'bg-indigo-950/80 text-indigo-300 border-indigo-700'
                 }`}
               >
                 {gameState.littleGirlPeekResult.caught ? '⚠️ CAUGHT!' : '✨ PEEK ACTIVE'}
@@ -1346,7 +1346,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             </div>
             {activeDoppelPlayer && (
               <div className="text-[11px] text-teal-300 font-mono flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <Check className="w-3.5 h-3.5 text-teal-400" />
                 <span>Bound: {activeDoppelPlayer.name}</span>
               </div>
             )}
@@ -1358,7 +1358,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                 Target Reflection:{' '}
                 <strong className="text-white font-bold">{targetPlayer.name}</strong>
                 {isSelectedPlayerDoppelBound && (
-                  <span className="ml-2 text-emerald-400 font-semibold font-mono text-[11px]">
+                  <span className="ml-2 text-indigo-400 font-semibold font-mono text-[11px]">
                     (Currently Bound)
                   </span>
                 )}
@@ -1384,7 +1384,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               submitting
                 ? 'bg-zinc-800 text-zinc-400 cursor-wait'
                 : isSelectedPlayerDoppelBound
-                ? 'bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.35)]'
+                ? 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-300 shadow-md'
                 : activeDoppelPlayer && targetPlayer && activeDoppelPlayer.id !== targetPlayer.id
                 ? 'bg-gradient-to-r from-amber-600 to-teal-600 hover:from-amber-500 hover:to-teal-500 text-white border border-amber-400/50 shadow-amber-950/50'
                 : targetPlayer
@@ -1399,7 +1399,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               </>
             ) : isSelectedPlayerDoppelBound ? (
               <>
-                <Check className="w-4 h-4 text-emerald-200" />
+                <Check className="w-4 h-4 text-indigo-200" />
                 <span>✓ Reflection Bound to {targetPlayer?.name || activeDoppelPlayer?.name}!</span>
               </>
             ) : activeDoppelPlayer && targetPlayer && activeDoppelPlayer.id !== targetPlayer.id ? (
@@ -1427,7 +1427,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 font-bold text-teal-200 text-xs sm:text-sm">
                   <span>🪞 Soul Bound: Reflection Linked!</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300 text-[10px] font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-teal-950 border border-teal-500 text-teal-300 text-[10px] font-mono font-bold">
                     Bound to {activeDoppelPlayer.name}
                   </span>
                 </div>
@@ -1845,14 +1845,14 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
         return (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold font-cinzel text-sm">
-                <UserPlus className="w-4 h-4 text-emerald-400" />
+              <div className="flex items-center gap-2 text-indigo-400 font-bold font-cinzel text-sm">
+                <UserPlus className="w-4 h-4 text-indigo-400" />
                 <span>Wild Child's Role Model</span>
               </div>
-              <span className="text-[11px] text-emerald-300/80 font-mono">Feral Bond</span>
+              <span className="text-[11px] text-indigo-300 font-mono">Feral Bond</span>
             </div>
             {gameState.wildChildModelId ? (
-              <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-600/40 text-xs text-emerald-200">
+              <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/40 text-xs text-indigo-200">
                 🐺 Your beloved Role Model is{' '}
                 <strong className="text-white font-cinzel text-sm">{gameState.wildChildModelName || 'your Idol'}</strong>.
                 As long as they live, you fight with the Villagers. The moment your Role Model perishes, you will transform into a Werewolf!
@@ -1877,11 +1877,11 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                             onClick={() => onSelectTarget?.(p.id)}
                             className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center gap-1.5 ${
                               isSelected
-                                ? 'bg-emerald-900 border-emerald-400 text-emerald-100 ring-2 ring-emerald-400/50 font-bold shadow-lg shadow-emerald-950/60'
-                                : 'bg-zinc-900/90 border-zinc-800 text-zinc-300 hover:border-emerald-800/60 hover:text-white'
+                                ? 'bg-indigo-900 border-indigo-400 text-indigo-100 ring-2 ring-indigo-400/50 font-bold shadow-lg shadow-indigo-950/60'
+                                : 'bg-zinc-900/90 border-zinc-800 text-zinc-300 hover:border-indigo-800/60 hover:text-white'
                             }`}
                           >
-                            <Heart className="w-3 h-3 text-emerald-400" />
+                            <Heart className="w-3 h-3 text-rose-400" />
                             <span>{p.name}</span>
                           </button>
                         );
@@ -1893,7 +1893,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   <div className="text-xs">
                     {effectiveModel && effectiveModel.id !== me?.id ? (
                       <span>
-                        Role Model Target: <strong className="text-emerald-400 font-semibold">{effectiveModel.name}</strong>
+                        Role Model Target: <strong className="text-indigo-400 font-semibold">{effectiveModel.name}</strong>
                       </span>
                     ) : (
                       <span className="text-zinc-500 italic">Select a player to bond with</span>
@@ -1904,7 +1904,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                     type="button"
                     onClick={() => effectiveModel && handleConfirm('WILD_CHILD_CHOOSE', effectiveModel.id)}
                     disabled={!effectiveModel || effectiveModel.id === me?.id || submitting}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-emerald-950/50 min-h-[44px] cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-indigo-950/50 min-h-[44px] cursor-pointer"
                   >
                     <Heart className="w-3.5 h-3.5" />
                     <span>{submitting ? 'Binding...' : effectiveModel ? `Bind ${effectiveModel.name}` : 'Select Role Model'}</span>

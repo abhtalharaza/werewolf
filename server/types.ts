@@ -100,4 +100,5 @@ export interface ServerRoom {
   dictatorPlayerId: string | null;
   veteranAlertsRemaining: Record<string, number>; // playerId -> count
   amnesiacRememberedIds: string[];
+  skipDiscussionVotes: string[]; // playerIds who voted to skip discussion
 }

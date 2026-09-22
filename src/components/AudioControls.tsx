@@ -4,9 +4,14 @@ import { sounds } from '../utils/audio.js';
 
 interface AudioControlsProps {
   showFxTest?: boolean;
+  compact?: boolean;
+  className?: string;
 }
 
-export const AudioControls: React.FC<AudioControlsProps> = () => {
+export const AudioControls: React.FC<AudioControlsProps> = ({
+  compact = false,
+  className = '',
+}) => {
   const [muted, setMuted] = useState(sounds.getMuted());
 
   const toggleMute = () => {
@@ -21,22 +26,33 @@ export const AudioControls: React.FC<AudioControlsProps> = () => {
       id="audio-mute-toggle"
       type="button"
       onClick={toggleMute}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition shadow-md cursor-pointer select-none ${
+      aria-label={muted ? 'Unmute Audio' : 'Mute Audio'}
+      className={`relative flex items-center justify-center gap-1.5 min-h-[40px] rounded-full border text-xs font-medium transition duration-200 cursor-pointer select-none active:scale-95 shadow-xs shrink-0 ${
+        compact ? 'p-2 min-w-[40px] px-2.5' : 'px-3 py-1.5'
+      } ${
         muted
-          ? 'bg-rose-950/70 hover:bg-rose-900/80 border-rose-800/80 text-rose-300 hover:text-rose-200'
-          : 'bg-zinc-900/80 hover:bg-zinc-800/90 border-zinc-700/80 text-zinc-300 hover:text-white'
-      }`}
+          ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700 dark:bg-rose-950/70 dark:hover:bg-rose-900/80 dark:border-rose-800/80 dark:text-rose-300'
+          : 'bg-white/80 hover:bg-white border-indigo-200/80 hover:border-indigo-300 text-slate-700 dark:bg-[#181820] dark:hover:bg-[#22222e] dark:border-white/20 dark:text-zinc-200'
+      } ${className}`}
       title={muted ? 'Audio is Muted — Click to Unmute' : 'Audio is On — Click to Mute'}
     >
       {muted ? (
         <>
-          <VolumeX className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-          <span className="text-[11px] font-semibold text-rose-300">Unmute</span>
+          <VolumeX className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+          {!compact && (
+            <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-300 hidden xs:inline sm:inline">
+              Unmute
+            </span>
+          )}
         </>
       ) : (
         <>
-          <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="text-[11px] font-semibold text-zinc-300">Mute</span>
+          <Volume2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          {!compact && (
+            <span className="text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hidden xs:inline sm:inline">
+              Mute
+            </span>
+          )}
         </>
       )}
     </button>

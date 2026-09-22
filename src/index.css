@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *, .night-mode, .night-mode *));
+
 @layer base {
   :root {
     --font-cinzel: 'Cinzel', serif;
@@ -8,8 +10,8 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #09090b;
-    color: #f4f4f5;
+    background-color: #eeddfa;
+    color: #1e293b;
     overflow-x: hidden;
   }
 
@@ -19,38 +21,528 @@
   }
 }
 
-/* Custom scrollbar for dark gothic theme */
+/* Glassmorphism Frosted Glass Utilities (Michal Malewicz Reference Style) */
+.glass-card,
+.grass-glass {
+  background: rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 20px 45px -10px rgba(124, 58, 237, 0.12), inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.95);
+}
+
+.glass-card-subtle,
+.grass-glass-subtle {
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.glass-card-prominent,
+.grass-glass-prominent {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 25px 50px -12px rgba(109, 40, 217, 0.18), inset 0 2px 2px 0 rgba(255, 255, 255, 1);
+}
+
+.glass-card-modal,
+.grass-glass-modal {
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(36px) saturate(200%);
+  -webkit-backdrop-filter: blur(36px) saturate(200%);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 30px 60px -15px rgba(99, 102, 241, 0.22), 0 0 35px rgba(168, 85, 247, 0.15), inset 0 2px 2px 0 rgba(255, 255, 255, 1);
+}
+
+/* Iconic Blue-to-Purple Vibrant Button (Matching Reference Card's bottom half) */
+.gradient-brand-btn,
+.grass-button {
+  background: linear-gradient(135deg, #38a3e5 0%, #4f8bf0 30%, #7663e2 70%, #9a3ee4 100%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gradient-brand-btn:hover:not(:disabled),
+.grass-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #42b2f5 0%, #5d98f7 30%, #8372eb 70%, #a84df0 100%);
+  border-color: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 14px 30px -4px rgba(99, 102, 241, 0.5), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.gradient-brand-btn:active:not(:disabled),
+.grass-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 6px 18px -4px rgba(99, 102, 241, 0.4), inset 0 1px 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.gradient-brand-btn:disabled,
+.grass-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Horizontal Gradient Strip (From Card Mockup) */
+.gradient-brand-bar {
+  background: linear-gradient(90deg, #38a3e5 0%, #4f8bf0 30%, #7663e2 70%, #9a3ee4 100%);
+}
+
+/* 3D Pastel Sphere styling */
+.pastel-3d-sphere {
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #ebd7f9 25%, #cea8ed 60%, #9e71d8 100%);
+  box-shadow: 0 25px 45px -10px rgba(147, 51, 234, 0.22);
+}
+
+/* Custom scrollbar in soft lavender glass tones */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: rgba(238, 221, 250, 0.4);
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 3px;
+  background: rgba(147, 51, 234, 0.25);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: rgba(147, 51, 234, 0.45);
 }
 
-@keyframes fog-drift {
-  0% { transform: translateX(-5%) translateY(0); }
-  50% { transform: translateX(5%) translateY(-5px); }
-  100% { transform: translateX(-5%) translateY(0); }
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-16px) rotate(2deg);
+  }
+}
+
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-22px) rotate(-2deg);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-12px) scale(1.03);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.05); }
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.04); }
 }
 
-.animate-fog {
-  animation: fog-drift 18s ease-in-out infinite;
+.animate-float-gentle {
+  animation: float-gentle 7s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 9s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 11s ease-in-out infinite;
 }
 
 .animate-glow {
-  animation: pulse-glow 4s ease-in-out infinite;
+  animation: pulse-glow 5s ease-in-out infinite;
+}
+
+/* =========================================================
+   NIGHT MODE (PURE DARK OBSIDIAN GOTHIC THEME)
+   ========================================================= */
+.dark,
+.night-mode {
+  color-scheme: dark;
+  background-color: #050508 !important;
+  color: #f1f5f9;
+}
+
+#werewolf-app-root.dark,
+#werewolf-app-root.night-mode {
+  background-color: #050508 !important;
+  color: #f1f5f9;
+}
+
+/* Dark Frosted Obsidian Glass Cards (True Charcoal/Pitch Black, No Blue/Purple tint) */
+.dark .glass-card,
+.dark .grass-glass,
+.night-mode .glass-card,
+.night-mode .grass-glass {
+  background: rgba(13, 13, 18, 0.9) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.9), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .glass-card-subtle,
+.dark .grass-glass-subtle,
+.night-mode .glass-card-subtle,
+.night-mode .grass-glass-subtle {
+  background: rgba(18, 18, 24, 0.85) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8), inset 0 1px 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .glass-card-prominent,
+.dark .grass-glass-prominent,
+.night-mode .glass-card-prominent,
+.night-mode .grass-glass-prominent {
+  background: rgba(16, 16, 22, 0.92) !important;
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1.5px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.95), inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.dark .glass-card-modal,
+.dark .grass-glass-modal,
+.night-mode .glass-card-modal,
+.night-mode .grass-glass-modal {
+  background: rgba(10, 10, 14, 0.96) !important;
+  backdrop-filter: blur(36px);
+  -webkit-backdrop-filter: blur(36px);
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.98), inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Night Mode 3D Floating Celestial Spheres: Stealth Dark Matte Charcoal (No Purple) */
+.dark .pastel-3d-sphere,
+.night-mode .pastel-3d-sphere {
+  background: radial-gradient(circle at 35% 30%, #252530 0%, #13131a 50%, #060608 100%) !important;
+  box-shadow: 0 25px 50px -10px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Automatic Darkening of White Cards and Light Surfaces in Night Mode */
+.dark .bg-white,
+.night-mode .bg-white,
+.dark .bg-white\/95,
+.night-mode .bg-white\/95,
+.dark .bg-white\/90,
+.night-mode .bg-white\/90,
+.dark .bg-white\/80,
+.night-mode .bg-white\/80,
+.dark .bg-white\/70,
+.night-mode .bg-white\/70,
+.dark .bg-white\/60,
+.night-mode .bg-white\/60,
+.dark .bg-white\/50,
+.night-mode .bg-white\/50 {
+  background-color: rgba(22, 22, 30, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f1f5f9;
+}
+
+.dark .hover\:bg-white:hover,
+.night-mode .hover\:bg-white:hover,
+.dark .hover\:bg-white\/80:hover,
+.night-mode .hover\:bg-white\/80:hover,
+.dark .hover\:bg-slate-100:hover,
+.night-mode .hover\:bg-slate-100:hover,
+.dark .hover\:bg-indigo-50:hover,
+.night-mode .hover\:bg-indigo-50:hover {
+  background-color: rgba(34, 34, 46, 0.95) !important;
+}
+
+/* Dark Tinted Chips & Badges in Night Mode (Replacing Light Pastel Backgrounds) */
+.dark .bg-rose-50,
+.dark .bg-rose-100,
+.night-mode .bg-rose-50,
+.night-mode .bg-rose-100 {
+  background-color: rgba(45, 15, 25, 0.7) !important;
+  color: #fda4af !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+.dark .bg-indigo-50,
+.dark .bg-indigo-50\/70,
+.dark .bg-indigo-50\/80,
+.dark .bg-indigo-50\/90,
+.dark .bg-indigo-100,
+.night-mode .bg-indigo-50,
+.night-mode .bg-indigo-50\/70,
+.night-mode .bg-indigo-50\/80,
+.night-mode .bg-indigo-50\/90,
+.night-mode .bg-indigo-100 {
+  background-color: rgba(24, 24, 34, 0.9) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.dark .bg-emerald-50,
+.dark .bg-emerald-100,
+.night-mode .bg-emerald-50,
+.night-mode .bg-emerald-100 {
+  background-color: rgba(12, 38, 28, 0.7) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-100,
+.night-mode .bg-amber-50,
+.night-mode .bg-amber-100 {
+  background-color: rgba(38, 25, 12, 0.7) !important;
+  color: #fcd34d !important;
+  border-color: rgba(251, 191, 36, 0.3) !important;
+}
+
+.dark .bg-sky-50,
+.dark .bg-sky-100,
+.night-mode .bg-sky-50,
+.night-mode .bg-sky-100 {
+  background-color: rgba(20, 24, 32, 0.85) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(56, 189, 248, 0.25) !important;
+}
+
+.dark .bg-purple-50,
+.dark .bg-purple-100,
+.night-mode .bg-purple-50,
+.night-mode .bg-purple-100 {
+  background-color: rgba(26, 20, 32, 0.85) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(192, 132, 252, 0.25) !important;
+}
+
+.dark .bg-teal-50,
+.dark .bg-teal-100,
+.night-mode .bg-teal-50,
+.night-mode .bg-teal-100 {
+  background-color: rgba(15, 34, 32, 0.7) !important;
+  color: #5eead4 !important;
+  border-color: rgba(45, 212, 191, 0.3) !important;
+}
+
+.dark .bg-pink-50,
+.dark .bg-pink-100,
+.night-mode .bg-pink-50,
+.night-mode .bg-pink-100 {
+  background-color: rgba(50, 15, 30, 0.75) !important;
+  color: #f472b6 !important;
+  border-color: rgba(244, 114, 182, 0.35) !important;
+}
+
+.dark .bg-cyan-50,
+.dark .bg-cyan-100,
+.night-mode .bg-cyan-50,
+.night-mode .bg-cyan-100 {
+  background-color: rgba(10, 35, 45, 0.75) !important;
+  color: #67e8f9 !important;
+  border-color: rgba(34, 211, 238, 0.35) !important;
+}
+
+.dark .bg-fuchsia-50,
+.dark .bg-fuchsia-100,
+.night-mode .bg-fuchsia-50,
+.night-mode .bg-fuchsia-100 {
+  background-color: rgba(45, 12, 45, 0.75) !important;
+  color: #e879f9 !important;
+  border-color: rgba(232, 121, 249, 0.35) !important;
+}
+
+.dark .bg-violet-50,
+.dark .bg-violet-100,
+.night-mode .bg-violet-50,
+.night-mode .bg-violet-100 {
+  background-color: rgba(32, 18, 50, 0.75) !important;
+  color: #c4b5fd !important;
+  border-color: rgba(167, 139, 250, 0.35) !important;
+}
+
+.dark .bg-orange-50,
+.dark .bg-orange-100,
+.night-mode .bg-orange-50,
+.night-mode .bg-orange-100 {
+  background-color: rgba(45, 22, 10, 0.75) !important;
+  color: #fdba74 !important;
+  border-color: rgba(251, 146, 60, 0.35) !important;
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-100,
+.night-mode .bg-blue-50,
+.night-mode .bg-blue-100 {
+  background-color: rgba(15, 25, 50, 0.75) !important;
+  color: #93c5fd !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.night-mode .bg-slate-50,
+.night-mode .bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.07) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* High-Contrast Crisp Typography in Night Mode */
+.dark .text-slate-900,
+.night-mode .text-slate-900 {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-800,
+.night-mode .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-700,
+.night-mode .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-slate-600,
+.night-mode .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-500,
+.night-mode .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-indigo-950,
+.night-mode .text-indigo-950,
+.dark .text-indigo-900,
+.night-mode .text-indigo-900 {
+  color: #e0e7ff !important;
+}
+
+.dark .text-indigo-800,
+.night-mode .text-indigo-800,
+.dark .text-indigo-700,
+.night-mode .text-indigo-700 {
+  color: #c7d2fe !important;
+}
+
+.dark .text-indigo-600,
+.night-mode .text-indigo-600 {
+  color: #a5b4fc !important;
+}
+
+.dark .text-pink-700,
+.dark .text-pink-600,
+.night-mode .text-pink-700,
+.night-mode .text-pink-600 {
+  color: #f472b6 !important;
+}
+
+.dark .text-cyan-700,
+.dark .text-cyan-600,
+.night-mode .text-cyan-700,
+.night-mode .text-cyan-600 {
+  color: #67e8f9 !important;
+}
+
+.dark .text-fuchsia-700,
+.dark .text-fuchsia-600,
+.night-mode .text-fuchsia-700,
+.night-mode .text-fuchsia-600 {
+  color: #e879f9 !important;
+}
+
+.dark .text-violet-700,
+.dark .text-violet-600,
+.night-mode .text-violet-700,
+.night-mode .text-violet-600 {
+  color: #c4b5fd !important;
+}
+
+.dark .text-orange-700,
+.dark .text-orange-600,
+.night-mode .text-orange-700,
+.night-mode .text-orange-600 {
+  color: #fdba74 !important;
+}
+
+.dark .text-amber-700,
+.dark .text-amber-600,
+.night-mode .text-amber-700,
+.night-mode .text-amber-600 {
+  color: #fcd34d !important;
+}
+
+.dark .text-rose-700,
+.dark .text-rose-600,
+.night-mode .text-rose-700,
+.night-mode .text-rose-600 {
+  color: #fda4af !important;
+}
+
+/* Dark Mode Form Controls and Inputs */
+.dark input[type="text"],
+.dark input[type="password"],
+.dark select,
+.dark textarea,
+.night-mode input[type="text"],
+.night-mode input[type="password"],
+.night-mode select,
+.night-mode textarea {
+  background-color: rgba(18, 18, 24, 0.9) !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+.dark input::placeholder,
+.night-mode input::placeholder {
+  color: #64748b !important;
+}
+
+/* Modal and card border softening for Dark Mode */
+.dark .border-white\/80,
+.night-mode .border-white\/80,
+.dark .border-white\/90,
+.night-mode .border-white\/90 {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+.dark .border-indigo-100\/70,
+.night-mode .border-indigo-100\/70,
+.dark .border-indigo-100\/60,
+.night-mode .border-indigo-100\/60,
+.dark .border-indigo-100,
+.night-mode .border-indigo-100,
+.dark .border-indigo-200,
+.night-mode .border-indigo-200,
+.dark .border-indigo-200\/80,
+.night-mode .border-indigo-200\/80 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Night Mode Scrollbars */
+.dark ::-webkit-scrollbar-track,
+.night-mode ::-webkit-scrollbar-track {
+  background: rgba(10, 10, 14, 0.7);
+}
+.dark ::-webkit-scrollbar-thumb,
+.night-mode ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb:hover,
+.night-mode ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 

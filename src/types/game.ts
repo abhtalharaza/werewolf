@@ -252,6 +252,8 @@ export interface ClientGameState {
   amnesiacChosenRole?: Role;
   amnesiacChosenPlayerName?: string;
   amnesiacGraveyard?: { id: string; name: string; role: Role }[];
+  skipDiscussionVotes?: string[];
+  skipDiscussionTotalRequired?: number;
 }
 
 export interface RoomListItem {

@@ -25,6 +25,7 @@ import { ClientGameState, ChatMessage, Role, GameSettings } from '../types/game.
 import { ALL_ROLES_META } from '../types/roleMeta.js';
 import { getAvatar } from '../utils/avatars.js';
 import { AudioControls } from './AudioControls.js';
+import { NightModeToggle } from './NightModeToggle.js';
 
 interface LobbyViewProps {
   gameState: ClientGameState;
@@ -91,6 +92,11 @@ const ROLE_ICONS: Record<Role, React.ComponentType<{ className?: string }>> = AL
 
 const ROLE_COLORS: Record<Role, string> = ALL_ROLES_META.reduce((acc, r) => {
   acc[r.role] = r.badgeClass;
+  return acc;
+}, {} as Record<Role, string>);
+
+const ROLE_NAMES: Record<Role, string> = ALL_ROLES_META.reduce((acc, r) => {
+  acc[r.role] = r.name;
   return acc;
 }, {} as Record<Role, string>);
 
@@ -267,70 +273,72 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       {deckSaveToast && (
         <div
           id="deck-saved-notification"
-          className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-950/95 border border-emerald-500/70 text-emerald-100 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-none"
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white/95 dark:bg-[#15141e] border border-indigo-200 dark:border-white/15 text-slate-800 dark:text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-semibold backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-none"
         >
-          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span>Village role deck saved! Settings updated for all players.</span>
         </div>
       )}
 
       {/* Header */}
-      <header className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 bg-zinc-950/70 border border-zinc-800/80 rounded-2xl p-3.5 sm:p-4 backdrop-blur-md">
+      <header className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 glass-card rounded-3xl p-3.5 sm:p-4 backdrop-blur-xl border border-white/80 dark:border-white/10 shadow-md">
         <div className="flex items-center gap-3">
-          <div className="p-2 sm:p-2.5 rounded-xl bg-purple-950/70 border border-purple-800/50 text-purple-300 shrink-0">
+          <div className="p-2 sm:p-2.5 rounded-2xl bg-indigo-50 dark:bg-white/10 border border-indigo-200 dark:border-white/15 text-indigo-600 dark:text-indigo-400 shrink-0 shadow-xs">
             <Users className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg sm:text-xl font-bold font-cinzel text-zinc-100">{gameState.settings.roomName}</h2>
+              <h2 className="text-lg sm:text-xl font-bold font-cinzel text-slate-900 dark:text-white">{gameState.settings.roomName}</h2>
               {isHost && (
                 <button
                   id="open-room-customization-btn"
                   onClick={openRoomSettingsEditor}
-                  className="px-2.5 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900 border border-purple-700/60 text-purple-200 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer shadow-sm hover:scale-102"
+                  className="px-3.5 py-2 min-h-[44px] rounded-xl bg-white/80 hover:bg-white dark:bg-white/10 dark:hover:bg-white/15 border border-indigo-200/80 dark:border-white/15 text-indigo-700 dark:text-indigo-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs active:scale-98"
                   title="Customize Room Name, Host Name, Capacity & Discussion Timer"
                 >
-                  <Sliders className="w-3.5 h-3.5 text-purple-300" />
+                  <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Customize Village</span>
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-zinc-400 mt-0.5">
-              <span>Host: <strong className="text-amber-300 font-semibold">{hostPlayer?.name || 'Elder'}</strong></span>
+            <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 font-medium mt-0.5">
+              <span>Host: <strong className="text-indigo-700 dark:text-indigo-300 font-semibold">{hostPlayer?.name || 'Elder'}</strong></span>
               <span>•</span>
-              <span className="text-purple-300 font-semibold">{playerCount} / {gameState.settings.maxPlayers} Villagers</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{playerCount} / {gameState.settings.maxPlayers} Villagers</span>
               <span>•</span>
-              <span className="text-zinc-300 font-mono">Discussion: {gameState.settings.discussionTime}s</span>
+              <span className="text-slate-500 dark:text-slate-400 font-mono">Discussion: {gameState.settings.discussionTime}s</span>
             </div>
           </div>
         </div>
 
         {/* Room Code Badge & Top Actions */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 border-t sm:border-t-0 border-zinc-800/60 pt-2.5 sm:pt-0">
-          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2">
-            <div className="text-[11px] sm:text-xs text-zinc-400 uppercase tracking-widest font-mono">Code:</div>
-            <div className="font-mono font-bold tracking-widest text-base sm:text-lg text-purple-400">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-3 border-t sm:border-t-0 border-indigo-100/60 dark:border-white/10 pt-2.5 sm:pt-0 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 glass-card-subtle rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2 border border-indigo-200/60 dark:border-white/15 shrink-0">
+            <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest font-mono font-semibold">Code:</div>
+            <div className="font-mono font-bold tracking-widest text-sm sm:text-lg text-indigo-700 dark:text-indigo-300 drop-shadow-xs">
               {gameState.roomCode}
             </div>
             <button
               id="copy-room-code-btn"
               onClick={copyCode}
-              className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition ml-0.5 min-w-[32px] min-h-[32px] flex items-center justify-center cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-white/10 text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-indigo-200 transition ml-0.5 min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center cursor-pointer active:scale-95"
               title="Copy Code"
             >
-              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <AudioControls showFxTest={true} />
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <NightModeToggle compact={true} />
+            <AudioControls compact={true} showFxTest={true} />
 
             <button
               id="leave-lobby-btn"
               onClick={onLeaveRoom}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900/90 hover:bg-red-950/40 border border-zinc-800 hover:border-red-800/50 text-zinc-400 hover:text-red-300 text-xs transition min-h-[38px] cursor-pointer"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl glass-card-subtle hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-300 dark:hover:border-rose-800 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-300 text-xs font-semibold transition min-h-[40px] cursor-pointer shadow-xs active:scale-98 shrink-0"
+              title="Leave Village"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-4 h-4 shrink-0 text-rose-500 dark:text-rose-400" />
               <span className="hidden sm:inline">Leave</span>
             </button>
           </div>
@@ -339,12 +347,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
       {/* Main Grid: Player list + Settings, Role Deck & Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 my-6 flex-1">
-        {/* Left 2 Cols: Player Roster */}
-        <div className="lg:col-span-2 flex flex-col bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-4 sm:p-6 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-4 border-b border-zinc-800/60 pb-3">
+        {/* Left 2 Cols: Player Roster in Frosted Glass-Card */}
+        <div className="lg:col-span-2 flex flex-col glass-card rounded-3xl p-4 sm:p-6 backdrop-blur-xl border border-white/80 dark:border-white/10 shadow-md">
+          <div className="flex items-center justify-between mb-4 border-b border-indigo-100/70 dark:border-white/10 pb-3">
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-purple-400" />
-              <h3 className="font-cinzel font-bold text-zinc-200 text-base">Villagers in Square</h3>
+              <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h3 className="font-cinzel font-bold text-slate-900 dark:text-white text-base">Villagers in Square</h3>
             </div>
 
             {/* Host quick actions: Add bot / Remove bot */}
@@ -354,17 +362,17 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   id="add-bot-btn"
                   onClick={onAddBot}
                   disabled={playerCount >= gameState.settings.maxPlayers}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-purple-950/50 border border-zinc-800 hover:border-purple-800/60 text-xs text-zinc-300 hover:text-purple-300 transition disabled:opacity-40 cursor-pointer"
+                  className="flex items-center justify-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-white/80 hover:bg-white dark:bg-white/10 dark:hover:bg-white/15 border border-indigo-200 hover:border-indigo-400 dark:border-white/15 text-xs text-indigo-700 dark:text-indigo-200 font-semibold transition disabled:opacity-40 cursor-pointer shadow-xs active:scale-98"
                   title="Summon an AI Villager"
                 >
-                  <Bot className="w-3.5 h-3.5 text-purple-400" />
+                  <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>+ Add Bot</span>
                 </button>
                 {gameState.players.some((p) => p.isBot) && (
                   <button
                     id="remove-bot-btn"
                     onClick={() => onRemoveBot()}
-                    className="px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+                    className="flex items-center justify-center px-4 py-2 min-h-[44px] rounded-xl bg-white/60 hover:bg-white dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-xs text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white transition cursor-pointer active:scale-98"
                   >
                     Remove Bot
                   </button>
@@ -383,78 +391,78 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 <div
                   key={p.id}
                   id={`lobby-player-card-${p.id}`}
-                  className={`flex items-center justify-between p-3.5 rounded-xl border transition ${
+                  className={`flex items-center justify-between p-3.5 rounded-2xl border transition backdrop-blur-md ${
                     isMe
-                      ? 'bg-purple-950/30 border-purple-600/50 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
-                      : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700'
+                      ? 'bg-white/95 dark:bg-[#161424] border-indigo-300 dark:border-indigo-500/60 shadow-md ring-1 ring-indigo-200 dark:ring-indigo-500/30'
+                      : 'bg-white/70 dark:bg-[#111019] border-white/90 dark:border-white/10 hover:border-indigo-200 dark:hover:border-white/20 shadow-xs'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-md border border-white/10 shrink-0"
-                      style={{ backgroundColor: avatarInfo.color + '33', color: avatarInfo.color }}
+                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-sm border border-white/80 dark:border-white/20 shrink-0"
+                      style={{ backgroundColor: avatarInfo.color + '26', color: avatarInfo.color }}
                     >
                       {p.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 font-semibold text-sm text-zinc-100">
+                      <div className="flex items-center gap-1.5 font-semibold text-sm text-slate-900 dark:text-white">
                         <span className="truncate">{p.name}</span>
                         {p.isHost && (
                           <span title="Village Host" className="shrink-0">
-                            <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                            <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                           </span>
                         )}
                         {p.isBot && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 font-mono shrink-0">
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono shrink-0">
                             BOT
                           </span>
                         )}
                         {isMe && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-900/70 text-purple-200 shrink-0">
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-indigo-600 text-white font-mono shrink-0">
                             YOU
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-zinc-400 truncate">{avatarInfo.title}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">{avatarInfo.title}</div>
                     </div>
                   </div>
 
                   {/* Ready State & Host Kick Control */}
                   <div className="flex items-center gap-2 shrink-0">
                     {p.isHost ? (
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-amber-950/60 text-amber-300 border border-amber-800/40 font-mono flex items-center gap-1">
-                        <Crown className="w-3 h-3 text-amber-400" /> Host
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-mono flex items-center gap-1 shadow-xs">
+                        <Crown className="w-3 h-3 text-amber-500" /> Host
                       </span>
                     ) : isMe ? (
                       <button
                         id="lobby-player-list-ready-btn"
                         type="button"
                         onClick={onToggleReady}
-                        className={`text-xs px-3 py-1.5 rounded-full font-mono font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer ${
+                        className={`text-xs px-4 py-2 min-h-[44px] rounded-xl font-mono font-bold flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer select-none active:scale-98 ${
                           p.isReady
-                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 ring-2 ring-emerald-500/40'
-                            : 'bg-amber-600 hover:bg-amber-500 text-white border border-amber-400 animate-pulse hover:animate-none'
+                            ? 'gradient-brand-btn text-white ring-2 ring-indigo-300'
+                            : 'bg-amber-500 hover:bg-amber-600 text-white border border-amber-400 animate-pulse hover:animate-none'
                         }`}
                         title={p.isReady ? 'Click to unmark ready' : 'Click to Ready up!'}
                       >
                         {p.isReady ? (
                           <>
-                            <Check className="w-3.5 h-3.5" />
+                            <Check className="w-4 h-4" />
                             <span>Ready</span>
                           </>
                         ) : (
                           <>
-                            <Sparkles className="w-3.5 h-3.5" />
+                            <Sparkles className="w-4 h-4" />
                             <span>Click to Ready</span>
                           </>
                         )}
                       </button>
                     ) : p.isReady ? (
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-800/40 font-mono flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Ready
+                      <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-mono flex items-center gap-1.5 shadow-xs">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Ready
                       </span>
                     ) : (
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 font-mono">
+                      <span className="text-xs px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-white/10 font-mono">
                         Waiting
                       </span>
                     )}
@@ -465,9 +473,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                         id={`kick-player-${p.id}`}
                         onClick={() => onKickPlayer(p.id)}
                         title={`Banish ${p.name} from room`}
-                        className="p-1.5 px-2 rounded-lg bg-red-950/40 hover:bg-red-900/70 border border-red-800/50 text-red-300 hover:text-red-100 text-xs flex items-center gap-1 transition cursor-pointer"
+                        className="min-h-[44px] px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800/50 text-rose-600 dark:text-rose-300 hover:text-rose-800 dark:hover:text-rose-200 text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                       >
-                        <UserX className="w-3.5 h-3.5 text-red-400" />
+                        <UserX className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" />
                         <span className="hidden sm:inline font-medium">Kick</span>
                       </button>
                     )}
@@ -479,13 +487,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
           {/* Player Count Guidance */}
           {!canStart && (
-            <div className="mt-4 p-3 rounded-xl bg-purple-950/20 border border-purple-900/30 text-purple-300 text-xs flex items-center justify-between">
+            <div className="mt-4 p-3 rounded-2xl bg-indigo-50/70 dark:bg-white/[0.04] border border-indigo-200 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs flex items-center justify-between">
               <span>A minimum of <strong>4 players</strong> are required to begin the hunt.</span>
               {isHost && (
                 <button
                   id="lobby-quick-add-bots-btn"
                   onClick={onAddBot}
-                  className="font-bold underline hover:text-white transition ml-2 cursor-pointer"
+                  className="font-bold underline text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 transition ml-2 cursor-pointer"
                 >
                   + Add Villager Bot
                 </button>
@@ -494,22 +502,22 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           )}
         </div>
 
-        {/* Right Col: Village Roles Deck, Rules & Chat */}
+        {/* Right Col: Village Roles Deck, Rules & Chat in Glass-Card */}
         <div className="flex flex-col gap-4">
           {/* Active Roles in Deck Card */}
-          <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-4 backdrop-blur-md">
+          <div className="glass-card rounded-3xl p-4 backdrop-blur-xl border border-white/80 dark:border-white/10 shadow-md">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300 uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <span>Assigned Roles in Deck</span>
               </div>
               {isHost && (
                 <button
                   id="lobby-edit-deck-btn"
                   onClick={openDeckEditor}
-                  className="flex items-center gap-1 text-[11px] text-purple-300 hover:text-purple-100 bg-purple-950/50 hover:bg-purple-900/60 border border-purple-800/40 px-2 py-1 rounded-lg transition cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 text-xs text-indigo-700 dark:text-indigo-200 hover:text-indigo-900 bg-white/80 hover:bg-white dark:bg-white/10 dark:hover:bg-white/15 border border-indigo-200 dark:border-white/15 px-3.5 py-2 min-h-[44px] rounded-xl transition cursor-pointer shadow-xs font-semibold active:scale-98"
                 >
-                  <Sliders className="w-3 h-3" />
+                  <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Customize</span>
                 </button>
               )}
@@ -520,78 +528,79 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 .filter(([_, count]) => count > 0)
                 .map(([role, count]) => {
                   const Icon = ROLE_ICONS[role] || Users;
-                  const colorClass = ROLE_COLORS[role] || 'text-zinc-300 border-zinc-700 bg-zinc-900';
+                  const colorClass = ROLE_COLORS[role] || 'text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.06]';
+                  const roleName = ROLE_NAMES[role] || (role.charAt(0) + role.slice(1).toLowerCase().replace(/_/g, ' '));
                   return (
                     <div
                       key={role}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium ${colorClass}`}
-                      title={`${count}x ${role}`}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-medium ${colorClass} shadow-xs`}
+                      title={`${count}x ${roleName}`}
                     >
-                      <Icon className="w-3 h-3" />
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
                       <span>
-                        {count}x {role.charAt(0) + role.slice(1).toLowerCase()}
+                        {count}x {roleName}
                       </span>
                     </div>
                   );
                 })}
             </div>
-            <p className="text-[10px] text-zinc-500 mt-2">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
               Every player will receive one secret role dealt from this deck.
             </p>
           </div>
 
           {/* Timers Card */}
-          <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-4 backdrop-blur-md">
+          <div className="glass-card rounded-3xl p-4 backdrop-blur-xl border border-white/80 dark:border-white/10 shadow-md">
             <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                <Clock className="w-3.5 h-3.5 text-purple-400" />
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <span>Village Rules & Timers</span>
               </div>
               {isHost && (
                 <button
                   id="lobby-customize-timers-btn"
                   onClick={openRoomSettingsEditor}
-                  className="flex items-center gap-1 text-[11px] text-purple-300 hover:text-purple-100 bg-purple-950/50 hover:bg-purple-900/60 border border-purple-800/40 px-2 py-1 rounded-lg transition cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 text-xs text-indigo-700 dark:text-indigo-200 hover:text-indigo-900 bg-white/80 hover:bg-white dark:bg-white/10 dark:hover:bg-white/15 border border-indigo-200 dark:border-white/15 px-3.5 py-2 min-h-[44px] rounded-xl transition cursor-pointer shadow-xs font-semibold active:scale-98"
                 >
-                  <Sliders className="w-3 h-3" />
+                  <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Customize</span>
                 </button>
               )}
             </div>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="p-2 rounded-lg bg-zinc-900/70 border border-zinc-800">
-                <div className="text-zinc-500 text-[10px]">NIGHT</div>
-                <div className="font-bold text-zinc-200 mt-0.5">{gameState.settings.nightTime}s</div>
+              <div className="p-2 rounded-2xl bg-white/60 dark:bg-white/[0.04] border border-indigo-100 dark:border-white/10">
+                <div className="text-slate-500 dark:text-slate-400 text-[10px] font-semibold">NIGHT</div>
+                <div className="font-bold text-slate-800 dark:text-white mt-0.5">{gameState.settings.nightTime}s</div>
               </div>
-              <div className="p-2 rounded-lg bg-zinc-900/70 border border-zinc-800">
-                <div className="text-zinc-500 text-[10px]">DISCUSSION</div>
-                <div className="font-bold text-amber-300 mt-0.5">{gameState.settings.discussionTime}s</div>
+              <div className="p-2 rounded-2xl bg-white/60 dark:bg-white/[0.04] border border-indigo-100 dark:border-white/10">
+                <div className="text-slate-500 dark:text-slate-400 text-[10px] font-semibold">DISCUSSION</div>
+                <div className="font-bold text-indigo-700 dark:text-indigo-300 mt-0.5">{gameState.settings.discussionTime}s</div>
               </div>
-              <div className="p-2 rounded-lg bg-zinc-900/70 border border-zinc-800">
-                <div className="text-zinc-500 text-[10px]">VOTING</div>
-                <div className="font-bold text-zinc-200 mt-0.5">{gameState.settings.votingTime}s</div>
+              <div className="p-2 rounded-2xl bg-white/60 dark:bg-white/[0.04] border border-indigo-100 dark:border-white/10">
+                <div className="text-slate-500 dark:text-slate-400 text-[10px] font-semibold">VOTING</div>
+                <div className="font-bold text-slate-800 dark:text-white mt-0.5">{gameState.settings.votingTime}s</div>
               </div>
             </div>
           </div>
 
-          {/* Lobby Chat */}
-          <div className="flex-1 flex flex-col bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-4 backdrop-blur-md min-h-[220px]">
-            <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+          {/* Lobby Chat in Frosted Glass-Card */}
+          <div className="flex-1 flex flex-col glass-card rounded-3xl p-4 backdrop-blur-xl min-h-[220px] border border-white/80 dark:border-white/10 shadow-md">
+            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
               Lobby Chatter
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 max-h-[190px] pr-1 text-xs">
               {chatMessages.length === 0 ? (
-                <div className="text-zinc-600 italic text-center my-6">No words spoken yet in the tavern...</div>
+                <div className="text-slate-400 dark:text-slate-500 italic text-center my-6">No words spoken yet in the village square...</div>
               ) : (
                 chatMessages.map((msg) => (
-                  <div key={msg.id} className="p-2 rounded-lg bg-zinc-900/50 border border-zinc-800/50">
-                    <div className="flex items-center justify-between text-[10px] text-zinc-400 mb-0.5">
-                      <span className="font-semibold text-purple-300">{msg.senderName}</span>
-                      <span className="text-zinc-600">
+                  <div key={msg.id} className="p-2.5 rounded-2xl bg-white/70 dark:bg-white/[0.04] border border-indigo-100 dark:border-white/10 shadow-xs">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">
+                      <span className="font-semibold text-indigo-700 dark:text-indigo-300">{msg.senderName}</span>
+                      <span className="text-slate-400 dark:text-slate-500 font-mono">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <div className="text-zinc-200 break-words">{msg.text}</div>
+                    <div className="text-slate-800 dark:text-slate-200 break-words font-medium">{msg.text}</div>
                   </div>
                 ))
               )}
@@ -605,11 +614,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Converse with the villagers..."
                 maxLength={140}
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-purple-500 focus:outline-none text-base sm:text-xs text-zinc-100 placeholder-zinc-500 min-h-[44px]"
+                className="flex-1 px-3.5 py-2.5 rounded-2xl bg-white/80 dark:bg-[#12111a] border border-indigo-200/80 dark:border-white/15 focus:border-indigo-400 focus:outline-none text-base sm:text-xs text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 min-h-[44px] shadow-xs"
               />
               <button
                 type="submit"
-                className="px-4 py-2.5 rounded-xl bg-purple-900/60 hover:bg-purple-800 border border-purple-700/40 text-xs text-white font-medium transition min-h-[44px] min-w-[54px] cursor-pointer"
+                className="px-4 py-2.5 rounded-2xl gradient-brand-btn text-xs text-white font-medium transition min-h-[44px] min-w-[54px] cursor-pointer shadow-sm"
               >
                 Send
               </button>
@@ -619,13 +628,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       </div>
 
       {/* Footer Controls: Start Game (Host only) */}
-      <footer className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 backdrop-blur-md">
-        <div className="text-xs text-zinc-400 text-center sm:text-left">
+      <footer className="glass-card rounded-3xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 backdrop-blur-xl border border-white/80 dark:border-white/10 shadow-md">
+        <div className="text-xs text-slate-600 dark:text-slate-400 font-medium text-center sm:text-left">
           {isHost ? (
             <span>You are the Host. When all villagers are prepared, signal the town horn to begin.</span>
           ) : (
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${me?.isReady ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${me?.isReady ? 'bg-emerald-500 animate-pulse shadow-xs' : 'bg-amber-400'}`} />
               <span>
                 {me?.isReady
                   ? '✓ You are marked Ready! Waiting for the Host to commence the hunt.'
@@ -641,9 +650,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               id="lobby-start-game-btn"
               onClick={handleStart}
               disabled={starting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 min-h-[48px] rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 disabled:opacity-40 text-white font-bold font-cinzel text-sm tracking-wider shadow-xl shadow-purple-950/60 border border-purple-500/40 transition cursor-pointer active:scale-98"
+              className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3 min-h-[48px] h-12 rounded-2xl gradient-brand-btn disabled:opacity-40 text-white font-bold font-cinzel text-sm tracking-wider transition cursor-pointer active:scale-98 shadow-md select-none"
             >
-              <Play className="w-4 h-4 fill-current" />
+              <Play className="w-4 h-4 fill-current text-white shrink-0" />
               <span>
                 {starting
                   ? 'Summoning...'
@@ -660,56 +669,56 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       {isEditingDeck && (
         <div
           id="lobby-edit-deck-backdrop"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 animate-in fade-in duration-200"
           onClick={() => setIsEditingDeck(false)}
         >
           <div
             id="lobby-edit-deck-modal"
-            className="relative w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-2xl text-zinc-100 max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-lg glass-card-modal rounded-3xl p-5 sm:p-6 shadow-2xl text-slate-800 dark:text-slate-100 max-h-[90vh] overflow-y-auto border border-white/80 dark:border-white/10"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
+            <div className="flex items-center justify-between pb-3 border-b border-indigo-100 dark:border-white/10 mb-3">
               <div className="flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-purple-400" />
-                <h3 className="font-cinzel font-bold text-lg text-zinc-100">Customize Role Deck</h3>
+                <Sliders className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-cinzel font-bold text-lg text-slate-900 dark:text-white">Customize Role Deck</h3>
               </div>
               <button
                 onClick={() => setIsEditingDeck(false)}
-                className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Quick Deck Presets */}
-            <div className="flex items-center gap-1.5 flex-wrap mb-3 p-2 bg-zinc-900/80 rounded-xl border border-zinc-800">
-              <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mr-1">Presets:</span>
+            <div className="flex items-center gap-1.5 flex-wrap mb-3 p-2.5 bg-indigo-50/70 dark:bg-white/[0.04] rounded-2xl border border-indigo-100 dark:border-white/10">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold mr-1">Presets:</span>
               <button
                 type="button"
                 onClick={() => applyDeckPreset('CLASSIC')}
-                className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition cursor-pointer"
+                className="px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-50 dark:bg-white/10 dark:hover:bg-white/15 border border-indigo-200 dark:border-white/15 text-indigo-700 dark:text-indigo-200 text-xs font-medium transition cursor-pointer shadow-xs"
               >
                 Classic (8)
               </button>
               <button
                 type="button"
                 onClick={() => applyDeckPreset('BALANCED')}
-                className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition cursor-pointer"
+                className="px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-50 dark:bg-white/10 dark:hover:bg-white/15 border border-indigo-200 dark:border-white/15 text-indigo-700 dark:text-indigo-200 text-xs font-medium transition cursor-pointer shadow-xs"
               >
                 Balanced (9)
               </button>
               <button
                 type="button"
                 onClick={() => applyDeckPreset('MYSTIC_AMNESIAC')}
-                className="px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-800/60 hover:bg-purple-900 text-purple-200 text-xs font-medium transition cursor-pointer"
+                className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 border border-indigo-500 text-white text-xs font-medium transition cursor-pointer shadow-xs"
               >
                 Amnesiac Special
               </button>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-zinc-400 mb-3 px-1">
+            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-3 px-1 font-medium">
               <span>Adjust role frequencies for the village deck:</span>
-              <span className="font-mono px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-purple-300 font-bold text-[11px]">
+              <span className="font-mono px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold text-[11px]">
                 Total Cards: {totalCardsInDraft} (Players: {playerCount})
               </span>
             </div>
@@ -723,40 +732,40 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 return (
                   <div
                     key={role}
-                    className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 w-full"
+                    className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-2xl bg-white/70 dark:bg-white/[0.04] border border-indigo-100 dark:border-white/10 w-full shadow-xs"
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                      <div className={`p-1.5 rounded-lg border shrink-0 ${meta.badgeClass}`}>
+                      <div className={`p-1.5 rounded-xl border shrink-0 ${meta.badgeClass}`}>
                         <Icon className="w-4 h-4" />
                       </div>
                       <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
-                        <div className="font-semibold text-xs sm:text-sm text-zinc-200 font-cinzel truncate">
+                        <div className="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white font-cinzel truncate">
                           {meta.name}
                         </div>
-                        <div className={`text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded-full font-mono border self-start sm:self-auto whitespace-nowrap leading-none mt-0.5 sm:mt-0 ${meta.badgeClass}`}>
+                        <div className={`text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded-full font-mono border self-start sm:self-auto whitespace-nowrap leading-none mt-0.5 sm:mt-0 ${meta.badgeClass}`}>
                           {meta.team}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 bg-zinc-950 p-1 rounded-lg border border-zinc-800 shadow-inner">
+                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 bg-slate-50 dark:bg-white/[0.06] p-1 rounded-xl border border-slate-200 dark:border-white/10 shadow-inner">
                       <button
                         type="button"
                         onClick={() => updateDraftCount(role, -1)}
                         disabled={count <= (role === 'WEREWOLF' ? 1 : 0)}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 disabled:opacity-20 text-zinc-300 flex items-center justify-center transition cursor-pointer"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-white/10 hover:bg-indigo-50 dark:hover:bg-white/15 active:bg-indigo-100 disabled:opacity-20 text-slate-700 dark:text-slate-200 flex items-center justify-center transition cursor-pointer shadow-xs"
                         title="Decrease"
                         aria-label={`Decrease ${meta.name} count`}
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="w-5 sm:w-6 text-center font-mono font-bold text-xs sm:text-sm text-purple-300 select-none">
+                      <span className="w-5 sm:w-6 text-center font-mono font-bold text-xs sm:text-sm text-indigo-700 dark:text-indigo-300 select-none">
                         {count}
                       </span>
                       <button
                         type="button"
                         onClick={() => updateDraftCount(role, 1)}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 text-zinc-300 flex items-center justify-center transition cursor-pointer"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-white/10 hover:bg-indigo-50 dark:hover:bg-white/15 active:bg-indigo-100 text-slate-700 dark:text-slate-200 flex items-center justify-center transition cursor-pointer shadow-xs"
                         title="Increase"
                         aria-label={`Increase ${meta.name} count`}
                       >
@@ -768,11 +777,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               })}
             </div>
 
-            <div className="flex items-center justify-between gap-3 mt-5 pt-3 border-t border-zinc-800">
+            <div className="flex items-center justify-between gap-3 mt-5 pt-3 border-t border-indigo-100 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => setDeckDraft(createDefaultDeckDraft())}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 text-xs transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 text-xs transition cursor-pointer font-medium"
                 title="Reset to default deck"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -782,7 +791,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsEditingDeck(false)}
-                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white text-xs transition cursor-pointer"
+                  className="px-4 py-2 min-h-[44px] rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs transition cursor-pointer font-medium flex items-center justify-center"
                 >
                   Cancel
                 </button>
@@ -790,13 +799,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   type="button"
                   onClick={saveDeckSettings}
                   disabled={isSavingDeck}
-                  className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold font-cinzel transition shadow-lg shadow-purple-900/40 cursor-pointer"
+                  className="flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] h-12 rounded-2xl gradient-brand-btn disabled:opacity-50 text-white text-xs font-bold font-cinzel tracking-wider transition shadow-md cursor-pointer select-none active:scale-98"
                 >
                   {isSavingDeck ? (
                     <span>Saving...</span>
                   ) : (
                     <>
-                      <Check className="w-3.5 h-3.5" />
+                      <Check className="w-4 h-4" />
                       <span>Save Deck</span>
                     </>
                   )}
@@ -811,24 +820,24 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       {isEditingRoomSettings && (
         <div
           id="lobby-edit-room-backdrop"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 animate-in fade-in duration-200"
           onClick={() => setIsEditingRoomSettings(false)}
         >
           <div
             id="lobby-edit-room-modal"
-            className="relative w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-2xl text-zinc-100 max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-md glass-card-modal rounded-3xl p-5 sm:p-6 shadow-2xl text-slate-800 dark:text-slate-100 max-h-[90vh] overflow-y-auto border border-white/80 dark:border-white/10"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+            <div className="flex items-center justify-between pb-3 border-b border-indigo-100 dark:border-white/10 mb-4">
               <div className="flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-purple-400" />
-                <h3 className="font-cinzel font-bold text-lg text-zinc-100">Customize Village Settings</h3>
+                <Sliders className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-cinzel font-bold text-lg text-slate-900 dark:text-white">Customize Village Settings</h3>
               </div>
               <button
                 id="close-room-settings-btn"
                 type="button"
                 onClick={() => setIsEditingRoomSettings(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -837,7 +846,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             <form onSubmit={saveRoomSettings} className="space-y-4">
               {/* 1. Room Name */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5 uppercase tracking-wider font-mono">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider font-mono">
                   Room / Village Name
                 </label>
                 <input
@@ -846,7 +855,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   value={customRoomName}
                   onChange={(e) => setCustomRoomName(e.target.value)}
                   maxLength={30}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-purple-500 transition"
+                  className="w-full bg-white/80 dark:bg-[#12111a] border border-indigo-200/80 dark:border-white/15 rounded-2xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-400 transition shadow-xs"
                   placeholder="e.g. Whispering Pines"
                   required
                 />
@@ -854,7 +863,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
               {/* 2. Host Name */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5 uppercase tracking-wider font-mono">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider font-mono">
                   Host Name
                 </label>
                 <input
@@ -863,7 +872,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   value={customHostName}
                   onChange={(e) => setCustomHostName(e.target.value)}
                   maxLength={20}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-purple-500 transition"
+                  className="w-full bg-white/80 dark:bg-[#12111a] border border-indigo-200/80 dark:border-white/15 rounded-2xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-400 transition shadow-xs"
                   placeholder="e.g. Village Elder"
                   required
                 />
@@ -872,10 +881,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               {/* 3. Village Capacity (Max Players) */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
                     Villager Capacity
                   </label>
-                  <span className="text-xs font-bold text-purple-300 font-mono">
+                  <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 font-mono">
                     {customMaxPlayers} Players (Min {Math.max(4, playerCount)})
                   </span>
                 </div>
@@ -887,13 +896,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     max={20}
                     value={customMaxPlayers}
                     onChange={(e) => setCustomMaxPlayers(Number(e.target.value))}
-                    className="w-full accent-purple-500 cursor-pointer"
+                    className="w-full accent-indigo-600 cursor-pointer"
                   />
-                  <div className="w-12 text-center font-mono font-bold text-sm bg-zinc-900 py-1.5 rounded-lg border border-zinc-700 text-purple-200">
+                  <div className="w-12 text-center font-mono font-bold text-sm bg-white dark:bg-white/10 py-1.5 rounded-xl border border-indigo-200 dark:border-white/15 text-indigo-700 dark:text-indigo-300 shadow-xs">
                     {customMaxPlayers}
                   </div>
                 </div>
-                <div className="text-[10px] text-zinc-500 mt-1">
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
                   Current villagers in room: {playerCount}. Capacity cannot be less than current villagers.
                 </div>
               </div>
@@ -901,10 +910,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               {/* 4. Discussion Phase Time */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
                     Discussion Phase Timer
                   </label>
-                  <span className="text-xs font-bold text-amber-300 font-mono">
+                  <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 font-mono">
                     {customDiscussionTime} Seconds
                   </span>
                 </div>
@@ -917,9 +926,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     step={5}
                     value={customDiscussionTime}
                     onChange={(e) => setCustomDiscussionTime(Number(e.target.value))}
-                    className="w-full accent-purple-500 cursor-pointer"
+                    className="w-full accent-indigo-600 cursor-pointer"
                   />
-                  <div className="w-14 text-center font-mono font-bold text-sm bg-zinc-900 py-1.5 rounded-lg border border-zinc-700 text-amber-300">
+                  <div className="w-14 text-center font-mono font-bold text-sm bg-white dark:bg-white/10 py-1.5 rounded-xl border border-indigo-200 dark:border-white/15 text-indigo-700 dark:text-indigo-300 shadow-xs">
                     {customDiscussionTime}s
                   </div>
                 </div>
@@ -931,10 +940,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                       key={seconds}
                       type="button"
                       onClick={() => setCustomDiscussionTime(seconds)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer border ${
+                      className={`px-2.5 py-1 rounded-xl text-xs font-mono transition cursor-pointer border ${
                         customDiscussionTime === seconds
-                          ? 'bg-purple-600 text-white border-purple-400 font-bold shadow-sm'
-                          : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-zinc-800'
+                          ? 'gradient-brand-btn text-white font-bold shadow-xs'
+                          : 'bg-white/80 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border-indigo-100 dark:border-white/15 hover:border-indigo-300'
                       }`}
                     >
                       {seconds}s
@@ -944,18 +953,18 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-indigo-100 dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsEditingRoomSettings(false)}
-                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white text-xs transition cursor-pointer"
+                  className="px-4 py-2 min-h-[44px] rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-medium transition cursor-pointer flex items-center justify-center"
                 >
                   Cancel
                 </button>
                 <button
                   id="save-room-settings-btn"
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold font-cinzel transition shadow-lg shadow-purple-900/40 cursor-pointer"
+                  className="flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] h-12 rounded-2xl gradient-brand-btn text-white text-xs font-bold font-cinzel tracking-wider transition shadow-md cursor-pointer select-none active:scale-98"
                 >
                   Save Village Settings
                 </button>

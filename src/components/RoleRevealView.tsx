@@ -2,6 +2,9 @@ import React from 'react';
 import { Moon, Eye, HeartPulse, Crosshair, Sparkles, Shield, Users, Lock, Clock } from 'lucide-react';
 import { Role } from '../types/game.js';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
+import { NightModeToggle } from './NightModeToggle.js';
+import { AudioControls } from './AudioControls.js';
+
 
 interface RoleRevealViewProps {
   role: Role;
@@ -17,33 +20,38 @@ export const RoleRevealView: React.FC<RoleRevealViewProps> = ({ role, timer }) =
       id="role-reveal-container"
       className="relative min-h-screen flex flex-col items-center justify-center p-4 z-20"
     >
-      <div className="w-full max-w-md mx-auto text-center animate-glow">
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-30">
+        <NightModeToggle compact={true} />
+        <AudioControls />
+      </div>
+
+      <div className="w-full max-w-md mx-auto text-center animate-in fade-in zoom-in-95 duration-300">
         {/* Top Secret Badge */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900/90 border border-zinc-700/80 text-[11px] font-mono tracking-widest text-zinc-400 mb-6 uppercase">
-          <Lock className="w-3 h-3 text-purple-400" />
+        <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-white/10 border border-indigo-200 dark:border-white/15 text-[11px] font-mono tracking-widest text-indigo-700 dark:text-indigo-300 mb-6 uppercase shadow-xs">
+          <Lock className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
           <span>Confidential • Your True Nature</span>
         </div>
 
         {/* Cinematic Card */}
         <div
-          className={`relative rounded-2xl p-5 sm:p-8 border backdrop-blur-xl shadow-2xl transition duration-500 max-h-[85vh] overflow-y-auto ${
+          className={`relative rounded-3xl p-6 sm:p-8 border border-white/80 dark:border-white/10 backdrop-blur-2xl shadow-2xl transition duration-500 max-h-[85vh] overflow-y-auto glass-card-modal ${
             isWerewolf
-              ? 'bg-gradient-to-b from-red-950/70 via-zinc-950 to-black border-red-800/60 shadow-[0_0_50px_rgba(220,38,38,0.25)]'
-              : 'bg-gradient-to-b from-purple-950/70 via-zinc-950 to-black border-purple-800/60 shadow-[0_0_50px_rgba(168,85,247,0.25)]'
+              ? 'shadow-[0_20px_50px_rgba(244,63,94,0.15)]'
+              : 'shadow-[0_20px_50px_rgba(99,102,241,0.15)]'
           }`}
         >
           {/* Glowing Icon Emblem */}
-          <div className="relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mb-4 sm:mb-6 border shadow-inner">
+          <div className="relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mb-4 sm:mb-6 border border-white/90 dark:border-white/10 shadow-sm">
             <div
-              className={`absolute inset-0 rounded-full blur-lg opacity-50 ${
-                isWerewolf ? 'bg-red-600' : 'bg-purple-600'
+              className={`absolute inset-0 rounded-full blur-xl opacity-40 ${
+                isWerewolf ? 'bg-rose-400' : 'bg-indigo-400'
               }`}
             />
             <div
-              className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center border ${
+              className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center border shadow-md ${
                 isWerewolf
-                  ? 'bg-red-950 border-red-700/80 text-red-400'
-                  : 'bg-purple-950 border-purple-700/80 text-purple-300'
+                  ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400'
+                  : 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-900/60 text-indigo-600 dark:text-indigo-400'
               }`}
             >
               {role === 'WEREWOLF' && <Moon className="w-8 h-8 sm:w-10 sm:h-10" />}
@@ -58,8 +66,8 @@ export const RoleRevealView: React.FC<RoleRevealViewProps> = ({ role, timer }) =
 
           {/* Role Name */}
           <h1
-            className={`text-2xl sm:text-4xl font-black font-cinzel tracking-widest uppercase mb-2 ${
-              isWerewolf ? 'text-red-400 drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]' : 'text-zinc-100'
+            className={`text-2xl sm:text-4xl font-black font-cinzel tracking-wider uppercase mb-2 ${
+              isWerewolf ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'
             }`}
           >
             {info.name}
@@ -68,10 +76,10 @@ export const RoleRevealView: React.FC<RoleRevealViewProps> = ({ role, timer }) =
           {/* Team Tag */}
           <div className="mb-6">
             <span
-              className={`text-xs px-3 py-1 rounded-full font-mono font-bold tracking-wider uppercase border ${
+              className={`text-xs px-3 py-1 rounded-full font-mono font-bold tracking-wider uppercase border shadow-xs ${
                 isWerewolf
-                  ? 'bg-red-950/80 text-red-300 border-red-800/60'
-                  : 'bg-indigo-950/80 text-indigo-300 border-indigo-800/60'
+                  ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'
+                  : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
               }`}
             >
               Team {info.team}
@@ -79,22 +87,22 @@ export const RoleRevealView: React.FC<RoleRevealViewProps> = ({ role, timer }) =
           </div>
 
           {/* Description */}
-          <p className="text-sm text-zinc-300 italic mb-6 leading-relaxed font-serif">
+          <p className="text-sm text-slate-600 dark:text-slate-300 italic mb-6 leading-relaxed font-serif">
             "{info.description}"
           </p>
 
           {/* Ability Box */}
-          <div className="text-left p-4 rounded-xl bg-zinc-900/80 border border-zinc-800/90 text-xs space-y-1.5">
-            <div className="font-semibold text-purple-300 uppercase tracking-wider font-mono text-[10px]">
+          <div className="text-left p-4 rounded-2xl bg-white/80 dark:bg-[#15141e] border border-indigo-100 dark:border-white/10 text-xs space-y-1.5 shadow-xs">
+            <div className="font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider font-mono text-[10px]">
               Special Nocturnal Power
             </div>
-            <p className="text-zinc-300 leading-relaxed">{info.ability}</p>
+            <p className="text-slate-700 dark:text-slate-200 leading-relaxed font-medium">{info.ability}</p>
           </div>
 
           {/* Countdown Footer */}
-          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-zinc-400 font-mono">
-            <Clock className="w-3.5 h-3.5 text-purple-400 animate-spin" />
-            <span>Night begins in <strong className="text-white text-sm">{timer}s</strong></span>
+          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
+            <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 animate-spin" />
+            <span>Night begins in <strong className="text-indigo-700 dark:text-indigo-400 text-sm font-bold">{timer}s</strong></span>
           </div>
         </div>
       </div>

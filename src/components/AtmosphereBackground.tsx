@@ -1,52 +1,157 @@
 import React, { useMemo } from 'react';
 import { GamePhase } from '../types/game.js';
+import { FloatingParticles } from './FloatingParticles';
+import { useNightMode } from '../context/ThemeContext.js';
 
 interface AtmosphereBackgroundProps {
   phase?: GamePhase;
 }
 
 export const AtmosphereBackground: React.FC<AtmosphereBackgroundProps> = ({ phase }) => {
-  const isNight = phase === 'NIGHT' || phase === 'ROLE_REVEAL' || !phase || phase === 'LOBBY';
+  const { isNightMode } = useNightMode();
+
+  const isNightPhase = phase === 'NIGHT' || phase === 'ROLE_REVEAL';
+  const isNight = isNightMode || isNightPhase;
   const isDawn = phase === 'DAY_ANNOUNCEMENT';
   const isSunset = phase === 'VOTING' || phase === 'VOTE_RESULT';
 
-  // Memoized deterministic stars
-  const stars = useMemo(() => {
-    return Array.from({ length: 60 }).map((_, i) => ({
+  // Memoized subtle ambient stars/sparkles for night
+  const sparkles = useMemo(() => {
+    const count = isNightMode ? 50 : 35;
+    return Array.from({ length: count }).map((_, i) => ({
       id: i,
-      x: (i * 19.3) % 100,
-      y: (i * 13.7) % 65,
-      size: (i % 3) + 1,
-      opacity: 0.3 + ((i % 5) * 0.15),
-      duration: 3 + (i % 4) * 2,
+      x: (i * 19.7) % 98 + 1,
+      y: (i * 13.9) % 75 + 2,
+      size: (i % 3) + 1.5,
+      opacity: isNightMode ? 0.5 + ((i % 4) * 0.15) : 0.35 + ((i % 4) * 0.15),
+      duration: 3 + (i % 3) * 2,
     }));
-  }, []);
+  }, [isNightMode]);
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Sky Gradient */}
+      {/* 1. Base Sky Gradient: Completely Dark Gothic Midnight in Night Mode, Warm Peach to Pastel Lilac in Day Mode */}
       <div
-        className={`absolute inset-0 transition-colors duration-1000 ${
-          isNight
-            ? 'bg-gradient-to-b from-[#050508] via-[#0d0a1a] to-[#120e24]'
+        className={`absolute inset-0 transition-all duration-1000 ${
+          isNightMode
+            ? 'bg-gradient-to-b from-[#020204] via-[#060608] to-[#040405]'
+            : isNight
+            ? 'bg-gradient-to-br from-[#f8d7c8] via-[#e8d2f7] to-[#cfadfa]'
             : isDawn
-            ? 'bg-gradient-to-b from-[#180e29] via-[#381628] to-[#24131b]'
+            ? 'bg-gradient-to-br from-[#ffdfcb] via-[#fde4dc] to-[#e4ccf7]'
             : isSunset
-            ? 'bg-gradient-to-b from-[#140b22] via-[#2d1222] to-[#150a14]'
-            : 'bg-gradient-to-b from-[#10192e] via-[#1a233a] to-[#171b26]'
+            ? 'bg-gradient-to-br from-[#fed2be] via-[#f3cbf5] to-[#c697f2]'
+            : 'bg-gradient-to-br from-[#fce1d4] via-[#eeddfa] to-[#d8bdf4]'
         }`}
       />
 
-      {/* Stars (Visible predominantly at night or dawn) */}
+      {/* 2. Ambient Glowing Auroras behind cards (hidden in night mode for completely dark background) */}
+      {!isNightMode && (
+        <>
+          <div
+            className="absolute top-1/4 left-1/3 -translate-x-1/2 w-[650px] h-[450px] rounded-full blur-[130px] animate-glow pointer-events-none transition-colors duration-1000 bg-purple-400/20"
+          />
+          <div
+            className="absolute bottom-1/4 right-1/4 w-[500px] h-[350px] rounded-full blur-[110px] pointer-events-none transition-colors duration-1000 bg-sky-400/20"
+          />
+          <div
+            className="absolute top-10 left-10 w-[400px] h-[300px] rounded-full blur-[100px] pointer-events-none transition-colors duration-1000 bg-rose-300/25"
+          />
+        </>
+      )}
+
+      {/* 3. The 3D Floating Lilac Spheres (Subtle dark stealth spheres in Night Mode, pastel in Day Mode) */}
+      {/* Sphere 1: Large Sphere on Top Right */}
       <div
-        className={`absolute inset-0 transition-opacity duration-1000 ${
-          isNight ? 'opacity-90' : isDawn ? 'opacity-40' : 'opacity-20'
+        className={`absolute -top-10 -right-10 md:top-8 md:right-16 w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 rounded-full pastel-3d-sphere animate-float-gentle pointer-events-none transition-all duration-700 ${
+          isNightMode ? 'opacity-15 blur-[1px]' : 'opacity-95'
+        }`}
+        style={{ animationDelay: '0s' }}
+      />
+
+      {/* Sphere 2: Medium Sphere on Bottom Right */}
+      <div
+        className={`absolute bottom-16 right-4 sm:bottom-24 sm:right-20 md:right-28 w-32 h-32 sm:w-44 sm:h-44 md:w-52 md:h-52 rounded-full pastel-3d-sphere animate-float-delayed pointer-events-none transition-all duration-700 ${
+          isNightMode ? 'opacity-15 blur-[1px]' : 'opacity-90'
+        }`}
+        style={{ animationDelay: '1.5s' }}
+      />
+
+      {/* Sphere 3: Large Sphere on Left */}
+      <div
+        className={`absolute top-1/3 -left-12 sm:left-4 md:left-12 w-40 h-40 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full pastel-3d-sphere animate-float-slow pointer-events-none transition-all duration-700 ${
+          isNightMode ? 'opacity-15 blur-[1px]' : 'opacity-90'
+        }`}
+        style={{ animationDelay: '3s' }}
+      />
+
+      {/* Sphere 4: Distant Soft Sphere near top-center */}
+      <div
+        className={`absolute top-6 left-1/2 -translate-x-1/2 w-24 h-24 sm:w-32 sm:h-32 rounded-full pastel-3d-sphere animate-float-gentle pointer-events-none blur-[0.5px] transition-all duration-700 ${
+          isNightMode ? 'opacity-10' : 'opacity-75'
+        }`}
+        style={{ animationDelay: '4.5s' }}
+      />
+
+      {/* Sphere 5: Subtle Lower-Left Sphere */}
+      <div
+        className={`absolute -bottom-8 left-16 sm:left-32 w-28 h-28 sm:w-36 sm:h-36 rounded-full pastel-3d-sphere animate-float-delayed pointer-events-none transition-all duration-700 ${
+          isNightMode ? 'opacity-15 blur-[1px]' : 'opacity-80'
+        }`}
+        style={{ animationDelay: '2.5s' }}
+      />
+
+      {/* 4. Subtle Celestial Glow (Sun/Moon in frosted pastel or midnight silver) */}
+      <div
+        className={`absolute transition-all duration-1000 ${
+          isNight
+            ? 'top-8 right-12 md:right-32 scale-100 opacity-90'
+            : isDawn
+            ? 'top-14 left-16 scale-105 opacity-95'
+            : isSunset
+            ? 'top-16 right-20 scale-100 opacity-90'
+            : 'top-10 left-20 scale-95 opacity-80'
         }`}
       >
-        {stars.map((star) => (
+        {isNight ? (
+          // Ethereal Frosted Moon
+          <div className="relative w-24 h-24 sm:w-32 sm:h-32">
+            <div
+              className={`absolute inset-0 rounded-full blur-2xl animate-glow ${
+                isNightMode ? 'bg-white/10' : 'bg-purple-300/30'
+              }`}
+            />
+            <div
+              className={`relative w-full h-full rounded-full border shadow-[0_0_35px_rgba(168,85,247,0.3)] overflow-hidden ${
+                isNightMode
+                  ? 'bg-gradient-to-tr from-slate-300 via-slate-100 to-white border-white/70 shadow-[0_0_30px_rgba(255,255,255,0.2)]'
+                  : 'bg-gradient-to-tr from-purple-100 via-white to-pink-50 border-white/80'
+              }`}
+            >
+              <div className="absolute top-3 left-5 w-6 h-6 rounded-full bg-slate-400/30 blur-[2px]" />
+              <div className="absolute top-10 left-12 w-8 h-8 rounded-full bg-slate-400/25 blur-[2px]" />
+              <div className="absolute top-14 left-4 w-5 h-5 rounded-full bg-slate-400/30 blur-[2px]" />
+            </div>
+          </div>
+        ) : (
+          // Radiant Sun in warm peach/coral
+          <div className="relative w-24 h-24 sm:w-32 sm:h-32">
+            <div className="absolute inset-0 rounded-full bg-amber-400/35 blur-2xl animate-glow" />
+            <div className="relative w-full h-full rounded-full bg-gradient-to-tr from-amber-200 via-rose-100 to-white shadow-[0_0_40px_rgba(251,191,36,0.4)] border border-white/90" />
+          </div>
+        )}
+      </div>
+
+      {/* 5. Delicate Twilight Sparkles */}
+      <div
+        className={`absolute inset-0 transition-opacity duration-1000 ${
+          isNight ? (isNightMode ? 'opacity-90' : 'opacity-70') : 'opacity-25'
+        }`}
+      >
+        {sparkles.map((star) => (
           <div
             key={star.id}
-            className="absolute rounded-full bg-slate-200 animate-pulse"
+            className="absolute rounded-full bg-white animate-pulse"
             style={{
               left: `${star.x}%`,
               top: `${star.y}%`,
@@ -54,70 +159,35 @@ export const AtmosphereBackground: React.FC<AtmosphereBackgroundProps> = ({ phas
               height: `${star.size}px`,
               opacity: star.opacity,
               animationDuration: `${star.duration}s`,
+              boxShadow: isNightMode
+                ? '0 0 6px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.4)'
+                : '0 0 4px rgba(255,255,255,0.8)',
             }}
           />
         ))}
       </div>
 
-      {/* Moon or Sun Celestial Orb */}
+      {/* 6. Soft Frosted Ground Mist Silhouette */}
       <div
-        className={`absolute transition-all duration-1000 ${
-          isNight
-            ? 'top-10 right-10 md:right-24 scale-100 opacity-100'
-            : isDawn
-            ? 'top-20 left-12 scale-110 opacity-90'
-            : isSunset
-            ? 'top-28 right-16 scale-105 opacity-80'
-            : 'top-12 left-20 scale-90 opacity-60'
+        className={`absolute inset-x-0 bottom-0 h-44 sm:h-56 transition-opacity duration-1000 ${
+          isNightMode ? 'opacity-90' : 'opacity-50'
         }`}
       >
-        {isNight ? (
-          // Eerie Full Moon with Soft Purple-Silver Haze
-          <div className="relative w-28 h-28 md:w-36 md:h-36">
-            {/* Outer Glow */}
-            <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-2xl animate-glow" />
-            <div className="absolute inset-2 rounded-full bg-indigo-200/25 blur-xl" />
-            {/* Moon Body */}
-            <div className="relative w-full h-full rounded-full bg-gradient-to-tr from-slate-300 via-indigo-100 to-slate-200 shadow-[0_0_50px_rgba(192,132,252,0.4)] border border-slate-100/40 overflow-hidden">
-              {/* Craters */}
-              <div className="absolute top-4 left-6 w-7 h-7 rounded-full bg-slate-400/25 blur-[1px]" />
-              <div className="absolute top-12 left-14 w-10 h-10 rounded-full bg-slate-400/20 blur-[1px]" />
-              <div className="absolute top-16 left-4 w-6 h-6 rounded-full bg-slate-400/30 blur-[1px]" />
-              <div className="absolute top-7 left-20 w-8 h-8 rounded-full bg-slate-400/15 blur-[1px]" />
-            </div>
-          </div>
-        ) : (
-          // Sun / Dawn Orb
-          <div className="relative w-28 h-28 md:w-36 md:h-36">
-            <div className="absolute inset-0 rounded-full bg-amber-500/30 blur-2xl animate-glow" />
-            <div className="relative w-full h-full rounded-full bg-gradient-to-tr from-amber-400 via-rose-300 to-amber-100 shadow-[0_0_60px_rgba(251,191,36,0.5)] border border-amber-200/50" />
-          </div>
-        )}
-      </div>
-
-      {/* Atmospheric Fog Layers */}
-      <div className="absolute inset-x-0 bottom-0 h-96 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent" />
-
-      {/* Drifting Mist */}
-      <div className="absolute inset-x-0 bottom-12 h-64 opacity-35 animate-fog">
-        <svg viewBox="0 0 1200 200" preserveAspectRatio="none" className="w-full h-full text-indigo-950/40 fill-current">
-          <path d="M0,100 C150,150 350,50 500,110 C650,170 900,40 1200,90 L1200,200 L0,200 Z" />
-        </svg>
-      </div>
-
-      {/* Silhouettes of Forest Pine Trees and Village Rooftops */}
-      <div className="absolute inset-x-0 bottom-0 h-44 opacity-80">
         <svg
           viewBox="0 0 1440 220"
           preserveAspectRatio="none"
-          className="w-full h-full text-[#08070d] fill-current"
+          className={`w-full h-full fill-current transition-colors duration-1000 ${
+            isNightMode ? 'text-[#020203]/90' : 'text-[#c9a6ec]/40'
+          }`}
         >
-          {/* Back forest layer */}
-          <path d="M0,160 L40,110 L80,160 L130,90 L180,160 L240,120 L300,160 L380,80 L440,160 L500,105 L560,160 L640,70 L720,160 L800,115 L870,160 L940,85 L1010,160 L1080,100 L1150,160 L1220,75 L1290,160 L1370,110 L1440,160 L1440,220 L0,220 Z" opacity="0.6" />
-          {/* Front village rooftops & spire layer */}
-          <path d="M0,190 L90,190 L120,140 L150,190 L210,190 L240,150 L270,190 L340,190 L380,130 L420,190 L510,190 L530,110 L540,90 L550,110 L570,190 L680,190 L720,145 L760,190 L850,190 L890,135 L930,190 L1020,190 L1050,125 L1080,190 L1180,190 L1210,140 L1240,190 L1340,190 L1370,115 L1400,190 L1440,190 L1440,220 L0,220 Z" />
+          <path d="M0,130 C200,90 400,160 650,110 C900,60 1150,140 1440,100 L1440,220 L0,220 Z" opacity="0.6" />
+          <path d="M0,150 C300,120 600,180 900,130 C1200,80 1350,160 1440,140 L1440,220 L0,220 Z" opacity="0.9" />
         </svg>
       </div>
+
+      {/* 7. Subtle Floating Particle System (Framer Motion) */}
+      <FloatingParticles phase={phase} />
     </div>
   );
 };
+

@@ -331,6 +331,19 @@ export function setupSocketHandlers(io: Server) {
       if (callback) callback(res);
     });
 
+    // 9.5 VOTE TO SKIP DISCUSSION
+    socket.on('discussion:skip_vote', ({ roomCode, playerId }, callback) => {
+      const room = gameManager.getRoom(roomCode);
+      if (!room) {
+        if (callback) callback({ success: false, error: 'Room not found' });
+        return;
+      }
+
+      const res = room.toggleSkipDiscussionVote(playerId);
+      broadcastRoomState(io, room);
+      if (callback) callback(res);
+    });
+
     // 10. HUNTER SHOOT
     socket.on('hunter:shoot', ({ roomCode, playerId, targetId }) => {
       const room = gameManager.getRoom(roomCode);
