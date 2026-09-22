@@ -37,40 +37,37 @@ export const FloatingParticles: React.FC<FloatingParticlesProps> = ({ phase }) =
     ];
 
     const list: Particle[] = [];
-    const count = 38;
+    const count = 12; // Optimized from 38 down to 12 for smooth 60fps performance on all devices
 
     for (let i = 0; i < count; i++) {
       const pColor = palette[i % palette.length];
-      const isFirefly = i % 3 === 0;
-      const isSpore = i % 3 === 1;
+      const isFirefly = i % 2 === 0;
 
       // Deterministic spread
-      const initialX = ((i * 17.3 + 23) % 96) + 2;
-      const initialY = ((i * 29.1 + 15) % 92) + 4;
-      const size = isFirefly ? 3.5 + (i % 3) * 0.8 : isSpore ? 5 + (i % 3) * 1.5 : 2 + (i % 2);
+      const initialX = ((i * 23.3 + 15) % 94) + 3;
+      const initialY = ((i * 37.1 + 19) % 90) + 5;
+      const size = isFirefly ? 3 : 2;
 
-      // Horizontal sway and vertical drift
-      const sway = (i % 2 === 0 ? 1 : -1) * (20 + (i % 4) * 12);
-      const verticalRise = -(40 + (i % 5) * 18);
+      // Gentle horizontal sway and vertical drift
+      const sway = (i % 2 === 0 ? 1 : -1) * (14 + (i % 3) * 8);
+      const verticalRise = -(30 + (i % 4) * 12);
 
       list.push({
         id: i,
         initialX,
         initialY,
         size,
-        type: isFirefly ? 'firefly' : isSpore ? 'spore' : 'mote',
+        type: isFirefly ? 'firefly' : 'mote',
         color: pColor.color,
         glowColor: pColor.glow,
-        driftX: [0, sway * 0.5, -sway * 0.8, sway * 0.4, 0],
-        driftY: [0, verticalRise * 0.3, verticalRise * 0.7, verticalRise, verticalRise * 1.2],
+        driftX: [0, sway, 0],
+        driftY: [0, verticalRise * 0.5, verticalRise],
         opacityKeyframes: isFirefly
-          ? [0.15, 0.95, 0.25, 0.85, 0.15]
-          : [0.1, 0.55, 0.8, 0.4, 0.1],
-        scaleKeyframes: isFirefly
-          ? [0.8, 1.35, 0.9, 1.2, 0.8]
-          : [0.9, 1.1, 1.25, 1.0, 0.9],
-        duration: 9 + (i % 6) * 2.5,
-        delay: (i % 8) * 1.2,
+          ? [0.2, 0.75, 0.2]
+          : [0.15, 0.5, 0.15],
+        scaleKeyframes: [1, 1.2, 1],
+        duration: 8 + (i % 4) * 3,
+        delay: (i % 5) * 1.5,
       });
     }
 
@@ -82,6 +79,7 @@ export const FloatingParticles: React.FC<FloatingParticlesProps> = ({ phase }) =
       id="floating-particles-system"
       aria-hidden="true"
       className="absolute inset-0 pointer-events-none overflow-hidden z-1"
+      style={{ willChange: 'contents' }}
     >
       {particles.map((p) => {
         const nightMultiplier = isNight ? 1 : 0.65;
@@ -95,10 +93,8 @@ export const FloatingParticles: React.FC<FloatingParticlesProps> = ({ phase }) =
               top: `${p.initialY}%`,
               width: `${p.size}px`,
               height: `${p.size}px`,
-              filter:
-                p.type === 'spore'
-                  ? `blur(1px) drop-shadow(0 0 6px ${p.glowColor})`
-                  : `drop-shadow(0 0 4px ${p.glowColor}) drop-shadow(0 0 8px ${p.glowColor})`,
+              boxShadow: `0 0 6px ${p.glowColor}`,
+              willChange: 'transform, opacity',
             }}
             animate={{
               x: p.driftX,

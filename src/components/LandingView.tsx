@@ -19,16 +19,23 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const [stats, setStats] = useState<{ totalGames: number; villagerWins: number; werewolfWins: number } | null>(null);
 
   useEffect(() => {
-    // Fetch active rooms & stats
-    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/rooms`)
-      .then((res) => res.json())
+    // Fetch active rooms & stats with safe fallback if VITE_BACKEND_URL is not set
+    const baseUrl = (((import.meta as any).env?.VITE_BACKEND_URL as string) || '').replace(/\/$/, '');
+    fetch(`${baseUrl}/api/rooms`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch rooms');
+        return res.json();
+      })
       .then((data) => {
         if (data && data.rooms) setPublicRooms(data.rooms);
       })
       .catch(() => {});
 
-    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/stats`)
-      .then((res) => res.json())
+    fetch(`${baseUrl}/api/stats`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch stats');
+        return res.json();
+      })
       .then((data) => {
         if (data && data.stats) setStats(data.stats);
       })

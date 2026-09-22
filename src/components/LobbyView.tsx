@@ -158,11 +158,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [isSavingDeck, setIsSavingDeck] = useState(false);
 
   // Synchronize deck draft whenever game settings are updated
+  const roleDistJson = JSON.stringify(gameState.settings?.roleDistribution);
   useEffect(() => {
     if (gameState.settings?.roleDistribution) {
       setDeckDraft(createDefaultDeckDraft(gameState.settings.roleDistribution));
     }
-  }, [gameState.settings?.roleDistribution]);
+  }, [roleDistJson]);
 
   const currentDeck = gameState.settings.roleDistribution || {
     WEREWOLF: 2,

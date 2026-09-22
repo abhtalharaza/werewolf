@@ -17,13 +17,13 @@ export const AtmosphereBackground: React.FC<AtmosphereBackgroundProps> = ({ phas
 
   // Memoized subtle ambient stars/sparkles for night
   const sparkles = useMemo(() => {
-    const count = isNightMode ? 50 : 35;
+    const count = 16;
     return Array.from({ length: count }).map((_, i) => ({
       id: i,
-      x: (i * 19.7) % 98 + 1,
-      y: (i * 13.9) % 75 + 2,
-      size: (i % 3) + 1.5,
-      opacity: isNightMode ? 0.5 + ((i % 4) * 0.15) : 0.35 + ((i % 4) * 0.15),
+      x: (i * 23.7) % 96 + 2,
+      y: (i * 17.9) % 70 + 3,
+      size: (i % 2) + 1.5,
+      opacity: isNightMode ? 0.6 : 0.4,
       duration: 3 + (i % 3) * 2,
     }));
   }, [isNightMode]);
