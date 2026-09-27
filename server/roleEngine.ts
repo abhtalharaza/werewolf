@@ -301,13 +301,6 @@ export function resolveNightActions(
     // Arsonist possesses permanent Night Immunity against Werewolves!
     if (victimPlayer && victimPlayer.role === 'ARSONIST') {
       savedPlayerIds.push(victimId);
-      protections.push({
-        role: 'ARSONIST_IMMUNITY',
-        protectorId: victimId,
-        targetId: victimId,
-        targetName: victimPlayer.name,
-        wasAttackedAndSaved: true,
-      });
       continue;
     }
 
@@ -346,15 +339,6 @@ export function resolveNightActions(
 
     if (isVeteranAlert || isArsonistImmune) {
       savedPlayerIds.push(serialKillerKillTarget);
-      if (isArsonistImmune && skTargetPlayer) {
-        protections.push({
-          role: 'ARSONIST_IMMUNITY',
-          protectorId: serialKillerKillTarget,
-          targetId: serialKillerKillTarget,
-          targetName: skTargetPlayer.name,
-          wasAttackedAndSaved: true,
-        });
-      }
     } else if (isProtected || isSavedByWitch) {
       savedPlayerIds.push(serialKillerKillTarget);
     } else {

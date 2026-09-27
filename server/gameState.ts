@@ -532,9 +532,11 @@ export class GameRoom {
       this.room.witchPoisonUsed = true;
     }
 
-    // Only record protections where the player was actually attacked and saved
+    // Only record protections where the player was actually attacked and saved by Doctor, Bodyguard, or Witch
     this.room.morningProtections = (resolution.protections || []).filter(
-      (p) => p.wasAttackedAndSaved
+      (p) =>
+        p.wasAttackedAndSaved &&
+        (p.role === 'DOCTOR' || p.role === 'BODYGUARD' || p.role === 'WITCH')
     );
 
     // Announce if any player was saved by the Witch's Elixir of Life

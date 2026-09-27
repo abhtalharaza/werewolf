@@ -18,7 +18,11 @@ export const MorningProtectionCard: React.FC<MorningProtectionCardProps> = ({
   const shownRoundRef = useRef<number | null>(null);
 
   // CRITICAL REQUIREMENT: Only show when a player was ATTACKED and PROTECTED/SAVED by Doctor, Bodyguard, or Witch
-  const savedProtections = (protections || []).filter((p) => p.wasAttackedAndSaved);
+  const savedProtections = (protections || []).filter(
+    (p) =>
+      p.wasAttackedAndSaved &&
+      (p.role === 'DOCTOR' || p.role === 'BODYGUARD' || p.role === 'WITCH')
+  );
 
   // Trigger card display when morning begins ONLY if someone was attacked and saved
   useEffect(() => {
@@ -61,6 +65,9 @@ export const MorningProtectionCard: React.FC<MorningProtectionCardProps> = ({
   const role = currentProtection.role;
   const isDoctor = role === 'DOCTOR';
   const isBodyguard = role === 'BODYGUARD';
+  const isWitch = role === 'WITCH';
+
+  if (!isDoctor && !isBodyguard && !isWitch) return null;
 
   // Role visual configurations matching the Cinematic Role Card (Image 2)
   const roleConfig =
@@ -96,7 +103,8 @@ export const MorningProtectionCard: React.FC<MorningProtectionCardProps> = ({
         abilityText: `Werewolves attacked ${currentProtection.targetName} tonight, but the Doctor bound their fatal wounds in time and preserved their life!`,
         icon: <HeartPulse className="w-8 h-8 sm:w-10 sm:h-10 text-indigo-600 dark:text-indigo-400" />,
       }
-    : {
+    : isWitch
+    ? {
         roleName: 'W I T C H',
         cardGradient: 'grass-glass-modal grass-glass border border-white/80 dark:border-white/10 shadow-2xl',
         glowColor: 'bg-purple-300/40 dark:bg-purple-500/20',
@@ -110,7 +118,10 @@ export const MorningProtectionCard: React.FC<MorningProtectionCardProps> = ({
         powerTitle: 'Elixir of Life Restored Life',
         abilityText: `Werewolves struck ${currentProtection.targetName} with fatal force, but the Witch administered the Elixir of Life, pulling them back from death!`,
         icon: <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-purple-600 dark:text-purple-400" />,
-      };
+      }
+    : null;
+
+  if (!roleConfig) return null;
 
   return (
     <div
