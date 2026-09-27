@@ -1,5 +1,5 @@
 import React from 'react';
-import { Skull, AlertTriangle, Moon, Vote, Crosshair } from 'lucide-react';
+import { Skull, AlertTriangle, Moon, Vote, Crosshair, Shield } from 'lucide-react';
 import { GameDeathRecord } from '../types/game.js';
 
 interface EliminationModalProps {
@@ -68,6 +68,12 @@ export const EliminationModal: React.FC<EliminationModalProps> = ({ deaths, onDi
                     <>
                       <Crosshair className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
                       <span>Felled by Hunter's vengeful arrow</span>
+                    </>
+                  )}
+                  {death.reason === 'BODYGUARD_SACRIFICE' && (
+                    <>
+                      <Shield className="w-3.5 h-3.5 shrink-0 text-cyan-500" />
+                      <span>Heroically sacrificed life shielding an ally</span>
                     </>
                   )}
                 </div>

@@ -34,6 +34,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   const [nightTime, setNightTime] = useState(15);
   const [revealRoleOnDeath, setRevealRoleOnDeath] = useState(true);
   const [autoPopulateBots, setAutoPopulateBots] = useState(true);
+  const [veteranMaxAlerts, setVeteranMaxAlerts] = useState<number>(3);
 
   // Dedicated role configuration for all roles
   const [roleCounts, setRoleCounts] = useState<Record<Role, number>>({
@@ -113,6 +114,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       nightTime,
       revealRoleOnDeath,
       autoPopulateBots,
+      veteranMaxAlerts,
       roleDistribution: safeCounts,
     };
 
@@ -347,6 +349,34 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                     <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-2 pl-7 sm:pl-9 leading-relaxed font-medium">
                       {r.description}
                     </p>
+
+                    {/* Veteran Max Nights on Alert Option */}
+                    {r.role === 'VETERAN' && isIncluded && (
+                      <div className="mt-2.5 pt-2.5 border-t border-indigo-100 dark:border-white/10 pl-7 sm:pl-9 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="text-[11px] text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-1.5 font-mono">
+                          <span>Max Nights on Alert:</span>
+                          <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                            {veteranMaxAlerts} {veteranMaxAlerts === 1 ? 'Night' : 'Nights'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {[1, 2, 3].map((num) => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => setVeteranMaxAlerts(num)}
+                              className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition cursor-pointer border ${
+                                veteranMaxAlerts === num
+                                  ? 'gradient-brand-btn text-white border-transparent shadow-xs'
+                                  : 'bg-white dark:bg-white/10 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/15 hover:border-indigo-300'
+                              }`}
+                            >
+                              {num} {num === 1 ? 'Night' : 'Nights'} {num === 3 ? '(Default)' : ''}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

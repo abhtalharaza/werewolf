@@ -33,8 +33,8 @@ export const ROLE_DEFINITIONS: Record<Role, RoleInfo> = {
     name: 'Doctor',
     team: 'VILLAGERS',
     icon: 'HeartPulse',
-    description: 'The village physician skilled in antidotes and battlefield medicine.',
-    ability: 'Each night, choose one player to protect from werewolf assault.',
+    description: 'The village physician who heals mortal wounds and protects villagers from nocturnal attacks.',
+    ability: 'Each night, choose one player (including yourself) to protect from physical attacks (Werewolves & Serial Killer). You cannot protect the same player two nights in a row. Cannot save from Witch poison, Arsonist fire, or Hunter vengeance.',
     nightPriority: 20,
   },
   HUNTER: {
@@ -42,8 +42,8 @@ export const ROLE_DEFINITIONS: Record<Role, RoleInfo> = {
     name: 'Hunter',
     team: 'VILLAGERS',
     icon: 'Crosshair',
-    description: 'Jab tak zinda ho gaonwale ki tarah khelte ho. Marte waqt bandook se kisi ko bhi sath le ja sakte ho!',
-    ability: 'Kisi bhi kaaran se eliminate (Raat me Bhediye, Witch ka zahar, ya Din me Gaonwalon ka vote) hone par marne se pehle apni bandook se kisi ek player ko goli maar kar sath le jane ka aakhri mauka milta hai.',
+    description: 'An expert marksman who takes vengeance with their dying breath.',
+    ability: 'If eliminated by any cause (werewolves, witch poison, or village vote), you immediately retaliate by taking down one player with you.',
     nightPriority: 0,
   },
   WITCH: {
@@ -60,8 +60,8 @@ export const ROLE_DEFINITIONS: Record<Role, RoleInfo> = {
     name: 'Bodyguard',
     team: 'VILLAGERS',
     icon: 'Shield',
-    description: 'A stalwart warrior pledged to defend innocent lives.',
-    ability: 'Each night, stand vigil over one person. They cannot be harmed tonight.',
+    description: 'A stalwart warrior pledged to defend innocent lives with their own.',
+    ability: 'Each night, stand vigil over another player. If they are attacked by nocturnal physical killers (Werewolves, White Wolf, Serial Killer), you save them from death, but sacrifice your own life in defense. You cannot protect yourself or the same player two nights in a row. Cannot save from Witch poison, Arsonist fire, Hunter shot, or Veteran alert.',
     nightPriority: 25,
   },
   CUPID: {
@@ -250,7 +250,7 @@ export const ROLE_DEFINITIONS: Record<Role, RoleInfo> = {
     team: 'VILLAGERS',
     icon: 'ShieldAlert',
     description: 'A paranoid combat veteran guarding their homestead with deadly force.',
-    ability: 'Up to 3 times per game, enter Alert mode at night. Anyone who visits or targets your house while you are on Alert is instantly shot and killed!',
+    ability: 'Enter Alert mode at night (1, 2, or up to 3 nights, customizable by the room host; default 3). Anyone who visits or targets your house while you are on Alert is instantly shot and killed!',
     nightPriority: 8,
   },
   AMNESIAC: {

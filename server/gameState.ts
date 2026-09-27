@@ -23,6 +23,9 @@ export class GameRoom {
   private seerResults: Map<string, SeerResult> = new Map(); // seerId -> current night result
   private seerHistory: Map<string, Map<string, SeerResult>> = new Map(); // seerId -> (targetId -> result)
   private botSkipTimeouts: NodeJS.Timeout[] = [];
+  private playerRoleHistory: Map<string, Role[]> = new Map(); // playerId or name -> list of roles previously assigned in this room
+  private doctorLastTargets: Map<string, string> = new Map(); // doctorId -> lastProtectedPlayerId
+  private bodyguardLastTargets: Map<string, string> = new Map(); // bodyguardId -> lastGuardedPlayerId
 
   private clearBotSkipTimeouts() {
     for (const t of this.botSkipTimeouts) {
@@ -80,6 +83,7 @@ export class GameRoom {
         VETERAN: 0,
         AMNESIAC: 0,
       },
+      veteranMaxAlerts: 3,
     };
 
     const host: ServerPlayer = {
@@ -292,9 +296,15 @@ export class GameRoom {
 
   public updateSettings(settings: Partial<GameSettings>, newHostName?: string) {
     if (this.room.phase !== 'LOBBY') return;
+    const validatedAlerts =
+      settings.veteranMaxAlerts !== undefined
+        ? Math.min(3, Math.max(1, Math.round(Number(settings.veteranMaxAlerts))))
+        : this.room.settings.veteranMaxAlerts ?? 3;
+
     this.room.settings = {
       ...this.room.settings,
       ...settings,
+      veteranMaxAlerts: validatedAlerts,
       roleDistribution: settings.roleDistribution
         ? { ...this.room.settings.roleDistribution, ...settings.roleDistribution }
         : this.room.settings.roleDistribution,
@@ -338,7 +348,26 @@ export class GameRoom {
       this.addEvent('SYSTEM', `${needed} AI Villagers were summoned so the hunt could commence.`);
     }
 
-    const assigned = assignRoles(this.room.players.length, this.room.settings.roleDistribution);
+    // Gather each player's previous role and role history for strict non-repeating randomization
+    const previousRoles: (Role | undefined)[] = this.room.players.map((p) => {
+      const history = this.playerRoleHistory.get(p.id) || this.playerRoleHistory.get(p.name);
+      if (history && history.length > 0) {
+        return history[history.length - 1];
+      }
+      return undefined;
+    });
+
+    const recentHistories: Role[][] = this.room.players.map((p) => {
+      return this.playerRoleHistory.get(p.id) || this.playerRoleHistory.get(p.name) || [];
+    });
+
+    const assigned = assignRoles(
+      this.room.players.length,
+      this.room.settings.roleDistribution,
+      previousRoles,
+      recentHistories
+    );
+
     this.room.players.forEach((player, idx) => {
       player.role = assigned[idx];
       player.team = getRoleTeam(assigned[idx]);
@@ -346,9 +375,17 @@ export class GameRoom {
       player.targetId = null;
       player.hasVoted = false;
       player.voteTargetId = null;
+
+      // Record assigned role in history for future non-repeating allocations
+      const pHist = this.playerRoleHistory.get(player.id) || [];
+      pHist.push(assigned[idx]);
+      this.playerRoleHistory.set(player.id, pHist);
+      this.playerRoleHistory.set(player.name, pHist);
     });
 
     this.room.round = 1;
+    this.doctorLastTargets.clear();
+    this.bodyguardLastTargets.clear();
     this.room.witchHealUsed = false;
     this.room.witchPoisonUsed = false;
     this.room.lovers = null;
@@ -370,9 +407,10 @@ export class GameRoom {
     this.room.dictatorPlayerId = null;
     this.room.veteranAlertsRemaining = {};
     this.room.amnesiacRememberedIds = [];
+    const maxVeteranAlerts = Math.min(3, Math.max(1, this.room.settings.veteranMaxAlerts ?? 3));
     this.room.players.forEach((p) => {
       if (p.role === 'VETERAN') {
-        this.room.veteranAlertsRemaining[p.id] = 3;
+        this.room.veteranAlertsRemaining[p.id] = maxVeteranAlerts;
       }
     });
 
@@ -532,6 +570,15 @@ export class GameRoom {
       this.room.witchPoisonUsed = true;
     }
 
+    // Update Doctor's & Bodyguard's last protected target for consecutive night check
+    for (const action of this.room.nightActions) {
+      if (action.type === 'PROTECT') {
+        this.doctorLastTargets.set(action.actorId, action.targetId);
+      } else if (action.type === 'GUARD') {
+        this.bodyguardLastTargets.set(action.actorId, action.targetId);
+      }
+    }
+
     // Only record protections where the player was actually attacked and saved by Doctor, Bodyguard, or Witch
     this.room.morningProtections = (resolution.protections || []).filter(
       (p) =>
@@ -539,12 +586,22 @@ export class GameRoom {
         (p.role === 'DOCTOR' || p.role === 'BODYGUARD' || p.role === 'WITCH')
     );
 
-    // Announce if any player was saved by the Witch's Elixir of Life
+    // Announce if any player was saved by Doctor, Witch, or Bodyguard
     for (const prot of this.room.morningProtections) {
-      if (prot.role === 'WITCH') {
+      if (prot.role === 'DOCTOR') {
+        this.addEvent(
+          'SYSTEM',
+          `🩺 The Werewolves attacked in the dark, but the Doctor's timely antidote saved the victim! No one was killed in the assault.`
+        );
+      } else if (prot.role === 'WITCH') {
         this.addEvent(
           'SYSTEM',
           `✨ The Witch secretly administered the mystic Elixir of Life! ${prot.targetName} was rescued from death's door!`
+        );
+      } else if (prot.role === 'BODYGUARD') {
+        this.addEvent(
+          'SYSTEM',
+          `🛡️ The Bodyguard heroically took the fatal strike meant for ${prot.targetName}! ${prot.targetName} survived the assault, but the brave Bodyguard fell in battle.`
         );
       }
     }
@@ -735,7 +792,8 @@ export class GameRoom {
         amnPlayer.role = rememberedRole;
         amnPlayer.team = getRoleTeam(rememberedRole);
         if (rememberedRole === 'VETERAN' && !this.room.veteranAlertsRemaining[amnPlayer.id]) {
-          this.room.veteranAlertsRemaining[amnPlayer.id] = 3;
+          const maxAlerts = Math.min(3, Math.max(1, this.room.settings.veteranMaxAlerts ?? 3));
+          this.room.veteranAlertsRemaining[amnPlayer.id] = maxAlerts;
         }
         if (!this.room.amnesiacRememberedIds.includes(amnPlayer.id)) {
           this.room.amnesiacRememberedIds.push(amnPlayer.id);
@@ -985,7 +1043,7 @@ export class GameRoom {
       return;
     }
 
-    this.setPhase('VOTE_RESULT', 7);
+    this.setPhase('VOTE_RESULT', 3);
   }
 
   private afterVoteResult() {
@@ -1215,7 +1273,7 @@ export class GameRoom {
     }
 
     // Transition through VOTE_RESULT so all players see the execution card and announcement
-    this.setPhase('VOTE_RESULT', 7);
+    this.setPhase('VOTE_RESULT', 3);
     return { success: true };
   }
 
@@ -1336,6 +1394,8 @@ export class GameRoom {
     this.room.votes = {};
     this.room.skipDiscussionVotes = [];
     this.room.nightActions = [];
+    this.doctorLastTargets.clear();
+    this.bodyguardLastTargets.clear();
     this.seerResults.clear();
     this.seerHistory.clear();
 
@@ -1591,11 +1651,37 @@ export class GameRoom {
     if (type === 'INVESTIGATE' && player.role !== 'SEER' && !isApprenticeSeerActive) {
       return { success: false, error: 'Only the Seer (or an active Apprentice Seer) can investigate' };
     }
-    if (type === 'PROTECT' && player.role !== 'DOCTOR') {
-      return { success: false, error: 'Only the doctor can heal/protect' };
+    if (type === 'PROTECT') {
+      if (player.role !== 'DOCTOR') {
+        return { success: false, error: 'Only the Doctor can heal and protect' };
+      }
+      const lastTargetId = this.doctorLastTargets.get(playerId);
+      if (lastTargetId && targetId === lastTargetId) {
+        const isSelf = targetId === playerId;
+        const targetPlayer = this.getPlayer(targetId);
+        return {
+          success: false,
+          error: isSelf
+            ? 'The Doctor cannot protect themselves two nights in a row.'
+            : `The Doctor cannot protect ${targetPlayer?.name || 'the same player'} two nights in a row.`,
+        };
+      }
     }
-    if (type === 'GUARD' && player.role !== 'BODYGUARD') {
-      return { success: false, error: 'Only the bodyguard can guard' };
+    if (type === 'GUARD') {
+      if (player.role !== 'BODYGUARD') {
+        return { success: false, error: 'Only the bodyguard can stand guard' };
+      }
+      if (targetId === playerId) {
+        return { success: false, error: 'The Bodyguard cannot guard themselves' };
+      }
+      const lastTargetId = this.bodyguardLastTargets.get(playerId);
+      if (lastTargetId && targetId === lastTargetId) {
+        const targetPlayer = this.getPlayer(targetId);
+        return {
+          success: false,
+          error: `The Bodyguard cannot guard ${targetPlayer?.name || 'the same player'} two nights in a row.`,
+        };
+      }
     }
     if ((type === 'POISON' || type === 'HEAL') && player.role !== 'WITCH') {
       return { success: false, error: 'Only the witch can use potions' };
@@ -1785,9 +1871,10 @@ export class GameRoom {
     // VETERAN
     if (type === 'VETERAN_ALERT') {
       if (player.role !== 'VETERAN') return { success: false, error: 'Only the Veteran can go on Alert' };
-      const remaining = this.room.veteranAlertsRemaining[playerId] ?? 3;
+      const maxAlerts = Math.min(3, Math.max(1, this.room.settings.veteranMaxAlerts ?? 3));
+      const remaining = this.room.veteranAlertsRemaining[playerId] ?? maxAlerts;
       if (remaining <= 0) {
-        return { success: false, error: 'No alerts remaining (maximum 3 per game)' };
+        return { success: false, error: `No alerts remaining (maximum ${maxAlerts} per game)` };
       }
       // Decrement alert count
       this.room.veteranAlertsRemaining[playerId] = remaining - 1;
@@ -1922,7 +2009,7 @@ export class GameRoom {
       // Simulate bots choosing night targets after 2-4 seconds
       setTimeout(() => {
         if (this.room.phase === 'NIGHT') {
-          const botActions = getBotNightActions(this.room.players);
+          const botActions = getBotNightActions(this.room.players, this.doctorLastTargets, this.bodyguardLastTargets);
           for (const act of botActions) {
             if (act.type === 'HEAL' && this.room.witchHealUsed) continue;
             if (act.type === 'POISON' && this.room.witchPoisonUsed) continue;
@@ -2252,6 +2339,12 @@ export class GameRoom {
           role: isWerewolf && killRecord ? killRecord.victimRole : undefined,
         };
       }
+      if (death.reason === 'BODYGUARD_SACRIFICE') {
+        return {
+          ...death,
+          role: death.role || 'BODYGUARD',
+        };
+      }
       return death;
     });
 
@@ -2330,6 +2423,16 @@ export class GameRoom {
       winReason: this.room.winReason || undefined,
       events: this.room.events,
       settings: this.room.settings,
+      doctorLastTargetId: requester?.role === 'DOCTOR' ? this.doctorLastTargets.get(forPlayerId) || null : undefined,
+      doctorLastTargetName:
+        requester?.role === 'DOCTOR' && this.doctorLastTargets.get(forPlayerId)
+          ? this.getPlayer(this.doctorLastTargets.get(forPlayerId)!)?.name || null
+          : undefined,
+      bodyguardLastTargetId: requester?.role === 'BODYGUARD' ? this.bodyguardLastTargets.get(forPlayerId) || null : undefined,
+      bodyguardLastTargetName:
+        requester?.role === 'BODYGUARD' && this.bodyguardLastTargets.get(forPlayerId)
+          ? this.getPlayer(this.bodyguardLastTargets.get(forPlayerId)!)?.name || null
+          : undefined,
       silencedPlayerId: this.room.silencedPlayerId,
       bearGrowl: this.room.bearGrowl,
       toughGuyWounded: this.room.toughGuyWoundedAtRound !== null,
@@ -2343,7 +2446,9 @@ export class GameRoom {
       dictatorGuiltPending: requester?.role === 'DICTATOR' ? this.room.dictatorGuiltPending : undefined,
       dictatorPlayerId: this.room.dictatorPlayerId,
       veteranAlertsRemaining:
-        requester?.role === 'VETERAN' ? (this.room.veteranAlertsRemaining[forPlayerId] ?? 3) : undefined,
+        requester?.role === 'VETERAN'
+          ? (this.room.veteranAlertsRemaining[forPlayerId] ?? (this.room.settings.veteranMaxAlerts ?? 3))
+          : undefined,
       veteranOnAlertTonight: this.room.nightActions.some(
         (a) => a.actorId === forPlayerId && a.type === 'VETERAN_ALERT'
       ),

@@ -54,7 +54,11 @@ export function generateBotPlayer(existingPlayers: ServerPlayer[]): ServerPlayer
   };
 }
 
-export function getBotNightActions(players: ServerPlayer[]): ServerNightAction[] {
+export function getBotNightActions(
+  players: ServerPlayer[],
+  doctorLastTargets?: Map<string, string>,
+  bodyguardLastTargets?: Map<string, string>
+): ServerNightAction[] {
   const actions: ServerNightAction[] = [];
   const alivePlayers = players.filter((p) => p.isAlive);
   const aliveBots = alivePlayers.filter((p) => p.isBot);
@@ -95,10 +99,13 @@ export function getBotNightActions(players: ServerPlayer[]): ServerNightAction[]
     }
   }
 
-  // Doctor bots
+  // Doctor bots (cannot protect the same player two nights in a row)
   const doctorBots = aliveBots.filter((p) => p.role === 'DOCTOR');
   for (const doc of doctorBots) {
-    const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+    const lastTargetId = doctorLastTargets?.get(doc.id);
+    const eligible = alivePlayers.filter((p) => p.id !== lastTargetId);
+    const pool = eligible.length > 0 ? eligible : alivePlayers;
+    const target = pool[Math.floor(Math.random() * pool.length)];
     actions.push({
       actorId: doc.id,
       role: 'DOCTOR',
@@ -107,13 +114,15 @@ export function getBotNightActions(players: ServerPlayer[]): ServerNightAction[]
     });
   }
 
-  // Bodyguard bots
+  // Bodyguard bots (cannot guard self, cannot guard same player two nights in a row)
   const guardBots = aliveBots.filter((p) => p.role === 'BODYGUARD');
   for (const guard of guardBots) {
-    // Bodyguard cannot guard self, protect someone else
-    const others = alivePlayers.filter((p) => p.id !== guard.id);
-    if (others.length > 0) {
-      const target = others[Math.floor(Math.random() * others.length)];
+    const lastTargetId = bodyguardLastTargets?.get(guard.id);
+    const eligible = alivePlayers.filter((p) => p.id !== guard.id && p.id !== lastTargetId);
+    const fallback = alivePlayers.filter((p) => p.id !== guard.id);
+    const pool = eligible.length > 0 ? eligible : fallback;
+    if (pool.length > 0) {
+      const target = pool[Math.floor(Math.random() * pool.length)];
       actions.push({
         actorId: guard.id,
         role: 'BODYGUARD',

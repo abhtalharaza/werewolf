@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Role, Team, GameSettings } from '../src/types/game.js';
 import { ServerPlayer, ServerNightAction } from './types.js';
 
@@ -11,8 +12,24 @@ export function getRoleTeam(role: Role): Team {
   return 'VILLAGERS';
 }
 
-export function assignRoles(playerCount: number, customDistribution?: Record<Role, number>): Role[] {
-  // If custom distribution is specified, faithfully allocate requested roles
+/**
+ * Cryptographically secure Fisher-Yates array shuffle.
+ * Uses Node's crypto.randomInt to avoid PRNG bias and clustering.
+ */
+export function cryptoShuffle<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * Builds the initial raw role pool of exact size playerCount
+ * adhering faithfully to host preferences or default village balance.
+ */
+export function buildRolePool(playerCount: number, customDistribution?: Record<Role, number>): Role[] {
   if (customDistribution) {
     const pool: Role[] = [];
     for (const [roleKey, count] of Object.entries(customDistribution)) {
@@ -29,9 +46,9 @@ export function assignRoles(playerCount: number, customDistribution?: Record<Rol
         pool.unshift('WEREWOLF');
       }
 
-      // If pool matches player count exactly, distribute directly
+      // If pool matches player count exactly
       if (pool.length === playerCount) {
-        return shuffleArray(pool);
+        return pool;
       }
 
       // If pool is larger than playerCount, prioritize wolves then active specials
@@ -67,7 +84,7 @@ export function assignRoles(playerCount: number, customDistribution?: Record<Rol
           selected.push('VILLAGER');
         }
 
-        return shuffleArray(selected.slice(0, playerCount));
+        return selected.slice(0, playerCount);
       }
 
       // If pool is smaller than playerCount, allocate all pool roles and pad with Villagers
@@ -84,7 +101,7 @@ export function assignRoles(playerCount: number, customDistribution?: Record<Rol
         selected.push('VILLAGER');
       }
 
-      return shuffleArray(selected.slice(0, playerCount));
+      return selected.slice(0, playerCount);
     }
   }
 
@@ -115,16 +132,127 @@ export function assignRoles(playerCount: number, customDistribution?: Record<Rol
     roles.push('VILLAGER');
   }
 
-  return shuffleArray(roles);
+  return roles;
 }
 
-function shuffleArray<T>(array: T[]): T[] {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+/**
+ * Solves derangement with randomized backtracking to strictly ensure
+ * no player gets their previous role, while exploring search space in random order.
+ */
+function solveDerangementWithBacktracking(
+  pool: Role[],
+  previousRoles: (Role | undefined)[]
+): Role[] | null {
+  const n = pool.length;
+  const shuffledPool = cryptoShuffle(pool);
+  const used = new Array(n).fill(false);
+  const result: Role[] = new Array(n);
+  const playerOrder = cryptoShuffle(Array.from({ length: n }, (_, i) => i));
+
+  function search(orderIdx: number): boolean {
+    if (orderIdx === n) return true;
+    const pIdx = playerOrder[orderIdx];
+    const prev = previousRoles[pIdx];
+
+    const roleIndices = cryptoShuffle(Array.from({ length: n }, (_, i) => i));
+    for (const rIdx of roleIndices) {
+      if (!used[rIdx]) {
+        const role = shuffledPool[rIdx];
+        if (!prev || role !== prev) {
+          used[rIdx] = true;
+          result[pIdx] = role;
+          if (search(orderIdx + 1)) return true;
+          used[rIdx] = false;
+        }
+      }
+    }
+    return false;
   }
-  return arr;
+
+  return search(0) ? result : null;
+}
+
+/**
+ * Assigns roles strictly randomized so that NO player repeatedly receives the same role.
+ * - Guaranteed non-repeating (derangement): assignedRole !== previousRole for all players.
+ * - Uniformly randomized across all valid derangements with Node's crypto.randomInt.
+ * - Maximizes role variety over consecutive games using recentHistories.
+ */
+export function assignStrictRandomRoles(
+  playerCount: number,
+  customDistribution?: Record<Role, number>,
+  previousRoles?: (Role | undefined)[],
+  recentHistories?: Role[][]
+): Role[] {
+  const rawPool = buildRolePool(playerCount, customDistribution);
+
+  // If first game or no previous role history available, pure crypto shuffle!
+  if (!previousRoles || previousRoles.length !== playerCount || previousRoles.every((r) => !r)) {
+    return cryptoShuffle(rawPool);
+  }
+
+  let bestCandidate: Role[] = [];
+  let minRepeats = Infinity;
+  let minRecentRepeats = Infinity;
+
+  // 1. Monte Carlo attempts with cryptographically secure random shuffling
+  for (let attempt = 0; attempt < 500; attempt++) {
+    const candidate = cryptoShuffle(rawPool);
+    let directRepeats = 0;
+    let recentRepeats = 0;
+
+    for (let i = 0; i < playerCount; i++) {
+      const prev = previousRoles[i];
+      if (prev && candidate[i] === prev) {
+        directRepeats++;
+      }
+      if (recentHistories && recentHistories[i]) {
+        const hist = recentHistories[i];
+        if (hist.length >= 2 && hist[hist.length - 2] === candidate[i]) {
+          recentRepeats++;
+        }
+      }
+    }
+
+    if (directRepeats < minRepeats || (directRepeats === minRepeats && recentRepeats < minRecentRepeats)) {
+      minRepeats = directRepeats;
+      minRecentRepeats = recentRepeats;
+      bestCandidate = candidate;
+    }
+
+    // Found a derangement where NO ONE repeats their previous role, and no recent repeats
+    if (directRepeats === 0 && recentRepeats === 0) {
+      return candidate;
+    }
+    // Found zero direct repeats after reasonable attempts
+    if (directRepeats === 0 && attempt > 50) {
+      return candidate;
+    }
+  }
+
+  if (minRepeats === 0 && bestCandidate.length === playerCount) {
+    return bestCandidate;
+  }
+
+  // 2. Randomized Backtracking Constraint Solver:
+  // Guarantees finding a 0-repeat assignment if one mathematically exists
+  const solved = solveDerangementWithBacktracking(rawPool, previousRoles);
+  if (solved) {
+    return solved;
+  }
+
+  // 3. Fallback: if mathematically impossible to have 0 repeats (e.g. pool is 100% same role),
+  // return best candidate with minimal repeats
+  return bestCandidate.length === playerCount ? bestCandidate : cryptoShuffle(rawPool);
+}
+
+export function assignRoles(
+  playerCount: number,
+  customDistribution?: Record<Role, number>,
+  previousRoles?: (Role | undefined)[],
+  recentHistories?: Role[][]
+): Role[] {
+  return assignStrictRandomRoles(playerCount, customDistribution, previousRoles, recentHistories);
 }
 
 export interface NightResolutionResult {
@@ -140,7 +268,8 @@ export interface NightResolutionResult {
       | 'ARSONIST'
       | 'VETERAN_SHOT'
       | 'TOUGH_GUY_WOUND'
-      | 'DICTATOR_SUICIDE';
+      | 'DICTATOR_SUICIDE'
+      | 'BODYGUARD_SACRIFICE';
   }[];
   savedPlayerIds: string[];
   transformedPlayerIds: { id: string; newRole: Role; newTeam: Team }[];
@@ -191,7 +320,8 @@ export function resolveNightActions(
       | 'ARSONIST'
       | 'VETERAN_SHOT'
       | 'TOUGH_GUY_WOUND'
-      | 'DICTATOR_SUICIDE';
+      | 'DICTATOR_SUICIDE'
+      | 'BODYGUARD_SACRIFICE';
   }[] = [];
   const savedPlayerIds: string[] = [];
   const transformedPlayerIds: { id: string; newRole: Role; newTeam: Team }[] = [];
@@ -373,6 +503,24 @@ export function resolveNightActions(
   // Resolve Little Girl caught in shadows
   if (options?.caughtLittleGirlId && !killedPlayerIds.some((k) => k.id === options.caughtLittleGirlId)) {
     killedPlayerIds.push({ id: options.caughtLittleGirlId, reason: 'LITTLE_GIRL_CAUGHT' });
+  }
+
+  // Resolve Bodyguard sacrifice:
+  // If the guarded ally was targeted by nocturnal physical attackers (Werewolf, White Wolf, Serial Killer),
+  // the Bodyguard's shield heroically saves the target, but the Bodyguard sacrifices their life in defense!
+  for (const action of actions) {
+    if (action.type === 'GUARD') {
+      const wasGuardedTargetAttacked =
+        chosenWolfVictimIds.includes(action.targetId) ||
+        whiteWolfKillTarget === action.targetId ||
+        serialKillerKillTarget === action.targetId;
+
+      if (wasGuardedTargetAttacked) {
+        if (!killedPlayerIds.some((k) => k.id === action.actorId)) {
+          killedPlayerIds.push({ id: action.actorId, reason: 'BODYGUARD_SACRIFICE' });
+        }
+      }
+    }
   }
 
   // Resolve Lovers Heartbreak

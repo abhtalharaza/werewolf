@@ -73,7 +73,7 @@ export const ALL_ROLES_META: RoleConfigMeta[] = [
     icon: HeartPulse,
     color: 'text-indigo-600 dark:text-indigo-400',
     badgeClass: 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/80',
-    description: 'Each night, choose one player to protect from werewolf assault.',
+    description: 'Each night, protect one player (or yourself) from physical attacks (Werewolves & Serial Killer). Cannot protect the same player two nights in a row.',
   },
   {
     role: 'HUNTER',
@@ -100,7 +100,7 @@ export const ALL_ROLES_META: RoleConfigMeta[] = [
     icon: Shield,
     color: 'text-cyan-600 dark:text-cyan-400',
     badgeClass: 'bg-cyan-50 dark:bg-cyan-950/70 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800/80',
-    description: 'Each night, choose one other player to stand guard over.',
+    description: 'Each night, protect another player from physical attacks (Werewolves & Serial Killer). If attacked, the ally survives while you sacrifice your life. Cannot guard self or same player two nights in a row.',
   },
   {
     role: 'CUPID',
@@ -289,7 +289,7 @@ export const ALL_ROLES_META: RoleConfigMeta[] = [
     icon: ShieldAlert,
     color: 'text-indigo-600 dark:text-indigo-400',
     badgeClass: 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60',
-    description: 'Can go on high Alert 3 times per game. While on Alert, anyone who visits or targets your house tonight is shot and killed!',
+    description: 'Can go on high Alert at night (1, 2, or up to 3 times, customizable by host; default 3). Anyone who visits or targets your house while on Alert is shot and killed!',
   },
   {
     role: 'AMNESIAC',

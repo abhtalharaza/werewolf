@@ -83,6 +83,7 @@ export interface GameSettings {
   revealRoleOnDeath: boolean;
   roleDistribution: Record<Role, number>;
   autoPopulateBots?: boolean;
+  veteranMaxAlerts?: number; // 1, 2, or 3 (default: 3)
 }
 
 export interface GameEvent {
@@ -170,7 +171,8 @@ export interface GameDeathRecord {
     | 'DICTATOR_EXECUTE'
     | 'DICTATOR_SUICIDE'
     | 'TOUGH_GUY_WOUND'
-    | 'SILENCED_VIOLATION';
+    | 'SILENCED_VIOLATION'
+    | 'BODYGUARD_SACRIFICE';
   round: number;
 }
 
@@ -236,6 +238,10 @@ export interface ClientGameState {
   events: GameEvent[];
   settings: GameSettings;
   // New role states
+  doctorLastTargetId?: string | null;
+  doctorLastTargetName?: string | null;
+  bodyguardLastTargetId?: string | null;
+  bodyguardLastTargetName?: string | null;
   silencedPlayerId?: string | null;
   bearGrowl?: boolean | null;
   dousedPlayerIds?: string[];

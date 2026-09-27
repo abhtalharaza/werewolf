@@ -24,17 +24,17 @@ export const HunterActionModal: React.FC<HunterActionModalProps> = ({ gameState,
   let reasonDescription = 'Slain in battle';
 
   if (reason === 'WEREWOLF') {
-    reasonBadge = '🐺 Raat me Bhediyon ka Hamla (Werewolf Attack)';
+    reasonBadge = '🐺 Werewolf Night Attack';
     reasonDescription = 'Werewolves hunted the Hunter in the darkness of the night!';
   } else if (reason === 'POISON') {
-    reasonBadge = '🧪 Witch ka Zahar (Witch Poison)';
-    reasonDescription = 'The Witch consumed the Hunter with fatal poison!';
+    reasonBadge = '🧪 Witch\'s Fatal Poison';
+    reasonDescription = 'The Witch consumed the Hunter with deadly nightshade poison!';
   } else if (reason === 'VOTE') {
-    reasonBadge = '⚖️ Din me Gaonwalon ka Vote (Village Vote)';
+    reasonBadge = '⚖️ Village Vote (Exiled)';
     reasonDescription = 'The village mistakenly condemned the Hunter to the gallows!';
   } else if (reason === 'HEARTBREAK') {
-    reasonBadge = '💔 Lovers Heartbreak (Toota Hua Dil)';
-    reasonDescription = 'The Hunter fell with their departed lover!';
+    reasonBadge = '💔 Broken Heart (Lovers Fate)';
+    reasonDescription = 'The Hunter fell alongside their departed soulmate!';
   }
 
   return (
@@ -83,13 +83,13 @@ export const HunterActionModal: React.FC<HunterActionModalProps> = ({ gameState,
         </div>
 
         <h2 className="text-xl sm:text-2xl font-black font-cinzel text-slate-900 dark:text-white tracking-wide mb-1">
-          {isMeHunter ? 'Bandook Ki Aakhri Goli' : "The Hunter's Final Shot"}
+          {isMeHunter ? "The Hunter's Final Shot" : `${hunterPlayer?.name || 'The Hunter'}'s Final Shot`}
         </h2>
 
         <p className="text-xs text-slate-600 dark:text-slate-300 mb-4 leading-relaxed max-w-md mx-auto font-medium">
           {isMeHunter ? (
             <span>
-              Aapko eliminate kar diya gaya hai, par marne se pehle aapko apni <strong className="text-indigo-600 dark:text-indigo-400">bandook se kisi ek player ko goli maarne</strong> ka aakhri mauka milta hai. Target turant aapke sath game se bahar ho jayega!
+              You have been eliminated! Before your dying breath, fire your rifle at <strong className="text-indigo-600 dark:text-indigo-400">any living player</strong> to eliminate them from the village with you!
             </span>
           ) : (
             <span>
@@ -101,7 +101,7 @@ export const HunterActionModal: React.FC<HunterActionModalProps> = ({ gameState,
         {isMeHunter ? (
           <div className="flex-1 flex flex-col min-h-0 space-y-3">
             <div className="text-xs text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider text-left flex items-center justify-between font-mono">
-              <span>Nishana Chunein (Select Target):</span>
+              <span>Select Target:</span>
               <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono font-normal">
                 {aliveVictims.length} Living Players
               </span>

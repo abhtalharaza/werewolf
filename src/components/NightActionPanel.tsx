@@ -249,9 +249,9 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               <div className="p-3 rounded-xl bg-amber-950/70 border border-amber-500/60 flex items-center gap-2.5 text-xs text-amber-200">
                 <Clock className="w-4 h-4 text-amber-400 shrink-0 animate-spin" />
                 <div>
-                  <span className="font-bold font-cinzel">Shikar ka samay samapt (15s pure hue)!</span>
+                  <span className="font-bold font-cinzel">Pack Hunt Closed (15s elapsed)</span>
                   <p className="text-[11px] text-zinc-300 mt-0.5">
-                    Aakhri 5 second Witch ke aakhri faisle ke liye hain. Ab werewolf kisi ko nahi maar sakte.
+                    Final seconds reserved for the Witch's secret alchemy. Wolves can no longer change prey.
                   </p>
                 </div>
               </div>
@@ -259,10 +259,10 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-900/50 text-[11px]">
                 <span className="text-red-300 flex items-center gap-1.5 font-medium">
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  Werewolf Hunting Window (Pehle 15s):
+                  Werewolf Hunting Window:
                 </span>
                 <span className="font-mono font-bold text-amber-300 bg-red-950/80 px-2 py-0.5 rounded border border-red-800">
-                  ⏳ {Math.max(0, gameState.timer - 5)}s bache hain
+                  ⏳ {Math.max(0, gameState.timer - 5)}s remaining
                 </span>
               </div>
             )
@@ -270,7 +270,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-[11px]">
               <span className="text-zinc-300 flex items-center gap-1.5">
                 <Moon className="w-3.5 h-3.5 text-indigo-400" />
-                Witch game me nahi hai: Puri raat bhediyon ke liye hai!
+                Full night dedicated to the Werewolf pack hunt
               </span>
               <span className="font-mono font-bold text-zinc-200 bg-zinc-800 px-2 py-0.5 rounded">
                 ⏳ {gameState.timer}s
@@ -473,43 +473,97 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
 
       {/* 3. DOCTOR PANEL */}
       {role === 'DOCTOR' && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-indigo-400 font-bold font-cinzel text-sm">
-            <HeartPulse className="w-4 h-4" />
-            <span>Doctor's Protection</span>
+        <div className="space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-indigo-400 font-bold font-cinzel text-sm">
+              <HeartPulse className="w-4 h-4" />
+              <span>Doctor's Antidote & Care</span>
+            </div>
+            {gameState.doctorLastTargetName && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-300">
+                Protected Last Night: {gameState.doctorLastTargetName}
+              </span>
+            )}
           </div>
 
-          <p className="text-xs text-zinc-300">
-            Select any player (including yourself) to guard from werewolf bites tonight.
+          <p className="text-xs text-zinc-300 leading-relaxed">
+            Select one player (including yourself) to administer medicine and protect against nocturnal physical attacks (Werewolves & Serial Killer).
           </p>
+
+          <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-900/50 text-[11px] text-zinc-300 space-y-1">
+            <div className="flex items-center gap-1.5 font-semibold text-indigo-300 font-mono text-[10px] uppercase tracking-wider">
+              <span>Physician's Rules:</span>
+            </div>
+            <p className="text-zinc-300">
+              • <strong>Consecutive Protection Limit:</strong> You cannot protect the same player two nights in a row (this restriction applies to yourself as well).
+            </p>
+            <p className="text-zinc-400 text-[10px]">
+              • <strong>Damage Scope:</strong> Defends against physical attacks (Werewolves & Serial Killer). Cannot save against Witch poison, Arsonist fire, or Hunter vengeance.
+            </p>
+          </div>
+
+          {gameState.doctorLastTargetId && targetPlayer?.id === gameState.doctorLastTargetId && (
+            <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-600/70 text-rose-200 text-xs flex items-center gap-2 animate-pulse">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>
+                <strong>Consecutive Protection Restricted:</strong> You protected {targetPlayer.name} last night. You must choose someone else tonight.
+              </span>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
             <div className="text-xs">
               {targetPlayer ? (
-                <span>
-                  Protecting:{' '}
-                  <strong className="text-indigo-400 font-semibold">{targetPlayer.name}</strong>
-                </span>
+                <div>
+                  <span className="text-zinc-400">Chosen Patient: </span>
+                  <strong className="text-indigo-300 font-semibold">{targetPlayer.name}</strong>
+                  {targetPlayer.id === gameState.myPlayerId && (
+                    <span className="ml-1 text-[10px] font-mono text-indigo-400 font-bold">(Self)</span>
+                  )}
+                  {confirmedTargetId === targetPlayer.id && (
+                    <span className="ml-2 px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-500/60 text-indigo-300 font-mono text-[10px] font-bold">
+                      ✓ Care Stationed
+                    </span>
+                  )}
+                </div>
               ) : (
-                <span className="text-zinc-500 italic">Select a patient</span>
+                <span className="text-zinc-500 italic">Select a villager on the board to treat</span>
               )}
             </div>
 
             <button
               id="confirm-doctor-protect-btn"
               onClick={() => targetPlayer && handleConfirm('PROTECT', targetPlayer.id)}
-              disabled={!targetPlayer || submitting || confirmedTargetId === targetPlayer?.id}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg min-h-[44px]"
+              disabled={
+                !targetPlayer ||
+                submitting ||
+                targetPlayer.id === gameState.doctorLastTargetId ||
+                confirmedTargetId === targetPlayer?.id
+              }
+              className={`flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition shadow-lg min-h-[44px] cursor-pointer ${
+                confirmedTargetId === targetPlayer?.id
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 border border-emerald-400'
+                  : targetPlayer?.id === gameState.doctorLastTargetId
+                  ? 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-50'
+                  : !targetPlayer
+                  ? 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-50'
+                  : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-950/50'
+              }`}
             >
               {confirmedTargetId === targetPlayer?.id ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-indigo-200" />
-                  <span>Ward In Place</span>
+                  <Check className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>✓ Treatment Administered</span>
+                </>
+              ) : targetPlayer?.id === gameState.doctorLastTargetId ? (
+                <>
+                  <XCircle className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Cannot Protect Consecutive Nights</span>
                 </>
               ) : (
                 <>
                   <Shield className="w-3.5 h-3.5" />
-                  <span>Administer Antidote</span>
+                  <span>{targetPlayer ? `Administer Antidote (${targetPlayer.name})` : 'Administer Antidote'}</span>
                 </>
               )}
             </button>
@@ -523,24 +577,52 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-cyan-400 font-bold font-cinzel text-sm">
               <Shield className="w-4 h-4" />
-              <span>Bodyguard Vigil</span>
+              <span>Bodyguard's Iron Vigil</span>
             </div>
-            {activeGuardedPlayer && (
+            {gameState.bodyguardLastTargetName ? (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-300">
+                Guarded Last Night: {gameState.bodyguardLastTargetName}
+              </span>
+            ) : activeGuardedPlayer ? (
               <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/60 text-[11px] font-mono text-cyan-300 animate-pulse">
                 <Check className="w-3 h-3 text-cyan-400" />
                 <span>Guarding: {activeGuardedPlayer.name}</span>
               </div>
-            )}
+            ) : null}
           </div>
 
           <p className="text-xs text-zinc-300 leading-relaxed">
-            Select another player on the board to stand guard over them through the nocturnal mist. If werewolves target your guarded ally tonight, your steel shield will deflect their fatal strike!
+            Choose a fellow villager to protect tonight. If nocturnal killers strike your ally, you will deflect their fatal blows and save them—sacrificing your own life in the fight.
           </p>
+
+          <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-900/50 text-[11px] text-zinc-300 space-y-1">
+            <div className="flex items-center gap-1.5 font-semibold text-cyan-300 font-mono text-[10px] uppercase tracking-wider">
+              <span>Bodyguard's Code:</span>
+            </div>
+            <p className="text-zinc-300">
+              • <strong>Heroic Sacrifice:</strong> If Werewolves, White Wolf, or Serial Killer attack your guarded ally, the ally survives unharmed while you perish in battle.
+            </p>
+            <p className="text-zinc-300">
+              • <strong>Restrictions:</strong> You cannot guard yourself, and you cannot guard the same player two nights in a row.
+            </p>
+            <p className="text-zinc-400 text-[10px]">
+              • <strong>Unstoppable Threats:</strong> Cannot protect against Witch poison, Arsonist fire, Hunter shot, or Veteran alert.
+            </p>
+          </div>
 
           {isTargetingSelf && (
             <div className="p-2.5 rounded-xl bg-amber-950/60 border border-amber-600/60 text-amber-200 text-xs flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Bodyguard cannot guard themselves! Please select a fellow villager.</span>
+              <span>The Bodyguard cannot guard themselves! Please select a fellow villager.</span>
+            </div>
+          )}
+
+          {gameState.bodyguardLastTargetId && targetPlayer?.id === gameState.bodyguardLastTargetId && (
+            <div className="p-2.5 rounded-xl bg-rose-950/70 border border-rose-600/70 text-rose-200 text-xs flex items-center gap-2 animate-pulse">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>
+                <strong>Consecutive Guard Restricted:</strong> You stood guard over {targetPlayer.name} last night. You must choose someone else tonight.
+              </span>
             </div>
           )}
 
@@ -548,8 +630,11 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             <div className="text-xs">
               {targetPlayer ? (
                 <div>
-                  <span className="text-zinc-400">Target Ally: </span>
+                  <span className="text-zinc-400">Chosen Ally: </span>
                   <strong className="text-cyan-300 font-semibold">{targetPlayer.name}</strong>
+                  {targetPlayer.id === gameState.myPlayerId && (
+                    <span className="ml-1 text-[10px] font-mono text-rose-400 font-bold">(Self - Cannot Guard)</span>
+                  )}
                   {isSelectedPlayerGuarded && (
                     <span className="ml-2 px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/60 text-cyan-300 font-mono text-[10px] font-bold">
                       ✓ Guard Stationed
@@ -568,11 +653,17 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             <button
               id="confirm-bodyguard-guard-btn"
               onClick={() => targetPlayer && !isTargetingSelf && handleConfirm('GUARD', targetPlayer.id)}
-              disabled={!targetPlayer || isTargetingSelf || submitting || isSelectedPlayerGuarded}
+              disabled={
+                !targetPlayer ||
+                isTargetingSelf ||
+                targetPlayer.id === gameState.bodyguardLastTargetId ||
+                submitting ||
+                isSelectedPlayerGuarded
+              }
               className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition min-h-[44px] cursor-pointer shadow-lg ${
                 isSelectedPlayerGuarded
                   ? 'bg-gradient-to-r from-teal-600 via-cyan-600 to-indigo-600 border border-cyan-400 text-white shadow-md opacity-100 cursor-default'
-                  : !targetPlayer || isTargetingSelf
+                  : !targetPlayer || isTargetingSelf || targetPlayer.id === gameState.bodyguardLastTargetId
                   ? 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-50'
                   : activeGuardedPlayer && activeGuardedPlayer.id !== targetPlayer.id
                   ? 'bg-gradient-to-r from-amber-600 to-cyan-700 hover:from-amber-500 hover:to-cyan-600 text-white border border-amber-400/60 shadow-amber-950/50'
@@ -587,7 +678,17 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               ) : isSelectedPlayerGuarded ? (
                 <>
                   <Check className="w-4 h-4 text-cyan-200" />
-                  <span>✓ Shield Active: Guarding {targetPlayer.name}!</span>
+                  <span>✓ Shield Active: Guarding {targetPlayer?.name}!</span>
+                </>
+              ) : targetPlayer?.id === gameState.bodyguardLastTargetId ? (
+                <>
+                  <XCircle className="w-4 h-4 text-zinc-400" />
+                  <span>Cannot Guard Consecutive Nights</span>
+                </>
+              ) : isTargetingSelf ? (
+                <>
+                  <XCircle className="w-4 h-4 text-zinc-400" />
+                  <span>Cannot Guard Self</span>
                 </>
               ) : activeGuardedPlayer && targetPlayer && activeGuardedPlayer.id !== targetPlayer.id ? (
                 <>
@@ -614,13 +715,13 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 font-bold text-cyan-200 text-xs sm:text-sm">
-                  <span>🛡️ Guard Assigned: Shield Active!</span>
+                  <span>🛡️ Iron Vigil Active</span>
                   <span className="px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500 text-cyan-300 text-[10px] font-mono font-bold">
-                    Protected Tonight
+                    Guarding {activeGuardedPlayer.name}
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-300 leading-relaxed">
-                  You are guarding <strong>{activeGuardedPlayer.name}</strong> tonight. If werewolves target them, your steel shield will protect their life!
+                  You are positioned outside <strong>{activeGuardedPlayer.name}</strong>'s home. If Werewolves or Serial Killer attack them tonight, you will intercept their fatal strike—protecting their life while sacrificing your own.
                 </p>
                 <div className="text-[10px] text-cyan-400/80 italic font-mono pt-0.5">
                   (To reassign your guard to another villager, select their card on the board)
@@ -643,61 +744,6 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
               Each power 1x use in entire game
             </div>
           </div>
-
-          {/* Night Timing Split Banner (20s Total: 15s Wolves, 5s Exclusive Witch Window) */}
-          <div className="p-3 rounded-xl bg-gradient-to-r from-purple-950/70 via-pink-950/60 to-zinc-950 border border-purple-500/50 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-pink-300 font-cinzel">
-                <Moon className="w-3.5 h-3.5 text-purple-400" />
-                <span>Total Night: 20s (Witch 20s • Bhediye 15s)</span>
-              </div>
-              <span className={`text-[11px] font-mono font-extrabold px-2 py-0.5 rounded border ${
-                gameState.timer <= 5
-                  ? 'bg-amber-900 border-amber-400 text-amber-100 animate-pulse'
-                  : 'bg-purple-900 border-purple-400 text-purple-100'
-              }`}>
-                ⏳ {gameState.timer}s Left
-              </span>
-            </div>
-            <p className="text-[11px] text-zinc-300 leading-relaxed">
-              {gameState.timer <= 5 ? (
-                <strong className="text-amber-300">
-                  ✨ Aakhri 5 Second Window: Bhediyon ka samay khatam ho chuka hai! Ab werewolf shikar nahi kar sakte. Aap aaraam se apna faisla le sakti hain.
-                </strong>
-              ) : (
-                <span>
-                  Bhediye pehle 15s me shikar karenge (<strong className="text-amber-300">{Math.max(0, gameState.timer - 5)}s bache</strong>). Lekin aap iss pure 20s me kabhi bhi apna jadu chala sakti hain! Aakhri 5 second sirf aapke liye reserved rahenge.
-                </span>
-              )}
-            </p>
-          </div>
-
-          {/* Werewolves Target Notification Alert for Witch */}
-          {gameState.witchPotions?.isWitchTargeted ? (
-            <div className="p-3.5 rounded-xl bg-red-950/70 border-2 border-red-500/80 text-red-200 animate-pulse space-y-1">
-              <div className="flex items-center gap-2 font-bold text-xs text-red-300 font-cinzel">
-                <AlertTriangle className="w-4 h-4 text-red-400" />
-                <span>KHATRA: Bhediyon ne AAPKO shikar banaya hai!</span>
-              </div>
-              <p className="text-[11px] text-red-200 leading-relaxed">
-                The werewolves struck at you in the dark! You can drink your <strong>Elixir of Life</strong> right now to save your own life, or risk it and preserve the potion!
-              </p>
-            </div>
-          ) : gameState.witchPotions?.nightVictimName ? (
-            <div className="p-3 rounded-xl bg-amber-950/50 border border-amber-600/70 text-amber-200 space-y-1">
-              <div className="flex items-center gap-2 font-bold text-xs text-amber-300 font-cinzel">
-                <Skull className="w-4 h-4 text-amber-400" />
-                <span>Bhediyon ne hamla kiya: <strong>{gameState.witchPotions.nightVictimName}</strong></span>
-              </div>
-              <p className="text-[11px] text-amber-300/90 leading-relaxed">
-                Werewolves targeted <strong>{gameState.witchPotions.nightVictimName}</strong> tonight. You can use your Elixir of Life to rescue them, or save your medicine for a future night.
-              </p>
-            </div>
-          ) : (
-            <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800 text-[11px] text-zinc-400">
-              Bhediyon ka shikar abhi tay nahi hua hai (ya koi shikar nahi hua).
-            </div>
-          )}
 
           {/* Active Potions Summary Pill */}
           {(gameState.witchPotions?.healActiveTonight || gameState.witchPotions?.poisonActiveTonight) && (
@@ -729,71 +775,15 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             </div>
           )}
 
-          {/* Dedicated 5-Second Decision Buffer Banner for Witch */}
-          {gameState.witchPotions?.nightVictimId &&
-            gameState.witchPotions?.healAvailable &&
-            !gameState.witchPotions?.healActiveTonight && (
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/80 via-indigo-950/80 to-zinc-950 border-2 border-indigo-500/80 shadow-[0_0_25px_rgba(99,102,241,0.35)] animate-pulse space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-bold text-xs text-indigo-300 font-cinzel">
-                    <Clock className="w-4 h-4 text-amber-400 animate-spin" />
-                    <span>
-                      {gameState.timer <= 5
-                        ? 'Exclusive 5-Second Window: Bachana Hai Ya Nahi?'
-                        : 'Bhediye Ka Shikar Samne Hai: Bachana Hai Ya Nahi?'}
-                    </span>
-                  </div>
-                  <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-indigo-900/90 border border-indigo-400 text-indigo-100 shadow">
-                    ⏳ {gameState.timer}s Left
-                  </span>
-                </div>
-                <p className="text-[11px] text-zinc-200 leading-relaxed">
-                  Bhediyon ne <strong>{gameState.witchPotions.nightVictimName}</strong> par hamla kiya hai!{' '}
-                  {gameState.timer <= 5 ? (
-                    <span>
-                      Bhediyon ka shikar ab band ho chuka hai (15s pure hue). Aapke paas bachaane ya dawai bachaane ke liye pure <strong>{gameState.timer} second</strong> hain!
-                    </span>
-                  ) : (
-                    <span>
-                      Aap abhi bhi unhe bacha sakti hain, ya aakhri 5 second ke exclusive window tak intezar kar sakti hain ({gameState.timer}s bache).
-                    </span>
-                  )}
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2 pt-0.5">
-                  <button
-                    id="witch-instant-save-btn"
-                    onClick={() =>
-                      gameState.witchPotions?.nightVictimId &&
-                      handleConfirm('HEAL', gameState.witchPotions.nightVictimId)
-                    }
-                    disabled={submitting}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold transition shadow-lg shadow-indigo-950/50 min-h-[42px] cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-                    <span>✓ Bchana Hai (Save {gameState.witchPotions.nightVictimName})</span>
-                  </button>
-                  <button
-                    id="witch-pass-heal-btn"
-                    onClick={() => handleConfirm('PASS_HEAL', '')}
-                    disabled={submitting}
-                    className="py-2.5 px-3.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-bold transition border border-zinc-600 min-h-[42px] cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <XCircle className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Nahi Bachana (Pass & End Night)</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             {/* Healing Potion (Elixir of Life) */}
-            <div className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between space-y-2">
+            <div className="p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between space-y-3">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-indigo-400 font-cinzel">
-                    Elixir of Life (Bachao)
+                  <span className="font-bold text-xs text-indigo-400 font-cinzel tracking-wider">
+                    ELIXIR OF LIFE
                   </span>
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
                     gameState.witchPotions?.healActiveTonight
                       ? 'bg-indigo-950 border-indigo-500 text-indigo-300 font-bold animate-pulse'
                       : gameState.witchPotions?.healAvailable
@@ -807,16 +797,14 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                       : 'Used (0/1)'}
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-400 mt-1">
+                <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">
                   {gameState.witchPotions?.healActiveTonight
                     ? `Administered to ${gameState.witchPotions.healTargetName}. They will survive tonight's attack.`
                     : gameState.witchPotions?.isWitchTargeted
                     ? 'Drink potion to save your own life.'
                     : gameState.witchPotions?.nightVictimName
                     ? `Save ${gameState.witchPotions.nightVictimName} from death.`
-                    : targetPlayer
-                    ? `Administer to ${targetPlayer.name} to protect them.`
-                    : 'Awaits werewolf victim or select any player to protect.'}
+                    : 'Awaits werewolf victim.'}
                 </p>
               </div>
 
@@ -826,15 +814,14 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                     id="witch-cancel-heal-btn"
                     onClick={() => handleConfirm('CANCEL_HEAL', '')}
                     disabled={submitting}
-                    className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition min-h-[44px] cursor-pointer border border-zinc-600"
+                    className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition min-h-[44px] cursor-pointer border border-zinc-600"
                   >
                     Cancel Elixir (Save for Later)
                   </button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {/* Primary Heal Button: Target is werewolf victim if available */}
-                  {gameState.witchPotions?.nightVictimId && (
+                  {gameState.witchPotions?.nightVictimId ? (
                     <button
                       id="witch-heal-btn"
                       onClick={() =>
@@ -845,37 +832,22 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                         !gameState.witchPotions?.healAvailable ||
                         submitting
                       }
-                      className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
+                      className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
                     >
                       {gameState.witchPotions?.healAvailable
                         ? gameState.witchPotions?.isWitchTargeted
                           ? 'Drink Elixir (Save Yourself)'
-                          : `Save Werewolf Prey (${gameState.witchPotions.nightVictimName})`
-                        : 'Elixir Expended (Dawai Kharch Ho Chuki)'}
+                          : `Save ${gameState.witchPotions.nightVictimName}`
+                        : 'Elixir Expended'}
                     </button>
-                  )}
-
-                  {/* Secondary Heal Button: If Witch clicked another player on the board */}
-                  {targetPlayer && targetPlayer.id !== gameState.witchPotions?.nightVictimId && (
-                    <button
-                      id="witch-heal-custom-btn"
-                      onClick={() => handleConfirm('HEAL', targetPlayer.id)}
-                      disabled={!gameState.witchPotions?.healAvailable || submitting}
-                      className="w-full py-2 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 border border-indigo-500/70 text-indigo-100 text-xs font-bold transition min-h-[40px] cursor-pointer"
-                    >
-                      Protect Selected: {targetPlayer.name}
-                    </button>
-                  )}
-
-                  {/* If no victim yet and no target selected */}
-                  {!gameState.witchPotions?.nightVictimId && !targetPlayer && (
+                  ) : (
                     <button
                       disabled={true}
-                      className="w-full py-2.5 rounded-lg bg-indigo-950/60 border border-indigo-900/60 opacity-50 text-indigo-300 text-xs font-medium min-h-[44px]"
+                      className="w-full py-2.5 rounded-xl bg-indigo-950/60 border border-indigo-900/60 opacity-50 text-indigo-300 text-xs font-medium min-h-[44px]"
                     >
                       {gameState.witchPotions?.healAvailable
-                        ? 'Waiting for Wolf Victim (or select player)'
-                        : 'Elixir Expended (Dawai Kharch Ho Chuki)'}
+                        ? 'Waiting for Werewolf Victim'
+                        : 'Elixir Expended'}
                     </button>
                   )}
                 </div>
@@ -883,13 +855,13 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             </div>
 
             {/* Poison Potion (Black Nightshade) */}
-            <div className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between space-y-2">
+            <div className="p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between space-y-3">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-rose-400 font-cinzel">
-                    Vial of Poison (Zahar Do)
+                  <span className="font-bold text-xs text-rose-400 font-cinzel tracking-wider">
+                    VIAL OF POISON
                   </span>
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
                     gameState.witchPotions?.poisonActiveTonight
                       ? 'bg-rose-950 border-rose-500 text-rose-300 font-bold animate-pulse'
                       : gameState.witchPotions?.poisonAvailable
@@ -903,12 +875,12 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                       : 'Used (0/1)'}
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-400 mt-1">
+                <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">
                   {gameState.witchPotions?.poisonActiveTonight
                     ? `Poison prepared for ${gameState.witchPotions.poisonTargetName}. They will perish at sunrise.`
                     : targetPlayer
                     ? <span>Selected target: <strong className="text-rose-300">{targetPlayer.name}</strong></span>
-                    : <span>Click any living player on the board to poison them tonight.</span>}
+                    : <span>Select any living player on the board to poison them tonight.</span>}
                 </p>
               </div>
 
@@ -918,7 +890,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                     id="witch-cancel-poison-btn"
                     onClick={() => handleConfirm('CANCEL_POISON', '')}
                     disabled={submitting}
-                    className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition min-h-[44px] cursor-pointer border border-zinc-600"
+                    className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition min-h-[44px] cursor-pointer border border-zinc-600"
                   >
                     Cancel Poison (Save for Later)
                   </button>
@@ -926,7 +898,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                     <button
                       onClick={() => handleConfirm('POISON', targetPlayer.id)}
                       disabled={submitting}
-                      className="w-full py-1.5 rounded-lg bg-rose-900 hover:bg-rose-800 text-white text-xs font-bold transition min-h-[36px] cursor-pointer"
+                      className="w-full py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-bold transition min-h-[36px] cursor-pointer"
                     >
                       Change Target to {targetPlayer.name}
                     </button>
@@ -937,7 +909,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                   id="witch-poison-btn"
                   onClick={() => targetPlayer && handleConfirm('POISON', targetPlayer.id)}
                   disabled={!gameState.witchPotions?.poisonAvailable || !targetPlayer || targetPlayer.id === gameState.myPlayerId || submitting}
-                  className="w-full py-2.5 rounded-lg bg-rose-900 hover:bg-rose-800 disabled:opacity-30 disabled:hover:bg-rose-900 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-rose-900 hover:bg-rose-800 disabled:opacity-30 disabled:hover:bg-rose-900 text-white text-xs font-bold transition min-h-[44px] cursor-pointer"
                 >
                   {gameState.witchPotions?.poisonAvailable
                     ? targetPlayer
@@ -945,7 +917,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
                         ? 'Cannot Poison Yourself'
                         : `Poison ${targetPlayer.name}`
                       : 'Select Target on Board'
-                    : 'Poison Expended (Zahar Kharch Ho Chuka)'}
+                    : 'Poison Expended'}
                 </button>
               )}
             </div>
@@ -959,7 +931,7 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-rose-400 font-bold font-cinzel text-sm">
               <Heart className="w-4 h-4 fill-rose-400" />
-              <span>Cupid's Golden Arrow (Prem Dhanush)</span>
+              <span>Cupid's Golden Arrow</span>
             </div>
             <div className="text-[10px] text-rose-300 font-mono bg-rose-950/60 px-2 py-0.5 rounded-md border border-rose-800/60">
               Night 1 Only
@@ -969,8 +941,8 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
           <p className="text-xs text-zinc-300 leading-relaxed">
             {gameState.round === 1
               ? isLoversLocked
-                ? 'Prem sutra bandh chuka hai! Yeh prem bandhan ab badla ya toda nahi ja sakta.'
-                : 'Board par pehle 1st Lover ko select karein, fir 2nd Lover ko select karein. Kisi ko unselect karne ke liye dobara uspar click karein ya Unselect dabayein.'
+                ? 'The bond of love is forged! This eternal vow cannot be altered or broken.'
+                : 'Select the 1st Lover on the board, then select the 2nd Lover. Click again or tap Unselect to change.'
               : 'Your arrows were spent on the first night. You slumber alongside the village.'}
           </p>
 
@@ -1917,44 +1889,49 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
       })()}
 
       {/* 15. THE VETERAN */}
-      {role === 'VETERAN' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-blue-400 font-bold font-cinzel text-sm">
-              <ShieldAlert className="w-4 h-4 text-blue-400" />
-              <span>The Veteran's Alert</span>
-            </div>
-            <span className="text-[11px] text-blue-300 font-mono">
-              Alerts: {gameState.veteranAlertsRemaining ?? 3}/3 Left
-            </span>
-          </div>
-          <p className="text-xs text-zinc-300">
-            You can go on Alert up to 3 times per game. While on Alert tonight, anyone who visits or targets you (Werewolves, Seer, Doctor, Spellcaster) will be shot and killed instantly!
-          </p>
-          {gameState.veteranOnAlertTonight || confirmedTargetId === me?.id ? (
-            <div className="p-3 rounded-xl bg-blue-950/60 border border-blue-500/60 text-center text-xs text-blue-200 font-mono">
-              🛡️ Shotgun loaded! You are on HIGH ALERT tonight! Any night visitor will be eliminated!
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
-              <div className="text-xs text-zinc-400">
-                {(gameState.veteranAlertsRemaining ?? 3) > 0
-                  ? 'Guard your cabin for the night.'
-                  : 'All 3 alerts have been exhausted.'}
+      {role === 'VETERAN' && (() => {
+        const maxAlerts = gameState.settings?.veteranMaxAlerts ?? 3;
+        const alertsLeft = gameState.veteranAlertsRemaining ?? maxAlerts;
+
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-blue-400 font-bold font-cinzel text-sm">
+                <ShieldAlert className="w-4 h-4 text-blue-400" />
+                <span>The Veteran's Alert</span>
               </div>
-              <button
-                id="confirm-veteran-alert-btn"
-                onClick={() => me && handleConfirm('VETERAN_ALERT', me.id)}
-                disabled={(gameState.veteranAlertsRemaining ?? 3) <= 0 || submitting}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-blue-950/50 min-h-[44px]"
-              >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>{submitting ? 'Locking Cabin...' : 'Go on Alert Tonight'}</span>
-              </button>
+              <span className="text-[11px] text-blue-300 font-mono">
+                Alerts: {alertsLeft}/{maxAlerts} Left
+              </span>
             </div>
-          )}
-        </div>
-      )}
+            <p className="text-xs text-zinc-300">
+              You can go on Alert up to {maxAlerts} {maxAlerts === 1 ? 'night' : 'nights'} per game. While on Alert tonight, anyone who visits or targets you (Werewolves, Seer, Doctor, Spellcaster) will be shot and killed instantly!
+            </p>
+            {gameState.veteranOnAlertTonight || confirmedTargetId === me?.id ? (
+              <div className="p-3 rounded-xl bg-blue-950/60 border border-blue-500/60 text-center text-xs text-blue-200 font-mono">
+                🛡️ Shotgun loaded! You are on HIGH ALERT tonight! Any night visitor will be eliminated!
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+                <div className="text-xs text-zinc-400">
+                  {alertsLeft > 0
+                    ? 'Guard your cabin for the night.'
+                    : `All ${maxAlerts} alert${maxAlerts === 1 ? '' : 's'} have been exhausted.`}
+                </div>
+                <button
+                  id="confirm-veteran-alert-btn"
+                  onClick={() => me && handleConfirm('VETERAN_ALERT', me.id)}
+                  disabled={alertsLeft <= 0 || submitting}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-bold transition shadow-lg shadow-blue-950/50 min-h-[44px]"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>{submitting ? 'Locking Cabin...' : 'Go on Alert Tonight'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 16. APPRENTICE SEER (INACTIVE / LEARNING) */}
       {role === 'APPRENTICE_SEER' && !gameState.isApprenticeSeerActive && (

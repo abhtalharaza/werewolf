@@ -80,11 +80,11 @@ export const MorningProtectionCard: React.FC<MorningProtectionCardProps> = ({
         titleColor: 'text-cyan-800 dark:text-cyan-300',
         badgeStyle: 'bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
         headerBadgeStyle: 'border-cyan-200 dark:border-cyan-800 text-cyan-800 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/60',
-        headerBadgeText: 'Dawn Bulletin • Werewolf Attack Deflected',
+        headerBadgeText: 'Dawn Bulletin • Heroic Sacrifice & Defense',
         progressColor: 'bg-cyan-500',
-        quote: 'A stalwart warrior pledged to defend innocent lives.',
-        powerTitle: 'Nocturnal Shield Activated',
-        abilityText: `Werewolves attacked ${currentProtection.targetName} in the dark, but the Bodyguard's steel shield heroically deflected their fatal claws!`,
+        quote: 'A stalwart warrior pledged to defend innocent lives at the cost of their own.',
+        powerTitle: 'Heroic Shield Interception',
+        abilityText: `The Bodyguard stationed themselves outside ${currentProtection.targetName}'s home and intercepted the nocturnal attack! ${currentProtection.targetName} was rescued from death, while the brave Bodyguard made the ultimate sacrifice and fell in battle.`,
         icon: <Shield className="w-8 h-8 sm:w-10 sm:h-10 text-cyan-600 dark:text-cyan-400" />,
       }
     : isDoctor
@@ -205,7 +205,7 @@ export const MorningProtectionCard: React.FC<MorningProtectionCardProps> = ({
             <div className="font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider font-mono text-[10px] flex items-center justify-between">
               <span>{roleConfig.powerTitle}</span>
               <span className="px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-[9px] font-bold">
-                Werewolf Strike Blocked!
+                {isBodyguard ? 'Fatal Strike Intercepted' : 'Werewolf Strike Blocked!'}
               </span>
             </div>
             <p className="text-slate-700 dark:text-slate-200 leading-relaxed font-medium text-xs sm:text-sm">

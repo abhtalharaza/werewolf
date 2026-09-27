@@ -128,12 +128,14 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [customHostName, setCustomHostName] = useState(hostPlayer?.name || 'Village Elder');
   const [customMaxPlayers, setCustomMaxPlayers] = useState(gameState.settings.maxPlayers || 10);
   const [customDiscussionTime, setCustomDiscussionTime] = useState(gameState.settings.discussionTime || 60);
+  const [customVeteranMaxAlerts, setCustomVeteranMaxAlerts] = useState<number>(gameState.settings.veteranMaxAlerts ?? 3);
 
   const openRoomSettingsEditor = () => {
     setCustomRoomName(gameState.settings.roomName || 'Whispering Pines');
     setCustomHostName(hostPlayer?.name || 'Village Elder');
     setCustomMaxPlayers(gameState.settings.maxPlayers || 10);
     setCustomDiscussionTime(gameState.settings.discussionTime || 60);
+    setCustomVeteranMaxAlerts(gameState.settings.veteranMaxAlerts ?? 3);
     setIsEditingRoomSettings(true);
   };
 
@@ -144,6 +146,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         roomName: customRoomName.trim() || 'Whispering Pines',
         maxPlayers: Math.max(Math.max(4, playerCount), Math.min(20, customMaxPlayers)),
         discussionTime: Math.max(20, Math.min(300, customDiscussionTime)),
+        veteranMaxAlerts: customVeteranMaxAlerts,
       },
       customHostName.trim() || undefined
     );
@@ -165,15 +168,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     }
   }, [roleDistJson]);
 
-  const currentDeck = gameState.settings.roleDistribution || {
-    WEREWOLF: 2,
-    VILLAGER: 2,
-    SEER: 1,
-    DOCTOR: 1,
-    HUNTER: 1,
-    WITCH: 1,
-    BODYGUARD: 1,
-  };
+  const currentDeck: Record<Role, number> = createDefaultDeckDraft(gameState.settings?.roleDistribution);
 
   const copyCode = () => {
     navigator.clipboard.writeText(gameState.roomCode);
@@ -302,12 +297,20 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 font-medium mt-0.5">
+            <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 font-medium mt-0.5 flex-wrap">
               <span>Host: <strong className="text-indigo-700 dark:text-indigo-300 font-semibold">{hostPlayer?.name || 'Elder'}</strong></span>
               <span>•</span>
               <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{playerCount} / {gameState.settings.maxPlayers} Villagers</span>
               <span>•</span>
               <span className="text-slate-500 dark:text-slate-400 font-mono">Discussion: {gameState.settings.discussionTime}s</span>
+              {currentDeck.VETERAN > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900/60 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold">
+                    Veteran: Max {gameState.settings.veteranMaxAlerts ?? 3} Alert{(gameState.settings.veteranMaxAlerts ?? 3) === 1 ? '' : 's'}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -733,46 +736,74 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 return (
                   <div
                     key={role}
-                    className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-2xl bg-white/70 dark:bg-white/[0.04] border border-indigo-100 dark:border-white/10 w-full shadow-xs"
+                    className="flex flex-col p-2 sm:p-2.5 rounded-2xl bg-white/70 dark:bg-white/[0.04] border border-indigo-100 dark:border-white/10 w-full shadow-xs"
                   >
-                    <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                      <div className={`p-1.5 rounded-xl border shrink-0 ${meta.badgeClass}`}>
-                        <Icon className="w-4 h-4" />
+                    <div className="flex items-center justify-between gap-2 w-full">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                        <div className={`p-1.5 rounded-xl border shrink-0 ${meta.badgeClass}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                          <div className="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white font-cinzel truncate">
+                            {meta.name}
+                          </div>
+                          <div className={`text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded-full font-mono border self-start sm:self-auto whitespace-nowrap leading-none mt-0.5 sm:mt-0 ${meta.badgeClass}`}>
+                            {meta.team}
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
-                        <div className="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white font-cinzel truncate">
-                          {meta.name}
-                        </div>
-                        <div className={`text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded-full font-mono border self-start sm:self-auto whitespace-nowrap leading-none mt-0.5 sm:mt-0 ${meta.badgeClass}`}>
-                          {meta.team}
-                        </div>
+
+                      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 bg-slate-50 dark:bg-white/[0.06] p-1 rounded-xl border border-slate-200 dark:border-white/10 shadow-inner">
+                        <button
+                          type="button"
+                          onClick={() => updateDraftCount(role, -1)}
+                          disabled={count <= (role === 'WEREWOLF' ? 1 : 0)}
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-white/10 hover:bg-indigo-50 dark:hover:bg-white/15 active:bg-indigo-100 disabled:opacity-20 text-slate-700 dark:text-slate-200 flex items-center justify-center transition cursor-pointer shadow-xs"
+                          title="Decrease"
+                          aria-label={`Decrease ${meta.name} count`}
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="w-5 sm:w-6 text-center font-mono font-bold text-xs sm:text-sm text-indigo-700 dark:text-indigo-300 select-none">
+                          {count}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateDraftCount(role, 1)}
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-white/10 hover:bg-indigo-50 dark:hover:bg-white/15 active:bg-indigo-100 text-slate-700 dark:text-slate-200 flex items-center justify-center transition cursor-pointer shadow-xs"
+                          title="Increase"
+                          aria-label={`Increase ${meta.name} count`}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 bg-slate-50 dark:bg-white/[0.06] p-1 rounded-xl border border-slate-200 dark:border-white/10 shadow-inner">
-                      <button
-                        type="button"
-                        onClick={() => updateDraftCount(role, -1)}
-                        disabled={count <= (role === 'WEREWOLF' ? 1 : 0)}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-white/10 hover:bg-indigo-50 dark:hover:bg-white/15 active:bg-indigo-100 disabled:opacity-20 text-slate-700 dark:text-slate-200 flex items-center justify-center transition cursor-pointer shadow-xs"
-                        title="Decrease"
-                        aria-label={`Decrease ${meta.name} count`}
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-5 sm:w-6 text-center font-mono font-bold text-xs sm:text-sm text-indigo-700 dark:text-indigo-300 select-none">
-                        {count}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => updateDraftCount(role, 1)}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-white/10 hover:bg-indigo-50 dark:hover:bg-white/15 active:bg-indigo-100 text-slate-700 dark:text-slate-200 flex items-center justify-center transition cursor-pointer shadow-xs"
-                        title="Increase"
-                        aria-label={`Increase ${meta.name} count`}
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {role === 'VETERAN' && count > 0 && (
+                      <div className="mt-1.5 pt-2 border-t border-indigo-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs w-full pl-2">
+                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                          Max Nights on Alert:
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3].map((num) => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => {
+                                onUpdateSettings({ veteranMaxAlerts: num });
+                              }}
+                              className={`px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer border ${
+                                (gameState.settings.veteranMaxAlerts ?? 3) === num
+                                  ? 'gradient-brand-btn text-white border-transparent shadow-xs'
+                                  : 'bg-white dark:bg-white/10 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/15 hover:border-indigo-300'
+                              }`}
+                            >
+                              {num} {num === 1 ? 'Night' : 'Nights'} {num === 3 ? '(Default)' : ''}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -948,6 +979,37 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                       }`}
                     >
                       {seconds}s
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 5. Veteran Max Alerts Setting */}
+              <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-white/[0.04] border border-indigo-100 dark:border-white/10">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
+                    Veteran Max Nights on Alert
+                  </label>
+                  <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 font-mono">
+                    {customVeteranMaxAlerts} {customVeteranMaxAlerts === 1 ? 'Night' : 'Nights'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">
+                  Choose how many nights the Veteran can go on high Alert per game (1, 2, or upto 3 nights; default is 3).
+                </p>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setCustomVeteranMaxAlerts(num)}
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-mono font-bold transition cursor-pointer border text-center ${
+                        customVeteranMaxAlerts === num
+                          ? 'gradient-brand-btn text-white border-transparent shadow-xs'
+                          : 'bg-white dark:bg-white/10 text-slate-600 dark:text-slate-300 border-indigo-100 dark:border-white/15 hover:border-indigo-300'
+                      }`}
+                    >
+                      {num} {num === 1 ? 'Night' : 'Nights'} {num === 3 ? '(Default)' : ''}
                     </button>
                   ))}
                 </div>

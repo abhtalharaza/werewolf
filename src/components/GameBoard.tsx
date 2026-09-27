@@ -170,8 +170,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         }
         return false;
       }
-      if (gameState.myRole === 'DOCTOR') return true;
-      if (gameState.myRole === 'BODYGUARD') return playerId !== gameState.myPlayerId;
+      if (gameState.myRole === 'DOCTOR') {
+        return playerId !== gameState.doctorLastTargetId;
+      }
+      if (gameState.myRole === 'BODYGUARD') {
+        return playerId !== gameState.myPlayerId && playerId !== gameState.bodyguardLastTargetId;
+      }
       if (gameState.myRole === 'WITCH') return true;
       if (gameState.myRole === 'CUPID' && gameState.round === 1) {
         // If already bound, Cupid cannot target or change anyone!
