@@ -25,7 +25,9 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   loading,
 }) => {
   const [roomName, setRoomName] = useState('Whispering Hollow');
-  const [hostName, setHostName] = useState('MasterOfWolves');
+  const [hostName, setHostName] = useState(() => {
+    return localStorage.getItem('werewolf_player_name') || 'MasterOfWolves';
+  });
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [discussionTime, setDiscussionTime] = useState(40);
   const [votingTime, setVotingTime] = useState(15);
@@ -113,6 +115,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       autoPopulateBots,
       roleDistribution: safeCounts,
     };
+
+    localStorage.setItem('werewolf_player_name', hostName.trim());
 
     const success = await onCreateRoom(roomName, hostName, 'elder', settings);
     if (success) {

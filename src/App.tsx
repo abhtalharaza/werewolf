@@ -49,6 +49,7 @@ export default function App() {
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false);
   const [joinInitialCode, setJoinInitialCode] = useState('');
+  const [joinInitialRoomName, setJoinInitialRoomName] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   // Check URL query parameters for room code invite (e.g. ?room=WOLF01)
@@ -57,6 +58,7 @@ export default function App() {
     const code = params.get('room') || params.get('code');
     if (code && !gameState) {
       setJoinInitialCode(code.toUpperCase());
+      setJoinInitialRoomName('');
       setIsJoinOpen(true);
     }
   }, [gameState]);
@@ -151,8 +153,9 @@ export default function App() {
       {!gameState && (
         <LandingView
           onCreateClick={() => setIsCreateOpen(true)}
-          onJoinClick={(code) => {
-            if (code) setJoinInitialCode(code);
+          onJoinClick={(code, roomName) => {
+            setJoinInitialCode(code ? code.toUpperCase() : '');
+            setJoinInitialRoomName(roomName || '');
             setIsJoinOpen(true);
           }}
           onHowToPlayClick={() => setIsHowToPlayOpen(true)}
@@ -219,10 +222,15 @@ export default function App() {
 
       <JoinRoomModal
         isOpen={isJoinOpen}
-        onClose={() => setIsJoinOpen(false)}
+        onClose={() => {
+          setIsJoinOpen(false);
+          setJoinInitialCode('');
+          setJoinInitialRoomName('');
+        }}
         onJoinRoom={handleJoinRoom}
         loading={actionLoading}
         initialRoomCode={joinInitialCode}
+        initialRoomName={joinInitialRoomName}
         errorMessage={error}
       />
 

@@ -6,7 +6,7 @@ import { NightModeToggle } from './NightModeToggle.js';
 
 interface LandingViewProps {
   onCreateClick: () => void;
-  onJoinClick: (code?: string) => void;
+  onJoinClick: (code?: string, roomName?: string) => void;
   onHowToPlayClick: () => void;
 }
 
@@ -19,27 +19,33 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const [stats, setStats] = useState<{ totalGames: number; villagerWins: number; werewolfWins: number } | null>(null);
 
   useEffect(() => {
-    // Fetch active rooms & stats with safe fallback if VITE_BACKEND_URL is not set
-    const baseUrl = (((import.meta as any).env?.VITE_BACKEND_URL as string) || '').replace(/\/$/, '');
-    fetch(`${baseUrl}/api/rooms`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch rooms');
-        return res.json();
-      })
-      .then((data) => {
-        if (data && data.rooms) setPublicRooms(data.rooms);
-      })
-      .catch(() => {});
+    // Fetch active rooms & stats with interval polling so active gatherings stay fresh
+    const fetchRoomsAndStats = () => {
+      const baseUrl = (((import.meta as any).env?.VITE_BACKEND_URL as string) || '').replace(/\/$/, '');
+      fetch(`${baseUrl}/api/rooms`)
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to fetch rooms');
+          return res.json();
+        })
+        .then((data) => {
+          if (data && data.rooms) setPublicRooms(data.rooms);
+        })
+        .catch(() => {});
 
-    fetch(`${baseUrl}/api/stats`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch stats');
-        return res.json();
-      })
-      .then((data) => {
-        if (data && data.stats) setStats(data.stats);
-      })
-      .catch(() => {});
+      fetch(`${baseUrl}/api/stats`)
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to fetch stats');
+          return res.json();
+        })
+        .then((data) => {
+          if (data && data.stats) setStats(data.stats);
+        })
+        .catch(() => {});
+    };
+
+    fetchRoomsAndStats();
+    const interval = setInterval(fetchRoomsAndStats, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -125,25 +131,54 @@ export const LandingView: React.FC<LandingViewProps> = ({
               </span>
             </div>
             <div className="space-y-2">
-              {publicRooms.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white/60 dark:bg-white/[0.06] border border-white/80 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition shadow-sm gap-2"
-                >
-                  <div className="text-left min-w-0 flex-1">
-                    <div className="font-semibold text-xs text-slate-900 dark:text-white truncate">{r.name}</div>
-                    <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono tracking-wider">
-                      CODE: <span className="text-indigo-600 dark:text-indigo-400 font-bold">{r.code}</span> • {r.playerCount}/{r.maxPlayers}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => onJoinClick(r.code)}
-                    className="flex items-center justify-center min-h-[44px] px-4 py-2 text-xs rounded-xl gradient-brand-btn text-white font-bold font-cinzel tracking-wider transition cursor-pointer shadow-sm active:scale-95 shrink-0"
+              {publicRooms.map((r) => {
+                const isFull = r.playerCount >= r.maxPlayers;
+                const isStarted = !!r.phase && r.phase !== 'LOBBY';
+
+                return (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-white/60 dark:bg-white/[0.06] border border-white/80 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition shadow-sm gap-2"
                   >
-                    Join
-                  </button>
-                </div>
-              ))}
+                    <div className="text-left min-w-0 flex-1">
+                      <div className="font-semibold text-xs text-slate-900 dark:text-white truncate">{r.name}</div>
+                      <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono tracking-wider flex items-center gap-1 flex-wrap">
+                        <span>CODE: <span className="text-indigo-600 dark:text-indigo-400 font-bold">{r.code}</span></span>
+                        <span>•</span>
+                        <span>{r.playerCount}/{r.maxPlayers}</span>
+                        {isStarted && (
+                          <span className="text-amber-600 dark:text-amber-400 font-bold ml-1 text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                            IN PROGRESS
+                          </span>
+                        )}
+                        {isFull && !isStarted && (
+                          <span className="text-rose-600 dark:text-rose-400 font-bold ml-1 text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/20">
+                            FULL
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      id={`join-room-btn-${r.code}`}
+                      onClick={() => onJoinClick(r.code, r.name)}
+                      disabled={isFull || isStarted}
+                      className={`flex items-center justify-center min-h-[44px] px-4 py-2 text-xs rounded-xl font-bold font-cinzel tracking-wider transition cursor-pointer shadow-sm active:scale-95 shrink-0 ${
+                        isFull || isStarted
+                          ? 'bg-slate-200 dark:bg-white/10 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-300 dark:border-white/10'
+                          : 'gradient-brand-btn text-white'
+                      }`}
+                    >
+                      {isStarted ? (
+                        <span>Playing</span>
+                      ) : isFull ? (
+                        <span>Full</span>
+                      ) : (
+                        <span>Join</span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
