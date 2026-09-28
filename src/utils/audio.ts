@@ -5,6 +5,16 @@ class SoundEngine {
   private ambientGain: GainNode | null = null;
   private ambientSource: OscillatorNode | null = null;
 
+  // Dungeon Ambient Soundscape components
+  private dungeonAmbientGain: GainNode | null = null;
+  private dungeonOsc1: OscillatorNode | null = null;
+  private dungeonOsc2: OscillatorNode | null = null;
+  private dungeonNoiseSource: AudioBufferSourceNode | null = null;
+  private dungeonFilter: BiquadFilterNode | null = null;
+  private dungeonLfo: OscillatorNode | null = null;
+  private dungeonDripTimer: any = null;
+  private isDungeonActive: boolean = false;
+
   constructor() {
     // Load preference from localStorage if available
     try {
@@ -47,6 +57,11 @@ class SoundEngine {
     if (this.ambientGain) {
       this.ambientGain.gain.setValueAtTime(this.isMuted ? 0 : 0.05 * this.volume, this.ctx?.currentTime || 0);
     }
+    if (this.dungeonAmbientGain && this.ctx) {
+      const targetGain = this.isMuted || !this.isDungeonActive ? 0 : 0.22 * this.volume;
+      this.dungeonAmbientGain.gain.setValueAtTime(this.dungeonAmbientGain.gain.value, this.ctx.currentTime);
+      this.dungeonAmbientGain.gain.linearRampToValueAtTime(targetGain, this.ctx.currentTime + 0.1);
+    }
   }
 
   public setVolume(vol: number) {
@@ -58,6 +73,11 @@ class SoundEngine {
     }
     if (this.ambientGain) {
       this.ambientGain.gain.setValueAtTime(this.isMuted ? 0 : 0.05 * this.volume, this.ctx?.currentTime || 0);
+    }
+    if (this.dungeonAmbientGain && this.ctx) {
+      const targetGain = this.isMuted || !this.isDungeonActive ? 0 : 0.22 * this.volume;
+      this.dungeonAmbientGain.gain.setValueAtTime(this.dungeonAmbientGain.gain.value, this.ctx.currentTime);
+      this.dungeonAmbientGain.gain.linearRampToValueAtTime(targetGain, this.ctx.currentTime + 0.1);
     }
   }
 
@@ -406,6 +426,360 @@ class SoundEngine {
 
     osc.start(t);
     osc.stop(t + 0.05);
+  }
+
+  // Heavy metallic cell door slam with steel reverberation and iron deadbolt latch
+  public playJailSlam() {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const vol = this.volume;
+
+    // Master impact bus
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(vol * 0.95, t);
+    masterGain.connect(ctx.destination);
+
+    // --- 1. RATTLE / INITIAL METALLIC SCRAPE (t to t + 0.08s) ---
+    const rattleBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.08), ctx.sampleRate);
+    const rattleData = rattleBuffer.getChannelData(0);
+    for (let i = 0; i < rattleData.length; i++) {
+      rattleData[i] = (Math.random() * 2 - 1) * Math.sin((i / rattleData.length) * Math.PI);
+    }
+    const rattleSource = ctx.createBufferSource();
+    rattleSource.buffer = rattleBuffer;
+
+    const rattleFilter = ctx.createBiquadFilter();
+    rattleFilter.type = 'bandpass';
+    rattleFilter.frequency.setValueAtTime(3200, t);
+    rattleFilter.Q.setValueAtTime(3, t);
+
+    const rattleGain = ctx.createGain();
+    rattleGain.gain.setValueAtTime(0.4, t);
+    rattleGain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+
+    rattleSource.connect(rattleFilter);
+    rattleFilter.connect(rattleGain);
+    rattleGain.connect(masterGain);
+    rattleSource.start(t);
+
+    // --- 2. MASSIVE SUB-BASS HEAVY DOOR IMPACT (t + 0.06s) ---
+    // Deep heavy thud of reinforced iron gate hitting stone frame
+    const impactOsc = ctx.createOscillator();
+    const impactGain = ctx.createGain();
+
+    impactOsc.type = 'sine';
+    impactOsc.frequency.setValueAtTime(170, t + 0.06);
+    impactOsc.frequency.exponentialRampToValueAtTime(34, t + 0.45);
+
+    impactGain.gain.setValueAtTime(0, t);
+    impactGain.gain.setValueAtTime(0.95, t + 0.06);
+    impactGain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+
+    impactOsc.connect(impactGain);
+    impactGain.connect(masterGain);
+
+    impactOsc.start(t + 0.06);
+    impactOsc.stop(t + 0.75);
+
+    // --- 3. METALLIC RESONANCE & IRON BAR RING (t + 0.06s to t + 2.0s) ---
+    // Inharmonic frequencies representing hollow iron bars vibrating after slam
+    const metallicFrequencies = [
+      { freq: 410, gain: 0.35, decay: 1.8 },
+      { freq: 840, gain: 0.28, decay: 1.4 },
+      { freq: 1480, gain: 0.22, decay: 1.1 },
+      { freq: 2360, gain: 0.15, decay: 0.8 },
+      { freq: 3150, gain: 0.08, decay: 0.5 },
+    ];
+
+    metallicFrequencies.forEach(({ freq, gain: barVol, decay }) => {
+      const barOsc = ctx.createOscillator();
+      const barGain = ctx.createGain();
+
+      barOsc.type = 'triangle';
+      barOsc.frequency.setValueAtTime(freq, t + 0.06);
+      barOsc.frequency.exponentialRampToValueAtTime(freq * 0.98, t + 0.06 + decay);
+
+      barGain.gain.setValueAtTime(0, t);
+      barGain.gain.setValueAtTime(barVol, t + 0.06);
+      barGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.06 + decay);
+
+      barOsc.connect(barGain);
+      barGain.connect(masterGain);
+
+      barOsc.start(t + 0.06);
+      barOsc.stop(t + 0.06 + decay + 0.05);
+    });
+
+    // --- 4. HEAVY LOCK BOLT LATCH (CLACK-CLANK) (t + 0.22s) ---
+    // Heavy iron bolt sliding into socket
+    const boltOsc = ctx.createOscillator();
+    const boltGain = ctx.createGain();
+
+    boltOsc.type = 'sawtooth';
+    boltOsc.frequency.setValueAtTime(950, t + 0.22);
+    boltOsc.frequency.exponentialRampToValueAtTime(240, t + 0.34);
+
+    const boltFilter = ctx.createBiquadFilter();
+    boltFilter.type = 'bandpass';
+    boltFilter.frequency.setValueAtTime(1100, t + 0.22);
+    boltFilter.Q.setValueAtTime(2.5, t + 0.22);
+
+    boltGain.gain.setValueAtTime(0, t);
+    boltGain.gain.setValueAtTime(0.45, t + 0.22);
+    boltGain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+
+    boltOsc.connect(boltFilter);
+    boltFilter.connect(boltGain);
+    boltGain.connect(masterGain);
+
+    boltOsc.start(t + 0.22);
+    boltOsc.stop(t + 0.4);
+  }
+
+  // Crisp metallic latch for jailing/selecting action
+  public playJailLock() {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1200, t);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.12);
+
+    gain.gain.setValueAtTime(0.28 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.15);
+  }
+
+  // Mystical spatial warp / dislocation sound effect for The Transporter swapping two players
+  public playTransporterSwap() {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const vol = this.volume;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(vol * 0.45, t);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+    masterGain.connect(ctx.destination);
+
+    // Osc 1: Rising portal tone (Player A -> Player B)
+    const oscRise = ctx.createOscillator();
+    const gainRise = ctx.createGain();
+    oscRise.type = 'sine';
+    oscRise.frequency.setValueAtTime(320, t);
+    oscRise.frequency.exponentialRampToValueAtTime(880, t + 0.22);
+    gainRise.gain.setValueAtTime(0.3, t);
+    gainRise.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    oscRise.connect(gainRise);
+    gainRise.connect(masterGain);
+
+    // Osc 2: Counter-falling portal tone (Player B -> Player A)
+    const oscFall = ctx.createOscillator();
+    const gainFall = ctx.createGain();
+    oscFall.type = 'triangle';
+    oscFall.frequency.setValueAtTime(880, t);
+    oscFall.frequency.exponentialRampToValueAtTime(320, t + 0.25);
+    gainFall.gain.setValueAtTime(0.25, t);
+    gainFall.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+    oscFall.connect(gainFall);
+    gainFall.connect(masterGain);
+
+    // Filter sweep (spatial whoosh)
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(400, t);
+    filter.frequency.linearRampToValueAtTime(1400, t + 0.15);
+    filter.frequency.exponentialRampToValueAtTime(300, t + 0.38);
+    filter.Q.setValueAtTime(3, t);
+
+    oscRise.start(t);
+    oscRise.stop(t + 0.4);
+    oscFall.start(t);
+    oscFall.stop(t + 0.4);
+  }
+
+  // Continuous atmospheric dungeon ambient loop (deep subterranean drone + cold wind draft + periodic water drips)
+  public startDungeonAmbience() {
+    if (this.isDungeonActive) return;
+    this.init();
+    if (!this.ctx) return;
+
+    this.isDungeonActive = true;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+
+    // Master dungeon ambient bus with smooth fade-in
+    const masterDungeonGain = ctx.createGain();
+    const initialGain = this.isMuted ? 0 : 0.22 * this.volume;
+    masterDungeonGain.gain.setValueAtTime(0, t);
+    masterDungeonGain.gain.linearRampToValueAtTime(initialGain, t + 1.5);
+    masterDungeonGain.connect(ctx.destination);
+    this.dungeonAmbientGain = masterDungeonGain;
+
+    // 1. Deep subterranean drone (49Hz & 53.2Hz creating dark 4.2Hz throbbing beat)
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0.35, t);
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(49, t);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(53.2, t);
+
+    osc1.connect(oscGain);
+    osc2.connect(oscGain);
+    oscGain.connect(masterDungeonGain);
+
+    osc1.start(t);
+    osc2.start(t);
+    this.dungeonOsc1 = osc1;
+    this.dungeonOsc2 = osc2;
+
+    // 2. Cold dungeon draft / wind filtering through stone and iron bars
+    const bufferSize = ctx.sampleRate * 2;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+
+    const whiteNoise = ctx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+    whiteNoise.loop = true;
+
+    // Resonant bandpass filter slowly modulated by LFO
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(260, t);
+    bandpass.Q.setValueAtTime(2.5, t);
+
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(0.09, t); // Slow ~11-second breath
+    lfoGain.gain.setValueAtTime(110, t);
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(bandpass.frequency);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.18, t);
+
+    whiteNoise.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(masterDungeonGain);
+
+    whiteNoise.start(t);
+    lfo.start(t);
+    this.dungeonNoiseSource = whiteNoise;
+    this.dungeonFilter = bandpass;
+    this.dungeonLfo = lfo;
+
+    // 3. Periodic distant water droplets in dungeon
+    this.scheduleDungeonDrops();
+  }
+
+  private scheduleDungeonDrops() {
+    if (this.dungeonDripTimer) clearInterval(this.dungeonDripTimer);
+    this.dungeonDripTimer = setInterval(() => {
+      if (!this.isDungeonActive || this.isMuted || !this.ctx) return;
+      this.playDungeonDrop();
+    }, 4500);
+  }
+
+  private playDungeonDrop() {
+    if (!this.ctx || this.isMuted) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    const baseFreq = 1350 + Math.random() * 300;
+    osc.frequency.setValueAtTime(baseFreq, t);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.25, t + 0.02);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.75, t + 0.09);
+
+    const dropVol = (0.04 + Math.random() * 0.03) * this.volume;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(dropVol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+
+    osc.connect(gain);
+    if (this.dungeonAmbientGain) {
+      gain.connect(this.dungeonAmbientGain);
+    } else {
+      gain.connect(ctx.destination);
+    }
+
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  // Smooth fade out of dungeon ambient loop
+  public stopDungeonAmbience() {
+    if (!this.isDungeonActive) return;
+    this.isDungeonActive = false;
+
+    if (this.dungeonDripTimer) {
+      clearInterval(this.dungeonDripTimer);
+      this.dungeonDripTimer = null;
+    }
+
+    if (this.dungeonAmbientGain && this.ctx) {
+      const t = this.ctx.currentTime;
+      this.dungeonAmbientGain.gain.setValueAtTime(this.dungeonAmbientGain.gain.value, t);
+      this.dungeonAmbientGain.gain.linearRampToValueAtTime(0, t + 1.2);
+
+      const oldGain = this.dungeonAmbientGain;
+      const osc1 = this.dungeonOsc1;
+      const osc2 = this.dungeonOsc2;
+      const noise = this.dungeonNoiseSource;
+      const lfo = this.dungeonLfo;
+
+      setTimeout(() => {
+        try {
+          osc1?.stop();
+          osc1?.disconnect();
+          osc2?.stop();
+          osc2?.disconnect();
+          noise?.stop();
+          noise?.disconnect();
+          lfo?.stop();
+          lfo?.disconnect();
+          oldGain.disconnect();
+        } catch {
+          // ignore
+        }
+      }, 1300);
+    }
+
+    this.dungeonAmbientGain = null;
+    this.dungeonOsc1 = null;
+    this.dungeonOsc2 = null;
+    this.dungeonNoiseSource = null;
+    this.dungeonFilter = null;
+    this.dungeonLfo = null;
   }
 }
 

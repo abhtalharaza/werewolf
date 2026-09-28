@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Moon, Skull, Send, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { MessageSquare, Moon, Skull, Send, ChevronDown, ChevronUp, X, Lock } from 'lucide-react';
 import { ChatMessage, ChatChannel, ClientGameState } from '../types/game.js';
 import { getAvatar } from '../utils/avatars.js';
 
@@ -32,6 +32,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     me?.role === 'WOLF_CUB' ||
     me?.role === 'WHITE_WOLF' ||
     (me?.role === 'CURSED' && gameState.myTeam === 'WEREWOLVES');
+  const isJailor = me?.role === 'JAILOR';
+  const isJailed = Boolean(gameState.isJailedTonight);
+  const canAccessJailChat = (isJailor || isJailed) && (gameState.phase === 'NIGHT' || gameState.phase === 'TWILIGHT');
   const isDead = me && !me.isAlive;
   const isNight = gameState.phase === 'NIGHT';
   const isSilenced =
@@ -40,14 +43,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     gameState.silencedPlayerId === me.id &&
     (gameState.phase === 'DISCUSSION' || gameState.phase === 'VOTING');
 
-  // Auto switch channel if night begins and user is werewolf
+  // Auto switch channel if night begins and user is jailed, jailor, or werewolf
   useEffect(() => {
-    if (isNight && isWerewolf) {
+    if (isNight && isJailed) {
+      setActiveChannel('JAIL');
+    } else if (isNight && isJailor && gameState.jailedPlayerId) {
+      setActiveChannel('JAIL');
+    } else if (isNight && isWerewolf && !isJailed) {
       setActiveChannel('WEREWOLF');
-    } else if (!isNight && activeChannel === 'WEREWOLF') {
+    } else if (!isNight && (activeChannel === 'WEREWOLF' || activeChannel === 'JAIL')) {
       setActiveChannel('PUBLIC');
     }
-  }, [isNight, isWerewolf]);
+  }, [isNight, isWerewolf, isJailed, isJailor, gameState.jailedPlayerId]);
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -66,6 +73,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     if (activeChannel === 'PUBLIC') return m.channel === 'PUBLIC';
     if (activeChannel === 'WEREWOLF') return m.channel === 'WEREWOLF';
     if (activeChannel === 'DEAD') return m.channel === 'DEAD';
+    if (activeChannel === 'JAIL') return m.channel === 'JAIL';
     return true;
   });
 
@@ -108,6 +116,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             >
               <Moon className="w-3.5 h-3.5 text-rose-400" />
               <span>Pack Whisper</span>
+            </button>
+          )}
+
+          {/* Jail Interrogation Chat (Visible only to Jailor and Jailed player) */}
+          {canAccessJailChat && (
+            <button
+              id="tab-jail-chat"
+              onClick={() => setActiveChannel('JAIL')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition shrink-0 cursor-pointer ${
+                activeChannel === 'JAIL'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>{isJailor ? 'Jail Interrogation' : 'Jail Cell'}</span>
             </button>
           )}
 
@@ -223,6 +247,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               placeholder={
                 isSilenced
                   ? '⚠️ SILENCED! Sending a message will kill you instantly!'
+                  : activeChannel === 'JAIL'
+                  ? isJailor
+                    ? 'Interrogate your prisoner...'
+                    : 'Plead your innocence to the Jailor...'
                   : activeChannel === 'WEREWOLF'
                   ? 'Conspire with your werewolf pack...'
                   : activeChannel === 'DEAD'

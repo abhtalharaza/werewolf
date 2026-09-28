@@ -2,6 +2,7 @@ import React from 'react';
 import { Moon, Eye, HeartPulse, Crosshair, Sparkles, Shield, Users, Lock, Clock } from 'lucide-react';
 import { Role } from '../types/game.js';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
+import { ALL_ROLES_META } from '../types/roleMeta.js';
 import { NightModeToggle } from './NightModeToggle.js';
 import { AudioControls } from './AudioControls.js';
 
@@ -54,13 +55,11 @@ export const RoleRevealView: React.FC<RoleRevealViewProps> = ({ role, timer }) =
                   : 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-900/60 text-indigo-600 dark:text-indigo-400'
               }`}
             >
-              {role === 'WEREWOLF' && <Moon className="w-8 h-8 sm:w-10 sm:h-10" />}
-              {role === 'VILLAGER' && <Users className="w-8 h-8 sm:w-10 sm:h-10" />}
-              {role === 'SEER' && <Eye className="w-8 h-8 sm:w-10 sm:h-10" />}
-              {role === 'DOCTOR' && <HeartPulse className="w-8 h-8 sm:w-10 sm:h-10" />}
-              {role === 'HUNTER' && <Crosshair className="w-8 h-8 sm:w-10 sm:h-10" />}
-              {role === 'WITCH' && <Sparkles className="w-8 h-8 sm:w-10 sm:h-10" />}
-              {role === 'BODYGUARD' && <Shield className="w-8 h-8 sm:w-10 sm:h-10" />}
+              {(() => {
+                const meta = ALL_ROLES_META.find((m) => m.role === role);
+                const IconComponent = meta?.icon || Users;
+                return <IconComponent className="w-8 h-8 sm:w-10 sm:h-10" />;
+              })()}
             </div>
           </div>
 

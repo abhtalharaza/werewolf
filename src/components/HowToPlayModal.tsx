@@ -21,6 +21,8 @@ import {
   Crown,
   AlertTriangle,
   Brain,
+  Lock,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
 
@@ -70,6 +72,10 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
         return <AlertTriangle className="w-4 h-4 text-orange-500" />;
       case 'AMNESIAC':
         return <Brain className="w-4 h-4 text-teal-400" />;
+      case 'JAILOR':
+        return <Lock className="w-4 h-4 text-amber-500" />;
+      case 'TRANSPORTER':
+        return <ArrowLeftRight className="w-4 h-4 text-violet-400" />;
       default:
         return <Users className="w-4 h-4 text-zinc-400" />;
     }

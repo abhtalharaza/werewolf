@@ -67,6 +67,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     DICTATOR: 0,
     VETERAN: 0,
     AMNESIAC: 0,
+    JAILOR: 0,
+    TRANSPORTER: 0,
   });
 
   if (!isOpen) return null;

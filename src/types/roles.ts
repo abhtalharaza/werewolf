@@ -262,4 +262,22 @@ export const ROLE_DEFINITIONS: Record<Role, RoleInfo> = {
     ability: 'Starts with no team (Neutral). Each night, you inspect all fallen players and their true roles. Choose any deceased soul to permanently remember and awaken as their role!',
     nightPriority: 10,
   },
+  JAILOR: {
+    role: 'JAILOR',
+    name: 'The Jailor',
+    team: 'VILLAGERS',
+    icon: 'Lock',
+    description: 'The grim magistrate who imprisons suspects during Twilight for nocturnal interrogation and execution.',
+    ability: 'During the 5-second Twilight Phase before night, choose a suspect to jail. At night, the prisoner is Role Blocked and given Absolute Protection from outside attacks. Interrogate them in private cell chat and choose to Execute (max 3 per game, unstoppable attack). Beware: executing an innocent Villager causes Guilt, permanently removing all remaining executions!',
+    nightPriority: 1,
+  },
+  TRANSPORTER: {
+    role: 'TRANSPORTER',
+    name: 'The Transporter',
+    team: 'VILLAGERS',
+    icon: 'ArrowLeftRight',
+    description: 'A master of spatial displacement who secretly swaps two individuals under cover of darkness.',
+    ability: 'Each night, select two players (you may include yourself). Their physical locations and target destinations are swapped for that night with highest priority. Any nocturnal action (Kill, Heal, Investigate, Protect, Poison) directed at Player A redirects to Player B, and vice versa! Jailed players cannot be swapped.',
+    nightPriority: 0,
+  },
 };

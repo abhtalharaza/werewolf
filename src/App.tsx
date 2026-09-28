@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AtmosphereBackground } from './components/AtmosphereBackground.js';
+import { HomescreenWallpaper } from './components/HomescreenWallpaper.js';
 import { LandingView } from './components/LandingView.js';
 import { CreateRoomModal } from './components/CreateRoomModal.js';
 import { JoinRoomModal } from './components/JoinRoomModal.js';
@@ -125,8 +126,12 @@ export default function App() {
 
   return (
     <div id="werewolf-app-root" className="relative min-h-screen text-slate-800 dark:text-zinc-100 font-sans selection:bg-purple-600 selection:text-white overflow-x-hidden">
-      {/* Dynamic Gothic Atmosphere */}
-      <AtmosphereBackground phase={gameState?.phase} />
+      {/* Homescreen uses custom responsive howling wolves full-moon wallpaper; In-game uses dynamic phase background */}
+      {gameState ? (
+        <AtmosphereBackground phase={gameState.phase} />
+      ) : (
+        <HomescreenWallpaper />
+      )}
 
       {/* Global Error Banner */}
       {error && (

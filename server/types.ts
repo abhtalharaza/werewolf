@@ -43,7 +43,12 @@ export interface ServerNightAction {
     | 'PASS_AMNESIAC'
     | 'CANCEL_HEAL'
     | 'CANCEL_POISON'
-    | 'PASS_HEAL';
+    | 'PASS_HEAL'
+    | 'JAILOR_JAIL'
+    | 'JAILOR_EXECUTE'
+    | 'JAILOR_DONT_EXECUTE'
+    | 'TRANSPORT'
+    | 'PASS_TRANSPORT';
   targetId: string;
   secondaryTargetId?: string;
   chosenRole?: Role;
@@ -101,4 +106,12 @@ export interface ServerRoom {
   veteranAlertsRemaining: Record<string, number>; // playerId -> count
   amnesiacRememberedIds: string[];
   skipDiscussionVotes: string[]; // playerIds who voted to skip discussion
+  // Jailor state
+  jailedPlayerId: string | null;
+  jailorSelectedTargetId: string | null;
+  jailorExecutionCount: number;
+  jailorGuilty: boolean;
+  jailorExecutingTonight: boolean;
+  // Transporter state
+  transporterSwaps: Record<string, [string, string]>; // transporterPlayerId -> [target1Id, target2Id]
 }

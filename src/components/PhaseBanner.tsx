@@ -1,5 +1,5 @@
 import React from 'react';
-import { Moon, Sun, Vote, Skull, Clock, AlertTriangle, Crosshair, FastForward, CheckCircle2 } from 'lucide-react';
+import { Moon, Sun, Vote, Skull, Clock, AlertTriangle, Crosshair, FastForward, CheckCircle2, Sunset } from 'lucide-react';
 import { GamePhase } from '../types/game.js';
 
 interface PhaseBannerProps {
@@ -39,6 +39,14 @@ export const PhaseBanner: React.FC<PhaseBannerProps> = ({
 
   const getPhaseMeta = () => {
     switch (phase) {
+      case 'TWILIGHT':
+        return {
+          title: 'TWILIGHT HOUR',
+          subtitle: 'Dusk falls over the village (5s). Shadows lengthen as the Jailor prepares to haul a suspect to prison!',
+          icon: <Sunset className="w-5 h-5 text-amber-400" />,
+          accent: 'border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-purple-950/40 to-indigo-950/40 text-amber-200',
+          barColor: 'bg-gradient-to-r from-amber-500 via-orange-500 to-purple-600',
+        };
       case 'NIGHT':
         return {
           title: 'NIGHTFELL',

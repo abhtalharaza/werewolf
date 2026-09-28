@@ -25,6 +25,8 @@ import {
   Gavel,
   ShieldAlert,
   Brain,
+  Lock,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { Role, Team } from './game.js';
 
@@ -299,5 +301,23 @@ export const ALL_ROLES_META: RoleConfigMeta[] = [
     color: 'text-teal-600 dark:text-teal-400',
     badgeClass: 'bg-teal-50 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800/60',
     description: 'Starts with no team (Neutral). Each night, inspect all deceased players and their true roles. Once per game, choose a fallen soul to remember and permanently adopt their role and team!',
+  },
+  {
+    role: 'JAILOR',
+    name: 'The Jailor',
+    team: 'VILLAGERS',
+    icon: Lock,
+    color: 'text-amber-600 dark:text-amber-400',
+    badgeClass: 'bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60',
+    description: 'Select a target in the 5s Twilight Phase. At night, the prisoner is Role Blocked and given Absolute Protection. Interrogate and choose to Execute (max 3 times). Executing an innocent villager strips all executions forever!',
+  },
+  {
+    role: 'TRANSPORTER',
+    name: 'The Transporter',
+    team: 'VILLAGERS',
+    icon: ArrowLeftRight,
+    color: 'text-violet-600 dark:text-violet-400',
+    badgeClass: 'bg-violet-50 dark:bg-violet-950/70 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800/60',
+    description: 'Each night, select two players (including yourself). Their locations swap with highest priority, redirecting any night actions targeting one player to the other!',
   },
 ];

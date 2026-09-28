@@ -20,9 +20,17 @@ import {
   Clock,
   XCircle,
   Brain,
+  Lock,
+  Sunset,
+  MessageSquare,
+  Send,
+  Volume2,
+  ArrowLeftRight,
 } from 'lucide-react';
-import { ClientGameState, ClientPlayer, Role } from '../types/game.js';
+import { ClientGameState, ClientPlayer, Role, ChatMessage, ChatChannel } from '../types/game.js';
 import { ROLE_DEFINITIONS } from '../types/roles.js';
+import { sounds } from '../utils/audio.js';
+import { getAvatar } from '../utils/avatars.js';
 
 interface NightActionPanelProps {
   gameState: ClientGameState;
@@ -33,6 +41,11 @@ interface NightActionPanelProps {
   onCupidBound?: () => void;
   onUnselectCupidLover?: (slot: 1 | 2) => void;
   onResetCupidLovers?: () => void;
+  transporterTarget1Id?: string | null;
+  transporterTarget2Id?: string | null;
+  onSelectTransporterTarget?: (playerId: string) => void;
+  onUnselectTransporterTarget?: (slot: 1 | 2) => void;
+  onResetTransporterTargets?: () => void;
   onSelectTarget?: (playerId: string) => void;
   onSubmitAction: (
     actionType: any,
@@ -40,7 +53,129 @@ interface NightActionPanelProps {
     secondaryTargetId?: string,
     chosenRole?: Role
   ) => Promise<boolean>;
+  chatMessages?: ChatMessage[];
+  onSendMessage?: (channel: ChatChannel, text: string) => void;
 }
+
+const JailChat: React.FC<{
+  chatMessages: ChatMessage[];
+  onSendMessage?: (channel: ChatChannel, text: string) => void;
+  isJailor: boolean;
+  partnerName?: string | null;
+}> = ({ chatMessages, onSendMessage, isJailor, partnerName }) => {
+  const [text, setText] = useState('');
+  const jailMessages = chatMessages.filter((m) => m.channel === 'JAIL');
+  const chatBottomRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [jailMessages.length]);
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim() || !onSendMessage) return;
+    onSendMessage('JAIL', text.trim());
+    setText('');
+  };
+
+  const quickPrompts = isJailor
+    ? [
+        'What is your role?',
+        'Claim your ability now.',
+        'Convince me why I shouldn’t execute you.',
+        'I am listening. Speak fast.',
+      ]
+    : [
+        'I am innocent! Please spare me.',
+        'I am a Villager (Good Team)!',
+        'Don’t execute me, I have an important role!',
+        'You will suffer Guilt if you execute me!',
+      ];
+
+  return (
+    <div className="rounded-2xl bg-zinc-950/85 border border-amber-900/50 p-3 sm:p-4 space-y-3 shadow-inner">
+      <div className="flex items-center justify-between border-b border-amber-900/40 pb-2">
+        <div className="flex items-center gap-2 text-xs font-cinzel font-bold text-amber-300">
+          <Lock className="w-3.5 h-3.5 text-amber-400" />
+          <span>Private Cell Interrogation</span>
+        </div>
+        <span className="text-[10px] font-mono text-zinc-400">
+          {isJailor
+            ? partnerName ? `Interrogating: ${partnerName}` : 'Interrogating Prisoner'
+            : 'Speaking with: The Jailor'}
+        </span>
+      </div>
+
+      <div className="h-36 sm:h-40 overflow-y-auto space-y-2 p-2.5 rounded-xl bg-black/60 border border-zinc-800 text-xs">
+        {jailMessages.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-zinc-500 italic text-[11px] text-center p-3">
+            {isJailor
+              ? 'The prisoner sits across the iron table. Question them now to determine their fate.'
+              : 'You are face to face with the masked Jailor. State your role and plead your case!'}
+          </div>
+        ) : (
+          jailMessages.map((msg) => {
+            const isMe = isJailor ? msg.senderName === 'The Jailor' : msg.senderName !== 'The Jailor';
+            return (
+              <div
+                key={msg.id}
+                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+              >
+                <div className="text-[10px] text-zinc-400 mb-0.5 font-mono">
+                  {msg.senderName}
+                </div>
+                <div
+                  className={`px-3 py-1.5 rounded-2xl max-w-[85%] break-words ${
+                    isMe
+                      ? 'bg-amber-600 text-white rounded-tr-xs shadow-xs'
+                      : 'bg-zinc-800 text-zinc-200 rounded-tl-xs border border-zinc-700'
+                  }`}
+                >
+                  {msg.text}
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={chatBottomRef} />
+      </div>
+
+      {/* Quick Prompts */}
+      <div className="flex flex-wrap gap-1.5 text-[10px]">
+        {quickPrompts.map((prompt, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => onSendMessage?.('JAIL', prompt)}
+            className="px-2 py-1 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 text-amber-200/90 border border-amber-900/40 transition cursor-pointer text-left font-medium"
+          >
+            "{prompt}"
+          </button>
+        ))}
+      </div>
+
+      {/* Input */}
+      <form onSubmit={handleSend} className="flex gap-2">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={isJailor ? 'Interrogate the prisoner...' : 'Plead to the Jailor...'}
+          className="flex-1 px-3 py-2 rounded-xl bg-zinc-900/90 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-amber-500"
+          maxLength={200}
+        />
+        <button
+          type="submit"
+          disabled={!text.trim()}
+          className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-xs"
+        >
+          <Send className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Send</span>
+        </button>
+      </form>
+    </div>
+  );
+};
 
 export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   gameState,
@@ -51,8 +186,15 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   onCupidBound,
   onUnselectCupidLover,
   onResetCupidLovers,
+  transporterTarget1Id,
+  transporterTarget2Id,
+  onSelectTransporterTarget,
+  onUnselectTransporterTarget,
+  onResetTransporterTargets,
   onSelectTarget,
   onSubmitAction,
+  chatMessages = [],
+  onSendMessage,
 }) => {
   const [submitting, setSubmitting] = useState(false);
   const [confirmedTargetId, setConfirmedTargetId] = useState<string | null>(null);
@@ -73,6 +215,69 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
   const targetPlayer = gameState.players.find((p) => p.id === selectedTargetId);
   const cupidLover1 = gameState.players.find((p) => p.id === cupidLover1Id);
   const cupidLover2 = gameState.players.find((p) => p.id === cupidLover2Id);
+
+  // Transporter helpers
+  const target1Player = transporterTarget1Id
+    ? gameState.players.find((p) => p.id === transporterTarget1Id)
+    : null;
+  const target2Player = transporterTarget2Id
+    ? gameState.players.find((p) => p.id === transporterTarget2Id)
+    : null;
+
+  const hasTransporterSwapped = Boolean(
+    gameState.transporterSwappedTonight ||
+    (gameState.transporterTarget1Id && gameState.transporterTarget2Id) ||
+    confirmedTargetId === 'TRANSPORT_CONFIRMED'
+  );
+
+  const transporterTarget1Display =
+    gameState.transporterTarget1Name || target1Player?.name || 'Player A';
+  const transporterTarget2Display =
+    gameState.transporterTarget2Name || target2Player?.name || 'Player B';
+
+  const canSwap = Boolean(
+    transporterTarget1Id &&
+    transporterTarget2Id &&
+    transporterTarget1Id !== transporterTarget2Id &&
+    !submitting
+  );
+
+  const handleTransportSwap = async () => {
+    if (!transporterTarget1Id || !transporterTarget2Id || submitting) return;
+    setSubmitting(true);
+    sounds.playTransporterSwap();
+    try {
+      const ok = await onSubmitAction('TRANSPORT', transporterTarget1Id, transporterTarget2Id);
+      if (ok) {
+        setConfirmedTargetId('TRANSPORT_CONFIRMED');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePassTransport = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const ok = await onSubmitAction('PASS_TRANSPORT', '');
+      if (ok) {
+        setConfirmedTargetId(null);
+        onResetTransporterTargets?.();
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClearSwap = async () => {
+    if (submitting) return;
+    onResetTransporterTargets?.();
+    setConfirmedTargetId(null);
+    if (hasTransporterSwapped) {
+      await onSubmitAction('PASS_TRANSPORT', '');
+    }
+  };
 
   // Werewolf hunting time lock (15s for wolves when Witch is present, full night when no Witch)
   const isWolfHuntingLocked = Boolean(
@@ -180,6 +385,39 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
     }
   };
 
+  const handleJailorJail = async (targetId: string) => {
+    if (submitting) return;
+    sounds.playJailLock();
+    setSubmitting(true);
+    try {
+      await onSubmitAction('JAILOR_JAIL', targetId);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleJailorExecute = async () => {
+    if (submitting || !gameState.jailedPlayerId) return;
+    sounds.playJailLock();
+    setSubmitting(true);
+    try {
+      await onSubmitAction('JAILOR_EXECUTE', gameState.jailedPlayerId);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleJailorDontExecute = async () => {
+    if (submitting || !gameState.jailedPlayerId) return;
+    sounds.playJailLock();
+    setSubmitting(true);
+    try {
+      await onSubmitAction('JAILOR_DONT_EXECUTE', gameState.jailedPlayerId);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const isWerewolfPackMember =
     role === 'WEREWOLF' ||
     role === 'WOLF_CUB' ||
@@ -191,6 +429,325 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
       id="night-action-panel"
       className="w-full max-w-2xl mx-auto p-4 sm:p-5 rounded-3xl glass-card border border-white/80 dark:border-white/10 shadow-2xl backdrop-blur-2xl"
     >
+      {/* 0A. JAILED PLAYER SCREEN - REPLACES NORMAL ROLE SCREEN ENTIRELY */}
+      {gameState.isJailedTonight ? (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-stone-950 via-zinc-900 to-black border-2 border-stone-800 p-5 sm:p-7 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in-95 duration-300">
+          {/* Iron Jail Bars Visual Effect Overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-25 flex justify-around"
+            aria-hidden="true"
+          >
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={i}
+                className="w-2.5 h-full bg-gradient-to-r from-zinc-700 via-zinc-400 to-zinc-800 shadow-[inset_0_0_4px_rgba(0,0,0,0.8)] border-x border-black"
+              />
+            ))}
+          </div>
+
+          {/* Header */}
+          <div className="relative z-10 space-y-2">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-950/80 border-2 border-amber-600/70 text-amber-400 flex items-center justify-center shadow-lg shadow-amber-950/60">
+              <Lock className="w-9 h-9 animate-pulse" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black font-cinzel text-amber-400 tracking-wider">
+              You were hauled off to jail!
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-300 max-w-lg mx-auto leading-relaxed">
+              The Jailor dragged you from your bed into a high-security stone dungeon cell for interrogation before nightfall.
+            </p>
+
+            {/* Audio Cue Indicator */}
+            <div className="pt-1 flex justify-center">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/90 border border-amber-900/50 text-[11px] font-mono text-amber-300/90 shadow-md">
+                <Volume2 className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                <span>Dungeon Ambience Active</span>
+                <span className="text-zinc-600">•</span>
+                <button
+                  type="button"
+                  id="replay-jail-slam-btn"
+                  onClick={() => sounds.playJailSlam()}
+                  className="px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] font-bold border border-amber-500/40 transition cursor-pointer"
+                  title="Play heavy metallic cell door slam"
+                >
+                  Replay Cell Slam
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mechanic Badges */}
+          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+            <div className="p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800/50 space-y-1">
+              <div className="flex items-center gap-1.5 text-rose-300 font-bold font-cinzel text-xs">
+                <VolumeX className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>Role Block (Silenced)</span>
+              </div>
+              <p className="text-[11px] text-zinc-300 leading-normal">
+                You cannot perform any night actions or use any special powers tonight (Doctor heals, Werewolf attacks, Seer visions, etc. are disabled).
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-800/50 space-y-1">
+              <div className="flex items-center gap-1.5 text-emerald-300 font-bold font-cinzel text-xs">
+                <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Absolute Protection</span>
+              </div>
+              <p className="text-[11px] text-zinc-300 leading-normal">
+                The fortified iron bars shield you from all outside harm. Attacks from Werewolves, Witches, or Serial Killers fail silently against your cell!
+              </p>
+            </div>
+          </div>
+
+          {/* Interrogation Chat */}
+          <div className="relative z-10 text-left">
+            <JailChat
+              chatMessages={chatMessages}
+              onSendMessage={onSendMessage}
+              isJailor={false}
+            />
+          </div>
+        </div>
+      ) : gameState.phase === 'TWILIGHT' ? (
+        /* 0B. TWILIGHT PHASE (5 SECONDS) */
+        <div className="rounded-3xl bg-gradient-to-br from-amber-950/40 via-purple-950/40 to-indigo-950/50 border border-amber-500/30 p-5 sm:p-6 space-y-4 shadow-2xl backdrop-blur-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-300 font-bold font-cinzel text-sm sm:text-base">
+              <Sunset className="w-5 h-5 text-amber-400" />
+              <span>Twilight Phase (5s)</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 font-mono text-xs font-bold">
+              <Clock className="w-3.5 h-3.5 animate-spin" />
+              <span>{gameState.timer}s remaining</span>
+            </div>
+          </div>
+
+          {role === 'JAILOR' ? (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-amber-900/30 border border-amber-700/40 space-y-1.5 text-xs text-amber-100">
+                <div className="font-bold font-cinzel text-amber-300 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-amber-400" />
+                  <span>The Jailor's Custody Choice</span>
+                </div>
+                <p className="text-zinc-300 leading-relaxed">
+                  Select a suspect from the living villagers above before the 5-second twilight window expires. When night begins, they will be hauled off to jail, role-blocked, and shielded from outside attacks!
+                </p>
+                <div className="flex items-center gap-3 pt-1 text-[11px] font-mono">
+                  <span className="text-amber-400 font-semibold">
+                    Executions Remaining: {gameState.jailorExecutionCount ?? 3} / 3
+                  </span>
+                  {gameState.jailorGuilty && (
+                    <span className="text-rose-400 font-bold">
+                      ⚖️ Guilt Penalty: Executions Disabled
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Selected Target Status & Direct Selection Card */}
+              {(() => {
+                const target =
+                  gameState.players.find((p) => p.id === selectedTargetId) ||
+                  (gameState.jailorPendingTargetId
+                    ? gameState.players.find((p) => p.id === gameState.jailorPendingTargetId)
+                    : null);
+
+                return target ? (
+                  <div className="p-4 rounded-2xl bg-zinc-900/80 border border-amber-500/50 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+                    <div className="flex items-center gap-3 text-left">
+                      <div className="w-10 h-10 rounded-full bg-amber-950 border border-amber-500 flex items-center justify-center text-amber-400 font-bold text-sm">
+                        {target.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-xs text-zinc-400 uppercase tracking-widest font-mono">Selected Suspect</div>
+                        <div className="text-sm font-bold text-white font-cinzel">{target.name}</div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handleJailorJail(target.id)}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-amber-950/50 cursor-pointer"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>{submitting ? 'Locking In...' : `Jail ${target.name}`}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-zinc-900/60 border border-dashed border-zinc-700 text-center text-xs text-zinc-400 space-y-1">
+                    <p className="font-medium text-zinc-300">Click any living player card on the village board above to select your prisoner.</p>
+                    <p className="text-[11px] text-zinc-500">You must choose before the 5-second countdown finishes!</p>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="text-center py-4 space-y-2">
+              <div className="font-cinzel text-amber-200 font-bold text-sm sm:text-base">
+                Dusk Settles Over the Hamlet
+              </div>
+              <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
+                The sky turns crimson and twilight descends. The Jailor is currently selecting a suspect to drag into custody before nightfall.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : role === 'JAILOR' && gameState.phase === 'NIGHT' ? (
+        /* 0C. JAILOR NIGHT INTERROGATION & EXECUTION PANEL */
+        <div className="rounded-3xl bg-gradient-to-b from-stone-950 via-zinc-900 to-black border-2 border-stone-800 p-5 sm:p-6 space-y-5 shadow-2xl backdrop-blur-2xl">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-2xl bg-amber-950 border border-amber-600/60 text-amber-400">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-cinzel font-bold text-white text-base">
+                  The Jailor's Interrogation Chamber
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Interrogate your captive and decree whether they live or die tonight.
+                </p>
+              </div>
+            </div>
+
+            {/* Execution Count Counter */}
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-mono">
+              <Skull className="w-3.5 h-3.5 text-rose-400" />
+              <span>
+                Executions:{' '}
+                <strong className={gameState.jailorGuilty || (gameState.jailorExecutionCount ?? 0) <= 0 ? 'text-rose-400' : 'text-amber-400'}>
+                  {gameState.jailorExecutionCount ?? 3} / 3
+                </strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Guilt Penalty Banner if applicable */}
+          {gameState.jailorGuilty && (
+            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-600/70 text-rose-200 text-xs space-y-1">
+              <div className="font-bold font-cinzel flex items-center gap-1.5 text-rose-300">
+                <AlertTriangle className="w-4 h-4 text-rose-400" />
+                <span>Overcome by Guilt</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-zinc-300">
+                You previously executed an innocent Villager! Tormented by remorse, all your remaining execution abilities have been revoked permanently. You can still jail suspects on future nights to role-block and protect them, but you can never execute again.
+              </p>
+            </div>
+          )}
+
+          {/* Prisoner Status Card */}
+          {gameState.jailedPlayerId ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-700 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-950/70 border border-amber-600/60 flex items-center justify-center text-amber-400 font-bold font-cinzel text-base">
+                    {gameState.jailedPlayerName?.slice(0, 2).toUpperCase() || 'PR'}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[10px] text-zinc-400 uppercase tracking-widest font-mono">
+                      Current Prisoner
+                    </div>
+                    <div className="text-base font-bold text-white font-cinzel">
+                      {gameState.jailedPlayerName || 'Unknown Prisoner'}
+                    </div>
+                    <div className="text-[11px] text-emerald-400 font-medium">
+                      🔒 Role-Blocked & Protected from Outside Attacks
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current Action State Pill */}
+                <div className="w-full sm:w-auto text-center sm:text-right">
+                  {gameState.jailorExecutingTonight ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/80 border border-rose-500 text-rose-200 font-bold text-xs animate-pulse">
+                      <Skull className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Execution Scheduled</span>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500 text-emerald-200 font-bold text-xs">
+                      <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Sparing Prisoner</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons: Execute vs Don't Execute */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Execute Button */}
+                <button
+                  type="button"
+                  id="jailor-execute-btn"
+                  disabled={
+                    submitting ||
+                    gameState.jailorGuilty ||
+                    (gameState.jailorExecutionCount ?? 0) <= 0 ||
+                    Boolean(gameState.jailorExecutingTonight)
+                  }
+                  onClick={handleJailorExecute}
+                  className={`p-3.5 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition text-xs font-bold cursor-pointer ${
+                    gameState.jailorExecutingTonight
+                      ? 'bg-rose-900/60 border-2 border-rose-500 text-rose-100 shadow-lg shadow-rose-950/80'
+                      : gameState.jailorGuilty || (gameState.jailorExecutionCount ?? 0) <= 0
+                      ? 'bg-zinc-900/40 border border-zinc-800 text-zinc-500 cursor-not-allowed opacity-50'
+                      : 'bg-rose-950/50 hover:bg-rose-900/60 border border-rose-700/60 text-rose-200 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-sm font-cinzel">
+                    <Skull className="w-4 h-4 text-rose-400" />
+                    <span>Execute</span>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 font-normal">
+                    Unstoppable Attack • Ignores Doctor & Bodyguard
+                  </span>
+                </button>
+
+                {/* Don't Execute Button */}
+                <button
+                  type="button"
+                  id="jailor-dont-execute-btn"
+                  disabled={submitting || !gameState.jailorExecutingTonight}
+                  onClick={handleJailorDontExecute}
+                  className={`p-3.5 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition text-xs font-bold cursor-pointer ${
+                    !gameState.jailorExecutingTonight
+                      ? 'bg-emerald-900/50 border-2 border-emerald-500 text-emerald-100 shadow-lg shadow-emerald-950/80'
+                      : 'bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700 text-zinc-200 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-sm font-cinzel">
+                    <Shield className="w-4 h-4 text-emerald-400" />
+                    <span>Don't Execute</span>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 font-normal">
+                    Interrogate only • Prisoner released safely at dawn
+                  </span>
+                </button>
+              </div>
+
+              {/* Interrogation Chat Window */}
+              <JailChat
+                chatMessages={chatMessages}
+                onSendMessage={onSendMessage}
+                isJailor={true}
+                partnerName={gameState.jailedPlayerName}
+              />
+            </div>
+          ) : (
+            <div className="text-center py-6 space-y-2 bg-zinc-900/40 rounded-2xl border border-zinc-800 p-4">
+              <div className="font-cinzel text-zinc-300 font-bold text-sm">
+                No Prisoner In Custody Tonight
+              </div>
+              <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                No suspect was hauled to prison during the Twilight Phase. Stay alert until dawn breaks!
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
       {/* 1. WEREWOLF PANEL */}
       {isWerewolfPackMember && (
         <div className="space-y-3">
@@ -2091,6 +2648,266 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
         </div>
       )}
 
+      {/* 17. THE TRANSPORTER PANEL (Swap 2 Players) */}
+      {role === 'TRANSPORTER' && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+            <div className="flex items-center gap-2 text-violet-400 font-bold font-cinzel text-sm sm:text-base">
+              <div className="p-1.5 rounded-lg bg-violet-950/80 border border-violet-700/60 text-violet-300">
+                <ArrowLeftRight className="w-4 h-4" />
+              </div>
+              <span>Spatial Transposition</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-amber-300 font-mono bg-amber-950/50 px-2.5 py-0.5 rounded-md border border-amber-800/50">
+                Priority: Highest (1st to Resolve)
+              </span>
+            </div>
+          </div>
+
+          {/* Main Prompt */}
+          <div className="text-center space-y-1">
+            <h4 className="font-cinzel text-violet-200 font-bold text-base sm:text-lg">
+              Select two players to swap
+            </h4>
+            <p className="text-xs text-zinc-400 max-w-lg mx-auto leading-relaxed">
+              Swap the nocturnal locations of any two living players (you may select yourself). Any nocturnal action (Kill, Heal, Investigate, Protect) directed at Target A will automatically redirect to Target B, and vice versa!
+            </p>
+          </div>
+
+          {/* Confirmation Banner if swapped */}
+          {hasTransporterSwapped && (
+            <div
+              id="transporter-swap-confirmation-banner"
+              className="p-3.5 rounded-2xl bg-gradient-to-r from-violet-950/90 via-purple-950/90 to-violet-950/90 border-2 border-violet-400/80 shadow-[0_0_25px_rgba(139,92,246,0.35)] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-violet-600/40 border border-violet-400 flex items-center justify-center text-violet-200 shrink-0 shadow-inner">
+                  <ArrowLeftRight className="w-5 h-5 animate-pulse text-violet-300" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-violet-100 font-cinzel">
+                    You swapped {transporterTarget1Display} and {transporterTarget2Display}.
+                  </div>
+                  <div className="text-[11px] text-violet-300/80">
+                    All attacks, heals, and investigations targeting either individual will secretly redirect tonight.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearSwap}
+                disabled={submitting}
+                className="px-3.5 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-semibold transition cursor-pointer shrink-0"
+              >
+                Change Swap
+              </button>
+            </div>
+          )}
+
+          {/* Target Slots */}
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3">
+            {/* Slot 1: Target A */}
+            <div
+              className={`p-3 rounded-2xl border transition-all ${
+                target1Player
+                  ? 'bg-violet-950/60 border-violet-500 shadow-md shadow-violet-950/50'
+                  : 'bg-zinc-900/60 border-dashed border-zinc-700/80 hover:border-violet-500/50'
+              }`}
+            >
+              <div className="text-[10px] uppercase font-mono font-bold text-violet-400 mb-2 flex items-center justify-between">
+                <span>Target A (1st Player)</span>
+                {target1Player && (
+                  <button
+                    type="button"
+                    onClick={() => onUnselectTransporterTarget?.(1)}
+                    className="text-zinc-500 hover:text-zinc-300 p-0.5 cursor-pointer"
+                    title="Unselect Target A"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {target1Player ? (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full border border-violet-400 flex items-center justify-center font-bold text-sm shrink-0"
+                    style={{
+                      backgroundColor: getAvatar(target1Player.avatar).color + '33',
+                      color: getAvatar(target1Player.avatar).color,
+                    }}
+                  >
+                    {target1Player.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-sm text-white truncate flex items-center gap-1.5">
+                      <span>{target1Player.name}</span>
+                      {target1Player.id === gameState.myPlayerId && (
+                        <span className="text-[10px] text-violet-300 font-mono bg-violet-900/60 px-1.5 py-0.5 rounded">
+                          (You)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-zinc-400">Position 1</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-2 text-xs text-zinc-500 font-medium">
+                  Click a player on board or below
+                </div>
+              )}
+            </div>
+
+            {/* Portal Swap Icon */}
+            <div className="flex flex-col items-center justify-center p-1">
+              <div className="w-9 h-9 rounded-full bg-violet-900/60 border border-violet-500/60 flex items-center justify-center text-violet-300 shadow-lg shadow-violet-950/50">
+                <ArrowLeftRight className="w-4 h-4" />
+              </div>
+              <span className="text-[9px] text-violet-400 font-mono mt-1">Swaps with</span>
+            </div>
+
+            {/* Slot 2: Target B */}
+            <div
+              className={`p-3 rounded-2xl border transition-all ${
+                target2Player
+                  ? 'bg-violet-950/60 border-violet-500 shadow-md shadow-violet-950/50'
+                  : 'bg-zinc-900/60 border-dashed border-zinc-700/80 hover:border-violet-500/50'
+              }`}
+            >
+              <div className="text-[10px] uppercase font-mono font-bold text-violet-400 mb-2 flex items-center justify-between">
+                <span>Target B (2nd Player)</span>
+                {target2Player && (
+                  <button
+                    type="button"
+                    onClick={() => onUnselectTransporterTarget?.(2)}
+                    className="text-zinc-500 hover:text-zinc-300 p-0.5 cursor-pointer"
+                    title="Unselect Target B"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {target2Player ? (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full border border-violet-400 flex items-center justify-center font-bold text-sm shrink-0"
+                    style={{
+                      backgroundColor: getAvatar(target2Player.avatar).color + '33',
+                      color: getAvatar(target2Player.avatar).color,
+                    }}
+                  >
+                    {target2Player.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-sm text-white truncate flex items-center gap-1.5">
+                      <span>{target2Player.name}</span>
+                      {target2Player.id === gameState.myPlayerId && (
+                        <span className="text-[10px] text-violet-300 font-mono bg-violet-900/60 px-1.5 py-0.5 rounded">
+                          (You)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-zinc-400">Position 2</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-2 text-xs text-zinc-500 font-medium">
+                  Click 2nd player to complete swap
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Player Selection List from Panel */}
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-semibold text-zinc-400 flex items-center justify-between">
+              <span>Living Villagers & Targets</span>
+              <span className="text-[10px] text-zinc-500">Click to choose or change targets</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-36 overflow-y-auto pr-1">
+              {gameState.players
+                .filter((p) => p.isAlive)
+                .map((p) => {
+                  const isTarget1 = target1Player?.id === p.id;
+                  const isTarget2 = target2Player?.id === p.id;
+                  const isSelected = isTarget1 || isTarget2;
+                  const av = getAvatar(p.avatar);
+
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => onSelectTransporterTarget?.(p.id)}
+                      className={`p-2 rounded-xl border text-left flex items-center gap-2 transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-violet-950/80 border-violet-400 text-white shadow-sm ring-1 ring-violet-400'
+                          : 'bg-zinc-900/80 hover:bg-zinc-800/80 border-zinc-800 text-zinc-300 hover:text-white'
+                      }`}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-full border border-zinc-700 flex items-center justify-center text-xs font-bold shrink-0"
+                        style={{ backgroundColor: av.color + '26', color: av.color }}
+                      >
+                        {p.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold truncate flex items-center gap-1">
+                          <span>{p.name}</span>
+                          {p.id === gameState.myPlayerId && (
+                            <span className="text-[9px] text-violet-400">(You)</span>
+                          )}
+                        </div>
+                        <div className="text-[9px] font-mono text-zinc-500">
+                          {isTarget1 ? 'Target A' : isTarget2 ? 'Target B' : 'Available'}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="w-4 h-4 rounded-full bg-violet-500 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+                          {isTarget1 ? 'A' : 'B'}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Action / Constraints Buttons */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-zinc-800/80">
+            <button
+              id="transporter-skip-turn-btn"
+              type="button"
+              onClick={handlePassTransport}
+              disabled={submitting}
+              className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 text-xs font-semibold transition cursor-pointer min-h-[42px] flex items-center justify-center gap-1.5"
+            >
+              <span>Skip Turn (No Swap)</span>
+            </button>
+
+            {canSwap ? (
+              <button
+                id="transporter-confirm-swap-btn"
+                type="button"
+                onClick={handleTransportSwap}
+                disabled={submitting}
+                className="flex-1 sm:flex-initial px-6 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm font-cinzel transition shadow-[0_0_20px_rgba(139,92,246,0.4)] cursor-pointer min-h-[42px] flex items-center justify-center gap-2 active:scale-98"
+              >
+                <ArrowLeftRight className="w-4 h-4 animate-pulse" />
+                <span>
+                  {submitting ? 'Transposing...' : `Swap ${target1Player?.name} & ${target2Player?.name}`}
+                </span>
+              </button>
+            ) : (
+              <div className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-500 text-xs text-center flex items-center justify-center min-h-[42px]">
+                {target1Player && !target2Player
+                  ? '⚠️ Must select exactly 2 distinct players or skip'
+                  : 'Select two players to activate swap'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 18. PASSIVE OR SLUMBERING ROLES AT NIGHT */}
       {!isWerewolfPackMember &&
         role !== 'SEER' &&
@@ -2105,6 +2922,9 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
         role !== 'ARSONIST' &&
         role !== 'VETERAN' &&
         role !== 'AMNESIAC' &&
+        role !== 'JAILOR' &&
+        role !== 'TRANSPORTER' &&
+        !gameState.isJailedTonight &&
         !(role === 'WILD_CHILD' && !gameState.wildChildModelId && gameState.round === 1) &&
         !(role === 'CUPID' && gameState.round === 1) &&
         !(role === 'DOPPELGANGER' && gameState.round === 1) &&
@@ -2164,6 +2984,8 @@ export const NightActionPanel: React.FC<NightActionPanelProps> = ({
             )}
           </div>
         )}
+        </>
+      )}
     </div>
   );
 };

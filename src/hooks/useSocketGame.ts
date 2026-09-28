@@ -37,6 +37,7 @@ export function useSocketGame() {
 
   const prevPhaseRef = useRef<string | null>(null);
   const prevDeathsCountRef = useRef<number>(0);
+  const prevIsJailedRef = useRef<boolean>(false);
   const currentRoomCodeRef = useRef<string | null>(null);
   const myPlayerIdRef = useRef<string | null>(null);
   const isLeavingRef = useRef<boolean>(false);
@@ -108,35 +109,71 @@ export function useSocketGame() {
         }
       }
 
+      const isNowJailed = Boolean(state.isJailedTonight);
+      const wasJailed = prevIsJailedRef.current;
+      const isNight = state.phase === 'NIGHT';
+      const isJailorInNight = state.myRole === 'JAILOR' && isNight && Boolean(state.jailedPlayerId);
+
       // Sound triggers based on phase transitions
       if (prevPhaseRef.current !== state.phase) {
         if (state.phase === 'ROLE_REVEAL') {
+          sounds.stopDungeonAmbience();
           sounds.playMysticReveal();
+        } else if (state.phase === 'TWILIGHT') {
+          sounds.stopDungeonAmbience();
+          sounds.playTick(false);
         } else if (state.phase === 'NIGHT') {
-          sounds.playWolfHowl();
-        } else if (state.phase === 'DAY_ANNOUNCEMENT') {
-          sounds.playBellToll();
-        } else if (state.phase === 'VOTING') {
-          sounds.playVoteCast();
-        } else if (state.phase === 'GAME_OVER') {
-          if (state.winnerTeam === state.myTeam) {
-            sounds.playVictory();
-            try {
-              confetti({
-                particleCount: 120,
-                spread: 70,
-                origin: { y: 0.6 },
-                colors: ['#a855f7', '#ec4899', '#3b82f6', '#fbbf24'],
-              });
-            } catch {
-              // ignore
-            }
+          if (isNowJailed) {
+            // Heavy metallic slam when a player is jailed
+            sounds.playJailSlam();
+            // Dungeon ambient loop during night phase
+            sounds.startDungeonAmbience();
+          } else if (isJailorInNight) {
+            // Jailor in dungeon interrogation room also gets dungeon ambient loop
+            sounds.startDungeonAmbience();
+            sounds.playWolfHowl();
           } else {
-            sounds.playElimination();
+            sounds.stopDungeonAmbience();
+            sounds.playWolfHowl();
+          }
+        } else {
+          // Daytime, council, or voting: stop dungeon ambience
+          sounds.stopDungeonAmbience();
+          if (state.phase === 'DAY_ANNOUNCEMENT') {
+            sounds.playBellToll();
+          } else if (state.phase === 'VOTING') {
+            sounds.playVoteCast();
+          } else if (state.phase === 'GAME_OVER') {
+            if (state.winnerTeam === state.myTeam) {
+              sounds.playVictory();
+              try {
+                confetti({
+                  particleCount: 120,
+                  spread: 70,
+                  origin: { y: 0.6 },
+                  colors: ['#a855f7', '#ec4899', '#3b82f6', '#fbbf24'],
+                });
+              } catch {
+                // ignore
+              }
+            } else {
+              sounds.playElimination();
+            }
           }
         }
         prevPhaseRef.current = state.phase;
+      } else {
+        // Within the same phase: if jailed status was newly applied
+        if (isNowJailed && !wasJailed) {
+          sounds.playJailSlam();
+          if (isNight) {
+            sounds.startDungeonAmbience();
+          }
+        } else if (!isNowJailed && wasJailed && !isJailorInNight) {
+          sounds.stopDungeonAmbience();
+        }
       }
+      prevIsJailedRef.current = isNowJailed;
 
       // Sound trigger for elimination
       const deadCount = state.players.filter((p) => !p.isAlive).length;
@@ -152,6 +189,7 @@ export function useSocketGame() {
     });
 
     s.on('room:kicked', ({ reason }: { reason?: string }) => {
+      sounds.stopDungeonAmbience();
       currentRoomCodeRef.current = null;
       myPlayerIdRef.current = null;
       setGameState(null);
@@ -162,6 +200,7 @@ export function useSocketGame() {
     setSocket(s);
 
     return () => {
+      sounds.stopDungeonAmbience();
       s.disconnect();
     };
   }, []);
@@ -227,6 +266,7 @@ export function useSocketGame() {
   );
 
   const leaveRoom = useCallback(() => {
+    sounds.stopDungeonAmbience();
     isLeavingRef.current = true;
     const roomCode = currentRoomCodeRef.current || gameState?.roomCode;
     const playerId = myPlayerIdRef.current || gameState?.myPlayerId;
@@ -347,7 +387,12 @@ export function useSocketGame() {
         | 'PASS_AMNESIAC'
         | 'CANCEL_HEAL'
         | 'CANCEL_POISON'
-        | 'PASS_HEAL',
+        | 'PASS_HEAL'
+        | 'JAILOR_JAIL'
+        | 'JAILOR_EXECUTE'
+        | 'JAILOR_DONT_EXECUTE'
+        | 'TRANSPORT'
+        | 'PASS_TRANSPORT',
       targetId: string,
       secondaryTargetId?: string,
       chosenRole?: Role

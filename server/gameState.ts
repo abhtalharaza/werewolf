@@ -82,6 +82,8 @@ export class GameRoom {
         DICTATOR: 0,
         VETERAN: 0,
         AMNESIAC: 0,
+        JAILOR: 0,
+        TRANSPORTER: 0,
       },
       veteranMaxAlerts: 3,
     };
@@ -149,6 +151,12 @@ export class GameRoom {
       veteranAlertsRemaining: {},
       amnesiacRememberedIds: [],
       skipDiscussionVotes: [],
+      jailedPlayerId: null,
+      jailorSelectedTargetId: null,
+      jailorExecutionCount: 3,
+      jailorGuilty: false,
+      jailorExecutingTonight: false,
+      transporterSwaps: {},
     };
 
     if (initialSettings?.autoPopulateBots) {
@@ -407,6 +415,11 @@ export class GameRoom {
     this.room.dictatorPlayerId = null;
     this.room.veteranAlertsRemaining = {};
     this.room.amnesiacRememberedIds = [];
+    this.room.jailedPlayerId = null;
+    this.room.jailorSelectedTargetId = null;
+    this.room.jailorExecutionCount = 3;
+    this.room.jailorGuilty = false;
+    this.room.jailorExecutingTonight = false;
     const maxVeteranAlerts = Math.min(3, Math.max(1, this.room.settings.veteranMaxAlerts ?? 3));
     this.room.players.forEach((p) => {
       if (p.role === 'VETERAN') {
@@ -462,6 +475,9 @@ export class GameRoom {
   private onPhaseTimerExpired() {
     switch (this.room.phase) {
       case 'ROLE_REVEAL':
+        this.startTwilightPhase();
+        break;
+      case 'TWILIGHT':
         this.startNightPhase();
         break;
       case 'NIGHT':
@@ -515,7 +531,27 @@ export class GameRoom {
     }, 1000);
   }
 
+  private startTwilightPhase() {
+    this.room.jailedPlayerId = null;
+    this.room.jailorSelectedTargetId = null;
+    this.room.jailorExecutingTonight = false;
+    this.room.players.forEach((p) => {
+      p.targetId = null;
+    });
+
+    // 5-second Twilight window before nightfall begins
+    this.setPhase('TWILIGHT', 5);
+    this.addEvent(
+      'PHASE_CHANGE',
+      '🌆 Twilight Phase (5s): Dusk settles over the village. The Jailor selects a suspect to haul off to prison before nightfall!'
+    );
+  }
+
   private startNightPhase() {
+    // Official Jailing takes effect when Night begins!
+    this.room.jailedPlayerId = this.room.jailorSelectedTargetId;
+    this.room.jailorExecutingTonight = false;
+    this.room.transporterSwaps = {};
     this.room.nightActions = [];
     this.room.witchGracePeriodGiven = false;
     this.room.players.forEach((p) => {
@@ -560,7 +596,25 @@ export class GameRoom {
       lovers: this.room.lovers,
       caughtLittleGirlId,
       dousedPlayerIds: this.room.dousedPlayerIds,
+      jailedPlayerId: this.room.jailedPlayerId,
+      jailorExecuting:
+        this.room.jailorExecutingTonight &&
+        this.room.jailorExecutionCount > 0 &&
+        !this.room.jailorGuilty,
     });
+
+    // Handle Jailor execution and guilt penalty
+    if (resolution.jailorExecutedPlayerId) {
+      this.room.jailorExecutionCount = Math.max(0, this.room.jailorExecutionCount - 1);
+      if (resolution.jailorGuiltyTriggered) {
+        this.room.jailorGuilty = true;
+        this.room.jailorExecutionCount = 0;
+        this.addEvent(
+          'SYSTEM',
+          '⚖️ The Jailor executed an innocent Villager and is tormented by Guilt! All remaining executions have been stripped forever.'
+        );
+      }
+    }
 
     // Witch potion permanence: Mark potions as used if executed tonight
     if (this.room.nightActions.some((a) => a.type === 'HEAL')) {
@@ -762,6 +816,7 @@ export class GameRoom {
         if (killed.reason === 'VETERAN_SHOT') deathMsg = `💥 ${player.name} targeted a Veteran on alert and was blasted to death!`;
         if (killed.reason === 'TOUGH_GUY_WOUND') deathMsg = `🩸 ${player.name} (Tough Guy) finally collapsed from the fatal werewolf wounds sustained earlier!`;
         if (killed.reason === 'DICTATOR_SUICIDE') deathMsg = `⚖️ ${player.name} the Dictator, tortured by the guilt of executing an innocent, ended their own life in the night!`;
+        if (killed.reason === 'JAILOR') deathMsg = `${player.name} was executed by the Jailor last night.`;
 
         this.addEvent('DEATH', deathMsg);
 
@@ -855,6 +910,7 @@ export class GameRoom {
     }
 
     this.room.latestDeaths = deaths;
+    this.room.transporterSwaps = {};
 
     // Check win condition (defer if Hunter has a pending parting shot!)
     if (!this.room.hunterPendingId) {
@@ -1053,9 +1109,9 @@ export class GameRoom {
       return;
     }
 
-    // Proceed to next night
+    // Proceed to next night (begins with 5s Twilight Phase)
     this.room.round++;
-    this.startNightPhase();
+    this.startTwilightPhase();
   }
 
   public hunterShoot(hunterId: string, targetId: string) {
@@ -1398,6 +1454,11 @@ export class GameRoom {
     this.bodyguardLastTargets.clear();
     this.seerResults.clear();
     this.seerHistory.clear();
+    this.room.jailedPlayerId = null;
+    this.room.jailorSelectedTargetId = null;
+    this.room.jailorExecutionCount = 3;
+    this.room.jailorGuilty = false;
+    this.room.jailorExecutingTonight = false;
 
     this.room.players.forEach((p) => {
       p.isAlive = true;
@@ -1551,18 +1612,118 @@ export class GameRoom {
       | 'WILD_CHILD_CHOOSE'
       | 'VETERAN_ALERT'
       | 'AMNESIAC_REMEMBER'
-      | 'PASS_AMNESIAC',
+      | 'PASS_AMNESIAC'
+      | 'JAILOR_JAIL'
+      | 'JAILOR_EXECUTE'
+      | 'JAILOR_DONT_EXECUTE'
+      | 'TRANSPORT'
+      | 'PASS_TRANSPORT',
     targetId: string,
     secondaryTargetId?: string,
     chosenRole?: Role
   ): { success: boolean; error?: string; seerResult?: SeerResult } {
-    if (this.room.phase !== 'NIGHT') {
-      return { success: false, error: 'Not the night phase' };
+    if (this.room.phase !== 'NIGHT' && !(this.room.phase === 'TWILIGHT' && type === 'JAILOR_JAIL')) {
+      return { success: false, error: 'Not the appropriate phase for this action' };
     }
 
     const player = this.getPlayer(playerId);
     if (!player || !player.isAlive) {
       return { success: false, error: 'Player cannot act' };
+    }
+
+    // Core Mechanic 1: Role Block (Silence)
+    // The Jailed player cannot use any of their night abilities (Doctor cannot heal, Werewolf cannot attack, etc.)
+    if (this.room.jailedPlayerId === playerId) {
+      return { success: false, error: 'You are locked in jail and cannot perform any night actions!' };
+    }
+
+    // Jailor Actions
+    if (type === 'JAILOR_JAIL') {
+      if (player.role !== 'JAILOR') {
+        return { success: false, error: 'Only the Jailor can jail suspects' };
+      }
+      if (targetId === playerId) {
+        return { success: false, error: 'The Jailor cannot jail themselves' };
+      }
+      const target = this.getPlayer(targetId);
+      if (!target || !target.isAlive) {
+        return { success: false, error: 'Target player is not among the living' };
+      }
+      this.room.jailorSelectedTargetId = targetId;
+      if (this.room.phase === 'NIGHT') {
+        this.room.jailedPlayerId = targetId;
+      }
+      this.notify();
+      return { success: true };
+    }
+
+    if (type === 'JAILOR_EXECUTE') {
+      if (player.role !== 'JAILOR') {
+        return { success: false, error: 'Only the Jailor can execute prisoners' };
+      }
+      if (this.room.phase !== 'NIGHT') {
+        return { success: false, error: 'Executions only take place during the night phase' };
+      }
+      if (this.room.jailorGuilty) {
+        return { success: false, error: 'You are overcome by guilt and can no longer execute anyone!' };
+      }
+      if (this.room.jailorExecutionCount <= 0) {
+        return { success: false, error: 'No executions remaining (maximum 3 per game)!' };
+      }
+      if (!this.room.jailedPlayerId) {
+        return { success: false, error: 'No prisoner currently in jail to execute' };
+      }
+      this.room.jailorExecutingTonight = true;
+      this.notify();
+      return { success: true };
+    }
+
+    if (type === 'JAILOR_DONT_EXECUTE') {
+      if (player.role !== 'JAILOR') {
+        return { success: false, error: 'Only the Jailor can spare prisoners' };
+      }
+      this.room.jailorExecutingTonight = false;
+      this.notify();
+      return { success: true };
+    }
+
+    // Transporter Actions (Swap 2 distinct players with Highest Priority)
+    if (type === 'TRANSPORT') {
+      if (player.role !== 'TRANSPORTER') {
+        return { success: false, error: 'Only the Transporter can swap players' };
+      }
+      if (this.room.phase !== 'NIGHT') {
+        return { success: false, error: 'Transport actions only occur during the night' };
+      }
+      if (!targetId || !secondaryTargetId || targetId === secondaryTargetId) {
+        return { success: false, error: 'You must select exactly two distinct living players to swap' };
+      }
+      const target1 = this.getPlayer(targetId);
+      const target2 = this.getPlayer(secondaryTargetId);
+      if (!target1 || !target1.isAlive || !target2 || !target2.isAlive) {
+        return { success: false, error: 'Both targets must be living players' };
+      }
+      this.room.transporterSwaps[playerId] = [targetId, secondaryTargetId];
+      this.room.nightActions = this.room.nightActions.filter((a) => a.actorId !== playerId);
+      this.room.nightActions.push({
+        actorId: playerId,
+        role: 'TRANSPORTER',
+        type: 'TRANSPORT',
+        targetId,
+        secondaryTargetId,
+      });
+      this.notify();
+      return { success: true };
+    }
+
+    if (type === 'PASS_TRANSPORT') {
+      if (player.role !== 'TRANSPORTER') {
+        return { success: false, error: 'Only the Transporter can pass transport' };
+      }
+      delete this.room.transporterSwaps[playerId];
+      this.room.nightActions = this.room.nightActions.filter((a) => a.actorId !== playerId);
+      this.notify();
+      return { success: true };
     }
 
     // Witch cancellation actions
@@ -2005,7 +2166,25 @@ export class GameRoom {
 
   // BOT PHASE HANDLER
   private handleBotActionsForPhase(phase: GamePhase) {
-    if (phase === 'NIGHT') {
+    if (phase === 'TWILIGHT') {
+      const aliveBotJailor = this.room.players.find(
+        (p) => p.role === 'JAILOR' && p.isAlive && p.isBot
+      );
+      if (aliveBotJailor) {
+        setTimeout(() => {
+          if (this.room.phase === 'TWILIGHT') {
+            const livingOthers = this.room.players.filter(
+              (p) => p.isAlive && p.id !== aliveBotJailor.id
+            );
+            if (livingOthers.length > 0) {
+              const target = livingOthers[Math.floor(Math.random() * livingOthers.length)];
+              this.room.jailorSelectedTargetId = target.id;
+              this.notify();
+            }
+          }
+        }, 1200);
+      }
+    } else if (phase === 'NIGHT') {
       // Simulate bots choosing night targets after 2-4 seconds
       setTimeout(() => {
         if (this.room.phase === 'NIGHT') {
@@ -2013,7 +2192,18 @@ export class GameRoom {
           for (const act of botActions) {
             if (act.type === 'HEAL' && this.room.witchHealUsed) continue;
             if (act.type === 'POISON' && this.room.witchPoisonUsed) continue;
+            if (act.type === 'TRANSPORT' && act.secondaryTargetId) {
+              this.room.transporterSwaps[act.actorId] = [act.targetId, act.secondaryTargetId];
+            }
             this.room.nightActions.push(act);
+          }
+          // If Jailor is bot and has executions remaining, decide whether to execute
+          const aliveBotJailor = this.room.players.find(
+            (p) => p.role === 'JAILOR' && p.isAlive && p.isBot
+          );
+          if (aliveBotJailor && this.room.jailedPlayerId && !this.room.jailorGuilty && this.room.jailorExecutionCount > 0) {
+            // 35% chance to execute
+            this.room.jailorExecutingTonight = Math.random() < 0.35;
           }
           this.notify();
         }
@@ -2457,6 +2647,40 @@ export class GameRoom {
       amnesiacGraveyard,
       skipDiscussionVotes: this.room.phase === 'DISCUSSION' ? (this.room.skipDiscussionVotes || []) : [],
       skipDiscussionTotalRequired: this.room.phase === 'DISCUSSION' ? this.room.players.filter((p) => p.isAlive).length : 0,
+      // Jailor State
+      jailedPlayerId: requester?.role === 'JAILOR' ? this.room.jailedPlayerId : undefined,
+      jailedPlayerName:
+        requester?.role === 'JAILOR' && this.room.jailedPlayerId
+          ? this.getPlayer(this.room.jailedPlayerId)?.name || null
+          : undefined,
+      isJailedTonight: this.room.jailedPlayerId === forPlayerId,
+      jailorExecutionCount:
+        requester?.role === 'JAILOR' ? this.room.jailorExecutionCount : undefined,
+      jailorGuilty:
+        requester?.role === 'JAILOR' ? this.room.jailorGuilty : undefined,
+      jailorExecutingTonight:
+        requester?.role === 'JAILOR' ? this.room.jailorExecutingTonight : undefined,
+      jailorPendingTargetId:
+        requester?.role === 'JAILOR' ? this.room.jailorSelectedTargetId : undefined,
+      jailorPendingTargetName:
+        requester?.role === 'JAILOR' && this.room.jailorSelectedTargetId
+          ? this.getPlayer(this.room.jailorSelectedTargetId)?.name || null
+          : undefined,
+      // Transporter State (visible only to the Transporter themselves)
+      transporterTarget1Id:
+        requester?.role === 'TRANSPORTER' ? this.room.transporterSwaps[forPlayerId]?.[0] : undefined,
+      transporterTarget2Id:
+        requester?.role === 'TRANSPORTER' ? this.room.transporterSwaps[forPlayerId]?.[1] : undefined,
+      transporterTarget1Name:
+        requester?.role === 'TRANSPORTER' && this.room.transporterSwaps[forPlayerId]?.[0]
+          ? this.getPlayer(this.room.transporterSwaps[forPlayerId][0])?.name || null
+          : undefined,
+      transporterTarget2Name:
+        requester?.role === 'TRANSPORTER' && this.room.transporterSwaps[forPlayerId]?.[1]
+          ? this.getPlayer(this.room.transporterSwaps[forPlayerId][1])?.name || null
+          : undefined,
+      transporterSwappedTonight:
+        requester?.role === 'TRANSPORTER' ? Boolean(this.room.transporterSwaps[forPlayerId]) : undefined,
     };
   }
 

@@ -315,6 +315,9 @@ export function setupSocketHandlers(io: Server) {
         }
 
         const res = room.submitNightAction(playerId, actionType, targetId, secondaryTargetId, chosenRole);
+        if (res.success) {
+          broadcastRoomState(io, room);
+        }
         if (callback) callback(res);
       }
     );
@@ -389,12 +392,17 @@ export function setupSocketHandlers(io: Server) {
           sender.role === 'WOLF_CUB' ||
           sender.role === 'WHITE_WOLF' ||
           sender.team === 'WEREWOLVES';
+        const isSenderJailor = sender.role === 'JAILOR';
+        const isSenderJailed = room.room.jailedPlayerId === sender.id;
 
         // Security check for channels
         if (channel === 'WEREWOLF' && !isSenderWolf) {
           return;
         }
         if (channel === 'DEAD' && sender.isAlive) {
+          return;
+        }
+        if (channel === 'JAIL' && !isSenderJailor && !isSenderJailed) {
           return;
         }
 
@@ -443,6 +451,21 @@ export function setupSocketHandlers(io: Server) {
           for (const d of dead) {
             if (!d.isBot && d.socketId) {
               io.to(d.socketId).emit('chat:message', msg);
+            }
+          }
+        } else if (channel === 'JAIL') {
+          // Private Interrogation between Jailor and Jailed prisoner
+          const jailParticipants = room.getPlayers().filter(
+            (p) => p.role === 'JAILOR' || p.id === room.room.jailedPlayerId
+          );
+          // Mask Jailor identity so prisoner cannot deduce who the Jailor is
+          const jailMsg: ChatMessage = {
+            ...msg,
+            senderName: isSenderJailor ? 'The Jailor' : sender.name,
+          };
+          for (const participant of jailParticipants) {
+            if (!participant.isBot && participant.socketId) {
+              io.to(participant.socketId).emit('chat:message', jailMsg);
             }
           }
         }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Skull, AlertTriangle, Moon, Vote, Crosshair, Shield } from 'lucide-react';
+import { Skull, AlertTriangle, Moon, Vote, Crosshair, Shield, Lock } from 'lucide-react';
 import { GameDeathRecord } from '../types/game.js';
 
 interface EliminationModalProps {
@@ -74,6 +74,12 @@ export const EliminationModal: React.FC<EliminationModalProps> = ({ deaths, onDi
                     <>
                       <Shield className="w-3.5 h-3.5 shrink-0 text-cyan-500" />
                       <span>Heroically sacrificed life shielding an ally</span>
+                    </>
+                  )}
+                  {death.reason === 'JAILOR' && (
+                    <>
+                      <Lock className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">{death.name} was executed by the Jailor last night.</span>
                     </>
                   )}
                 </div>

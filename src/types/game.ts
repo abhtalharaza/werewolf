@@ -27,7 +27,9 @@ export type Role =
   | 'WILD_CHILD'
   | 'DICTATOR'
   | 'VETERAN'
-  | 'AMNESIAC';
+  | 'AMNESIAC'
+  | 'JAILOR'
+  | 'TRANSPORTER';
 
 export type Team =
   | 'VILLAGERS'
@@ -41,6 +43,7 @@ export type Team =
 export type GamePhase =
   | 'LOBBY'
   | 'ROLE_REVEAL'
+  | 'TWILIGHT'
   | 'NIGHT'
   | 'DAY_ANNOUNCEMENT'
   | 'DISCUSSION'
@@ -110,6 +113,8 @@ export interface GameEvent {
     | 'DICTATOR_COUP'
     | 'VETERAN_SHOT'
     | 'AMNESIAC_REMEMBER'
+    | 'JAILOR_JAILED'
+    | 'JAILOR_EXECUTE'
     | 'SYSTEM';
   message: string;
   round: number;
@@ -117,7 +122,7 @@ export interface GameEvent {
   targetPlayerId?: string;
 }
 
-export type ChatChannel = 'PUBLIC' | 'WEREWOLF' | 'DEAD' | 'SYSTEM';
+export type ChatChannel = 'PUBLIC' | 'WEREWOLF' | 'DEAD' | 'JAIL' | 'SYSTEM';
 
 export interface ChatMessage {
   id: string;
@@ -172,7 +177,8 @@ export interface GameDeathRecord {
     | 'DICTATOR_SUICIDE'
     | 'TOUGH_GUY_WOUND'
     | 'SILENCED_VIOLATION'
-    | 'BODYGUARD_SACRIFICE';
+    | 'BODYGUARD_SACRIFICE'
+    | 'JAILOR';
   round: number;
 }
 
@@ -260,6 +266,21 @@ export interface ClientGameState {
   amnesiacGraveyard?: { id: string; name: string; role: Role }[];
   skipDiscussionVotes?: string[];
   skipDiscussionTotalRequired?: number;
+  // Jailor state
+  jailedPlayerId?: string | null;
+  jailedPlayerName?: string | null;
+  isJailedTonight?: boolean;
+  jailorExecutionCount?: number;
+  jailorGuilty?: boolean;
+  jailorExecutingTonight?: boolean;
+  jailorPendingTargetId?: string | null;
+  jailorPendingTargetName?: string | null;
+  // Transporter state
+  transporterTarget1Id?: string | null;
+  transporterTarget2Id?: string | null;
+  transporterTarget1Name?: string | null;
+  transporterTarget2Name?: string | null;
+  transporterSwappedTonight?: boolean;
 }
 
 export interface RoomListItem {

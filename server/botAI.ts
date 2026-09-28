@@ -251,6 +251,25 @@ export function getBotNightActions(
     }
   }
 
+  // Transporter bots: pick two distinct living players to swap
+  const transporterBots = aliveBots.filter((p) => p.role === 'TRANSPORTER');
+  for (const trans of transporterBots) {
+    if (alivePlayers.length >= 2) {
+      const p1 = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+      const others = alivePlayers.filter((p) => p.id !== p1.id);
+      if (others.length > 0) {
+        const p2 = others[Math.floor(Math.random() * others.length)];
+        actions.push({
+          actorId: trans.id,
+          role: 'TRANSPORTER',
+          type: 'TRANSPORT',
+          targetId: p1.id,
+          secondaryTargetId: p2.id,
+        });
+      }
+    }
+  }
+
   return actions;
 }
 

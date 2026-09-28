@@ -49,6 +49,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const [cupidLover1Id, setCupidLover1Id] = useState<string | null>(null);
   const [cupidLover2Id, setCupidLover2Id] = useState<string | null>(null);
   const [isCupidBoundLocal, setIsCupidBoundLocal] = useState<boolean>(false);
+  const [transporterTarget1Id, setTransporterTarget1Id] = useState<string | null>(null);
+  const [transporterTarget2Id, setTransporterTarget2Id] = useState<string | null>(null);
   const [dismissedDeaths, setDismissedDeaths] = useState<string[]>([]);
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -103,6 +105,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     gameState.round === 1 &&
     isMeAlive;
 
+  const isTransporterActive =
+    gameState.myRole === 'TRANSPORTER' &&
+    gameState.phase === 'NIGHT' &&
+    isMeAlive &&
+    !gameState.isJailedTonight;
+
+  const effectiveTransporter1Id = gameState.transporterTarget1Id || transporterTarget1Id;
+  const effectiveTransporter2Id = gameState.transporterTarget2Id || transporterTarget2Id;
+
   // Reset target selection when phase changes
   React.useEffect(() => {
     setSelectedTargetId(null);
@@ -110,15 +121,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       setCupidLover1Id(null);
       setCupidLover2Id(null);
       setIsCupidBoundLocal(false);
+      setTransporterTarget1Id(null);
+      setTransporterTarget2Id(null);
     }
   }, [gameState.phase, gameState.round]);
 
   // Determine if a card can be targeted right now
   const canTargetPlayer = (playerId: string) => {
     if (!isMeAlive) return false;
+    // Jailed player is silenced and cannot target anyone
+    if (gameState.isJailedTonight) return false;
     const targetPlayer = gameState.players.find((p) => p.id === playerId);
     if (!targetPlayer || !targetPlayer.isAlive) return false;
 
+    if (gameState.phase === 'TWILIGHT') {
+      if (gameState.myRole === 'JAILOR') {
+        return playerId !== gameState.myPlayerId;
+      }
+      return false;
+    }
     if (isNight) {
       // 1. Regular Werewolves
       if (
@@ -196,6 +217,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (gameState.myRole === 'WILD_CHILD' && gameState.round === 1 && !gameState.wildChildModelId) {
         return playerId !== gameState.myPlayerId;
       }
+      if (gameState.myRole === 'TRANSPORTER') {
+        // The Transporter can select any living player, including themselves!
+        return true;
+      }
       return false;
     }
     if (gameState.phase === 'DISCUSSION') {
@@ -213,6 +238,41 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   const handleSelectPlayer = (playerId: string) => {
+    if (gameState.isJailedTonight) return;
+
+    if (gameState.phase === 'TWILIGHT') {
+      if (gameState.myRole === 'JAILOR' && playerId !== gameState.myPlayerId) {
+        setSelectedTargetId(playerId);
+        onSubmitNightAction('JAILOR_JAIL', playerId);
+      }
+      return;
+    }
+
+    if (isTransporterActive) {
+      // 1. If clicking Target 1 again -> UNSELECT Target 1 (promote Target 2 to Target 1)
+      if (effectiveTransporter1Id === playerId) {
+        setTransporterTarget1Id(effectiveTransporter2Id);
+        setTransporterTarget2Id(null);
+        return;
+      }
+      // 2. If clicking Target 2 again -> UNSELECT Target 2
+      if (effectiveTransporter2Id === playerId) {
+        setTransporterTarget2Id(null);
+        return;
+      }
+      // 3. If slot 1 is empty -> fill Target 1
+      if (!effectiveTransporter1Id) {
+        setTransporterTarget1Id(playerId);
+      } else if (!effectiveTransporter2Id) {
+        // Slot 2 is empty -> fill Target 2
+        setTransporterTarget2Id(playerId);
+      } else {
+        // Both selected -> replace Target 2 with new choice
+        setTransporterTarget2Id(playerId);
+      }
+      return;
+    }
+
     if (isCupidActive) {
       // Once lovers are bound, undo or modifications are STRICTLY FORBIDDEN!
       if (isCupidBound) return;
@@ -258,6 +318,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if (isCupidBound) return; // Cannot undo once bound
     setCupidLover1Id(null);
     setCupidLover2Id(null);
+  };
+
+  const handleUnselectTransporterTarget = (slot: 1 | 2) => {
+    if (slot === 1) {
+      setTransporterTarget1Id(effectiveTransporter2Id);
+      setTransporterTarget2Id(null);
+    } else {
+      setTransporterTarget2Id(null);
+    }
+  };
+
+  const handleResetTransporterTargets = () => {
+    setTransporterTarget1Id(null);
+    setTransporterTarget2Id(null);
   };
 
   // Check for recent deaths to show modal in DAY_ANNOUNCEMENT
@@ -408,6 +482,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     ? 2
                     : undefined
                   : undefined;
+                const transporterOrder: 1 | 2 | undefined = isTransporterActive
+                  ? effectiveTransporter1Id === p.id
+                    ? 1
+                    : effectiveTransporter2Id === p.id
+                    ? 2
+                    : undefined
+                  : undefined;
                 const isWolfTeammate =
                   gameState.myRole === 'WEREWOLF' &&
                   (gameState.werewolfTeammates || []).some((w) => w.id === p.id);
@@ -459,8 +540,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     isMe={isMe}
                     phase={gameState.phase}
                     myRole={gameState.myRole}
-                    isSelectedTarget={isCupidActive ? cupidOrder !== undefined : isSelected}
+                    isSelectedTarget={
+                      isCupidActive
+                        ? cupidOrder !== undefined
+                        : isTransporterActive
+                        ? transporterOrder !== undefined
+                        : isSelected
+                    }
                     cupidLoverOrder={cupidOrder}
+                    transporterSwapOrder={transporterOrder}
                     isWerewolfTeammate={isWolfTeammate}
                     isLittleGirlSpottedWolf={isLittleGirlSpottedWolf}
                     isLittleGirlSpottedTarget={isLittleGirlSpottedTarget}
@@ -479,7 +567,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
 
           {/* Phase-Specific Action Panel */}
-          {isNight && (
+          {(isNight || gameState.phase === 'TWILIGHT') && (
             <NightActionPanel
               gameState={gameState}
               selectedTargetId={selectedTargetId}
@@ -489,8 +577,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               onCupidBound={() => setIsCupidBoundLocal(true)}
               onUnselectCupidLover={handleUnselectCupidLover}
               onResetCupidLovers={handleResetCupidLovers}
+              transporterTarget1Id={effectiveTransporter1Id}
+              transporterTarget2Id={effectiveTransporter2Id}
+              onSelectTransporterTarget={(targetId: string) => {
+                if (!effectiveTransporter1Id) {
+                  setTransporterTarget1Id(targetId);
+                } else if (!effectiveTransporter2Id) {
+                  if (effectiveTransporter1Id !== targetId) {
+                    setTransporterTarget2Id(targetId);
+                  }
+                } else {
+                  if (effectiveTransporter1Id === targetId) {
+                    setTransporterTarget1Id(effectiveTransporter2Id);
+                    setTransporterTarget2Id(null);
+                  } else {
+                    setTransporterTarget2Id(targetId);
+                  }
+                }
+              }}
+              onUnselectTransporterTarget={handleUnselectTransporterTarget}
+              onResetTransporterTargets={handleResetTransporterTargets}
               onSelectTarget={setSelectedTargetId}
               onSubmitAction={onSubmitNightAction}
+              chatMessages={chatMessages}
+              onSendMessage={onSendMessage}
             />
           )}
 

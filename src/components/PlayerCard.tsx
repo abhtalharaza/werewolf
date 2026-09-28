@@ -1,5 +1,5 @@
 import React from 'react';
-import { Skull, Crown, Check, Crosshair, Shield, Eye, Moon, Heart, UserCheck } from 'lucide-react';
+import { Skull, Crown, Check, Crosshair, Shield, Eye, Moon, Heart, UserCheck, ArrowLeftRight } from 'lucide-react';
 import { ClientPlayer, Role, GamePhase } from '../types/game.js';
 import { getAvatar } from '../utils/avatars.js';
 
@@ -10,6 +10,7 @@ interface PlayerCardProps {
   myRole?: Role;
   isSelectedTarget: boolean;
   cupidLoverOrder?: 1 | 2;
+  transporterSwapOrder?: 1 | 2;
   isWerewolfTeammate: boolean;
   isLittleGirlSpottedWolf?: boolean;
   isLittleGirlSpottedTarget?: boolean;
@@ -30,6 +31,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   myRole,
   isSelectedTarget,
   cupidLoverOrder,
+  transporterSwapOrder,
   isWerewolfTeammate,
   isLittleGirlSpottedWolf,
   isLittleGirlSpottedTarget,
@@ -62,6 +64,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           ? 'bg-slate-200/40 dark:bg-slate-900/40 border-slate-300 dark:border-slate-800 opacity-40 grayscale pointer-events-none'
           : cupidLoverOrder
           ? 'bg-rose-50/90 dark:bg-rose-950/60 border-rose-400 dark:border-rose-500 shadow-[0_8px_20px_rgba(244,63,94,0.3)] ring-2 ring-rose-400 scale-102 sm:scale-105'
+          : transporterSwapOrder
+          ? 'bg-violet-50/90 dark:bg-violet-950/60 border-violet-400 dark:border-violet-500 shadow-[0_8px_20px_rgba(139,92,246,0.35)] ring-2 ring-violet-400 scale-102 sm:scale-105'
           : isWitchHealedByMe
           ? 'bg-indigo-50/90 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-500 shadow-[0_8px_20px_rgba(99,102,241,0.3)] ring-2 ring-indigo-400 scale-102 sm:scale-105'
           : isWitchPoisonedByMe
@@ -88,6 +92,14 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         <div className="absolute -top-2.5 -right-2.5 px-2 py-0.5 rounded-full bg-rose-500 border border-rose-300 text-white text-[10px] font-bold flex items-center gap-1 shadow-md z-20 animate-pulse">
           <Heart className="w-3 h-3 fill-white" />
           <span>{cupidLoverOrder === 1 ? '1st Lover' : '2nd Lover'}</span>
+        </div>
+      )}
+
+      {/* Transporter Swap Target Indicator */}
+      {transporterSwapOrder && (
+        <div className="absolute -top-2.5 -right-2.5 px-2 py-0.5 rounded-full bg-violet-600 border border-violet-300 text-white text-[10px] font-bold flex items-center gap-1 shadow-md z-20 animate-pulse">
+          <ArrowLeftRight className="w-3 h-3 text-white" />
+          <span>{transporterSwapOrder === 1 ? 'Target A' : 'Target B'}</span>
         </div>
       )}
 

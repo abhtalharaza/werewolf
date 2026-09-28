@@ -269,7 +269,8 @@ export interface NightResolutionResult {
       | 'VETERAN_SHOT'
       | 'TOUGH_GUY_WOUND'
       | 'DICTATOR_SUICIDE'
-      | 'BODYGUARD_SACRIFICE';
+      | 'BODYGUARD_SACRIFICE'
+      | 'JAILOR';
   }[];
   savedPlayerIds: string[];
   transformedPlayerIds: { id: string; newRole: Role; newTeam: Team }[];
@@ -284,6 +285,9 @@ export interface NightResolutionResult {
   silencedPlayerId?: string | null;
   toughGuyWoundedId?: string | null;
   newDousedPlayerId?: string | null;
+  jailorGuiltyTriggered?: boolean;
+  jailorExecutedPlayerId?: string | null;
+  transporterSwappedPairs?: [string, string][];
 }
 
 export function resolveNightActions(
@@ -294,6 +298,8 @@ export function resolveNightActions(
     lovers?: [string, string] | null;
     caughtLittleGirlId?: string | null;
     dousedPlayerIds?: string[];
+    jailedPlayerId?: string | null;
+    jailorExecuting?: boolean;
   }
 ): NightResolutionResult {
   const protectedTargets = new Set<string>();
@@ -307,6 +313,70 @@ export function resolveNightActions(
   let arsonistIgnite = false;
   let toughGuyWoundedId: string | null = null;
   let seerReport: { seerId: string; targetId: string; isWerewolf: boolean; role: Role } | undefined;
+  let jailorGuiltyTriggered = false;
+  let jailorExecutedPlayerId: string | null = null;
+
+  // Core Mechanic 1: Role Block (Silence)
+  // The Jailed player cannot use any of their night abilities (e.g., Doctor cannot heal, Werewolf cannot attack).
+  const effectiveActions = options?.jailedPlayerId
+    ? actions.filter((a) => a.actorId !== options.jailedPlayerId)
+    : actions;
+
+  // --- Transporter Swap & Action Redirection Engine (Highest Priority) ---
+  // The Transporter selects exactly Two (2) distinct living players (can include themselves).
+  // Any night action (Kill, Heal, Investigate, Protect, Poison, etc.) directed at Target A
+  // automatically redirects and resolves on Target B, and vice versa.
+  // Execution Priority: The swap is calculated and locked before ANY other actions are processed!
+  // Jailor Interaction: If Transporter is in Jail, their action was filtered out above.
+  // If Transporter tries to swap someone in Jail, the swap fails for the jailed player.
+  const transporterSwappedPairs: [string, string][] = [];
+  const redirectMap = new Map<string, string>();
+
+  const transportActions = effectiveActions.filter((a) => a.type === 'TRANSPORT');
+  for (const transportAction of transportActions) {
+    const actor = players.find((p) => p.id === transportAction.actorId);
+    if (!actor || !actor.isAlive) continue;
+
+    const targetAId = transportAction.targetId;
+    const targetBId = transportAction.secondaryTargetId;
+
+    if (!targetAId || !targetBId || targetAId === targetBId) continue;
+
+    const targetAPlayer = players.find((p) => p.id === targetAId && p.isAlive);
+    const targetBPlayer = players.find((p) => p.id === targetBId && p.isAlive);
+    if (!targetAPlayer || !targetBPlayer) continue;
+
+    // If either target is jailed, the swap fails for the jailed player
+    if (options?.jailedPlayerId) {
+      if (targetAId === options.jailedPlayerId || targetBId === options.jailedPlayerId) {
+        continue;
+      }
+    }
+
+    transporterSwappedPairs.push([targetAId, targetBId]);
+    redirectMap.set(targetAId, targetBId);
+    redirectMap.set(targetBId, targetAId);
+  }
+
+  // Redirection: Rewrite the target IDs of all nocturnal actions before resolution
+  const redirectedActions = effectiveActions.map((action) => {
+    if (action.type === 'TRANSPORT' || action.type === 'PASS_TRANSPORT') {
+      return action;
+    }
+    const newTargetId = action.targetId && redirectMap.has(action.targetId)
+      ? redirectMap.get(action.targetId)!
+      : action.targetId;
+
+    const newSecondaryTargetId = action.secondaryTargetId && redirectMap.has(action.secondaryTargetId)
+      ? redirectMap.get(action.secondaryTargetId)!
+      : action.secondaryTargetId;
+
+    return {
+      ...action,
+      targetId: newTargetId,
+      secondaryTargetId: newSecondaryTargetId,
+    };
+  });
 
   const killedPlayerIds: {
     id: string;
@@ -321,7 +391,8 @@ export function resolveNightActions(
       | 'VETERAN_SHOT'
       | 'TOUGH_GUY_WOUND'
       | 'DICTATOR_SUICIDE'
-      | 'BODYGUARD_SACRIFICE';
+      | 'BODYGUARD_SACRIFICE'
+      | 'JAILOR';
   }[] = [];
   const savedPlayerIds: string[] = [];
   const transformedPlayerIds: { id: string; newRole: Role; newTeam: Team }[] = [];
@@ -333,23 +404,25 @@ export function resolveNightActions(
     wasAttackedAndSaved: boolean;
   }[] = [];
 
-  // Identify Veterans on Alert
+  // Identify Veterans on Alert (jailed players cannot alert)
   const veteransOnAlert = new Set<string>();
-  for (const action of actions) {
+  for (const action of redirectedActions) {
     if (action.type === 'VETERAN_ALERT') {
-      veteransOnAlert.add(action.actorId);
+      if (!options?.jailedPlayerId || action.actorId !== options.jailedPlayerId) {
+        veteransOnAlert.add(action.actorId);
+      }
     }
   }
 
   // 1. Defenses: Doctor and Bodyguard
-  for (const action of actions) {
+  for (const action of redirectedActions) {
     if (action.type === 'PROTECT' || action.type === 'GUARD') {
       protectedTargets.add(action.targetId);
     }
   }
 
   // 2. Veteran retaliation: Anyone targeting a Veteran on alert gets shot!
-  for (const action of actions) {
+  for (const action of redirectedActions) {
     if (action.actorId && action.targetId && action.actorId !== action.targetId) {
       if (veteransOnAlert.has(action.targetId)) {
         if (!killedPlayerIds.some((k) => k.id === action.actorId)) {
@@ -365,7 +438,7 @@ export function resolveNightActions(
   }
 
   // 3. Gather Werewolf votes and other killers
-  for (const action of actions) {
+  for (const action of redirectedActions) {
     if (action.type === 'KILL') {
       wolfTargetVotes[action.targetId] = (wolfTargetVotes[action.targetId] || 0) + 1;
     } else if (action.type === 'WHITE_WOLF_KILL') {
@@ -390,7 +463,7 @@ export function resolveNightActions(
   const chosenWolfVictimIds = sortedWolfTargets.slice(0, killTargetsCount);
 
   // 4. Witch actions
-  for (const action of actions) {
+  for (const action of redirectedActions) {
     if (action.type === 'HEAL') {
       witchHealTarget = action.targetId;
     } else if (action.type === 'POISON') {
@@ -399,7 +472,7 @@ export function resolveNightActions(
   }
 
   // 5. Seer / Apprentice Seer investigation
-  for (const action of actions) {
+  for (const action of redirectedActions) {
     if (action.type === 'INVESTIGATE') {
       const target = players.find((p) => p.id === action.targetId);
       if (target) {
@@ -411,9 +484,15 @@ export function resolveNightActions(
           target.role === 'WHITE_WOLF' ||
           target.role === 'LYCAN';
 
+        // The Seer's UI shows their chosen target, but alignment resolves to the redirected target!
+        const originalAction = effectiveActions.find(
+          (a) => a.actorId === action.actorId && a.type === 'INVESTIGATE'
+        );
+        const intendedTargetId = originalAction?.targetId || target.id;
+
         seerReport = {
           seerId: action.actorId,
-          targetId: target.id,
+          targetId: intendedTargetId,
           isWerewolf: appearsAsWolf,
           role: appearsAsWolf ? ('WEREWOLF' as Role) : ('GOOD_TEAM' as Role),
         };
@@ -427,6 +506,12 @@ export function resolveNightActions(
     const isProtected = protectedTargets.has(victimId);
     const isSavedByWitch = witchHealTarget === victimId;
     const isVeteranAlert = veteransOnAlert.has(victimId);
+
+    // Absolute Protection (Invulnerability): Jailed player cannot be targeted or affected by outside actions (attacks fail silently)
+    if (options?.jailedPlayerId && victimId === options.jailedPlayerId) {
+      savedPlayerIds.push(victimId);
+      continue;
+    }
 
     // Arsonist possesses permanent Night Immunity against Werewolves!
     if (victimPlayer && victimPlayer.role === 'ARSONIST') {
@@ -467,7 +552,10 @@ export function resolveNightActions(
     const isVeteranAlert = veteransOnAlert.has(serialKillerKillTarget);
     const isArsonistImmune = skTargetPlayer && skTargetPlayer.role === 'ARSONIST';
 
-    if (isVeteranAlert || isArsonistImmune) {
+    // Absolute Protection for Jailed Player
+    if (options?.jailedPlayerId && serialKillerKillTarget === options.jailedPlayerId) {
+      savedPlayerIds.push(serialKillerKillTarget);
+    } else if (isVeteranAlert || isArsonistImmune) {
       savedPlayerIds.push(serialKillerKillTarget);
     } else if (isProtected || isSavedByWitch) {
       savedPlayerIds.push(serialKillerKillTarget);
@@ -479,6 +567,10 @@ export function resolveNightActions(
   // Resolve Arsonist Ignition
   if (arsonistIgnite && options?.dousedPlayerIds) {
     for (const dousedId of options.dousedPlayerIds) {
+      // Absolute Protection: Jailed player cannot be ignited inside jail
+      if (options?.jailedPlayerId && dousedId === options.jailedPlayerId) {
+        continue;
+      }
       const dousedPlayer = players.find((p) => p.id === dousedId);
       if (dousedPlayer && dousedPlayer.isAlive && !killedPlayerIds.some((k) => k.id === dousedId)) {
         killedPlayerIds.push({ id: dousedId, reason: 'ARSONIST' });
@@ -486,14 +578,18 @@ export function resolveNightActions(
     }
   }
 
-  // Resolve Witch poison (cannot be saved by doctor or bodyguard)
+  // Resolve Witch poison (cannot be saved by doctor or bodyguard; fails silently on jailed player)
   if (witchPoisonTarget && !killedPlayerIds.some((k) => k.id === witchPoisonTarget)) {
-    killedPlayerIds.push({ id: witchPoisonTarget, reason: 'POISON' });
+    if (!options?.jailedPlayerId || witchPoisonTarget !== options.jailedPlayerId) {
+      killedPlayerIds.push({ id: witchPoisonTarget, reason: 'POISON' });
+    }
   }
 
   // Resolve White Wolf alternate kill
   if (whiteWolfKillTarget && !killedPlayerIds.some((k) => k.id === whiteWolfKillTarget)) {
-    if (!protectedTargets.has(whiteWolfKillTarget) && witchHealTarget !== whiteWolfKillTarget) {
+    if (options?.jailedPlayerId && whiteWolfKillTarget === options.jailedPlayerId) {
+      savedPlayerIds.push(whiteWolfKillTarget);
+    } else if (!protectedTargets.has(whiteWolfKillTarget) && witchHealTarget !== whiteWolfKillTarget) {
       killedPlayerIds.push({ id: whiteWolfKillTarget, reason: 'WHITE_WOLF' });
     } else {
       savedPlayerIds.push(whiteWolfKillTarget);
@@ -506,9 +602,7 @@ export function resolveNightActions(
   }
 
   // Resolve Bodyguard sacrifice:
-  // If the guarded ally was targeted by nocturnal physical attackers (Werewolf, White Wolf, Serial Killer),
-  // the Bodyguard's shield heroically saves the target, but the Bodyguard sacrifices their life in defense!
-  for (const action of actions) {
+  for (const action of redirectedActions) {
     if (action.type === 'GUARD') {
       const wasGuardedTargetAttacked =
         chosenWolfVictimIds.includes(action.targetId) ||
@@ -537,7 +631,7 @@ export function resolveNightActions(
   }
 
   // Gather protections from Doctor, Bodyguard, and Witch
-  for (const action of actions) {
+  for (const action of redirectedActions) {
     if (action.type === 'PROTECT') {
       const target = players.find((p) => p.id === action.targetId);
       if (target) {
@@ -583,6 +677,26 @@ export function resolveNightActions(
     }
   }
 
+  // Core Mechanic 2: Jailor Interrogation & Execution
+  // If the Jailor chooses 'Execute', the Jailed player receives an 'Unstoppable Attack' and dies inside the jail.
+  // No outside Doctor or Bodyguard can save them.
+  if (options?.jailedPlayerId && options?.jailorExecuting) {
+    const jailedPlayer = players.find((p) => p.id === options.jailedPlayerId);
+    if (jailedPlayer && jailedPlayer.isAlive) {
+      if (!killedPlayerIds.some((k) => k.id === options.jailedPlayerId)) {
+        killedPlayerIds.push({ id: options.jailedPlayerId, reason: 'JAILOR' });
+      }
+      jailorExecutedPlayerId = options.jailedPlayerId;
+      // The Guilt Penalty (Crucial Rule)
+      // If the Jailor executes a player who belongs to the Villager team (an innocent/good guy),
+      // the Jailor suffers from 'Guilt'.
+      // Penalty: The Jailor immediately loses all remaining Execution limits (Execution count drops to 0 for the rest of the game).
+      if (jailedPlayer.team === 'VILLAGERS') {
+        jailorGuiltyTriggered = true;
+      }
+    }
+  }
+
   return {
     killedPlayerIds,
     savedPlayerIds,
@@ -592,6 +706,9 @@ export function resolveNightActions(
     silencedPlayerId,
     toughGuyWoundedId,
     newDousedPlayerId,
+    jailorGuiltyTriggered,
+    jailorExecutedPlayerId,
+    transporterSwappedPairs,
   };
 }
 
