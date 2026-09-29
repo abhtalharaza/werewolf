@@ -21,52 +21,52 @@ export const HomescreenWallpaper: React.FC = () => {
           <defs>
             {/* Sky Gradients */}
             <linearGradient id="hwSkyGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#020409" />
-              <stop offset="35%" stop-color="#070e1c" />
-              <stop offset="65%" stop-color="#0c182f" />
-              <stop offset="78%" stop-color="#141a2e" />
-              <stop offset="88%" stop-color="#1e1828" />
-              <stop offset="100%" stop-color="#070a12" />
+              <stop offset="0%" stopColor="#020409" />
+              <stop offset="35%" stopColor="#070e1c" />
+              <stop offset="65%" stopColor="#0c182f" />
+              <stop offset="78%" stopColor="#141a2e" />
+              <stop offset="88%" stopColor="#1e1828" />
+              <stop offset="100%" stopColor="#070a12" />
             </linearGradient>
 
             {/* Moon Halos */}
             <radialGradient id="hwMoonAura" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85" />
-              <stop offset="25%" stop-color="#d4e8ff" stop-opacity="0.45" />
-              <stop offset="50%" stop-color="#96bde8" stop-opacity="0.22" />
-              <stop offset="75%" stop-color="#5885b8" stop-opacity="0.08" />
-              <stop offset="100%" stop-color="#2a456c" stop-opacity="0" />
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+              <stop offset="25%" stopColor="#d4e8ff" stopOpacity="0.45" />
+              <stop offset="50%" stopColor="#96bde8" stopOpacity="0.22" />
+              <stop offset="75%" stopColor="#5885b8" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#2a456c" stopOpacity="0" />
             </radialGradient>
 
             <radialGradient id="hwMoonDisc" cx="42%" cy="40%" r="55%">
-              <stop offset="0%" stop-color="#ffffff" />
-              <stop offset="65%" stop-color="#e2ecf7" />
-              <stop offset="85%" stop-color="#c6d8ec" />
-              <stop offset="100%" stop-color="#a6c0dc" />
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="65%" stopColor="#e2ecf7" />
+              <stop offset="85%" stopColor="#c6d8ec" />
+              <stop offset="100%" stopColor="#a6c0dc" />
             </radialGradient>
 
             {/* Fiery Sunset Mist / Horizon Glow */}
             <radialGradient id="hwCrimsonMistCenter" cx="50%" cy="80%" r="50%">
-              <stop offset="0%" stop-color="#ff334b" stop-opacity="0.8" />
-              <stop offset="30%" stop-color="#f0386b" stop-opacity="0.6" />
-              <stop offset="60%" stop-color="#b82d68" stop-opacity="0.35" />
-              <stop offset="85%" stop-color="#5e1f5c" stop-opacity="0.15" />
-              <stop offset="100%" stop-color="#181329" stop-opacity="0" />
+              <stop offset="0%" stopColor="#ff334b" stopOpacity="0.8" />
+              <stop offset="30%" stopColor="#f0386b" stopOpacity="0.6" />
+              <stop offset="60%" stopColor="#b82d68" stopOpacity="0.35" />
+              <stop offset="85%" stopColor="#5e1f5c" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#181329" stopOpacity="0" />
             </radialGradient>
 
             <linearGradient id="hwMistHorizon" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#0d1b33" stop-opacity="0" />
-              <stop offset="50%" stop-color="#c83e58" stop-opacity="0.5" />
-              <stop offset="75%" stop-color="#f54b64" stop-opacity="0.75" />
-              <stop offset="90%" stop-color="#ff6b6b" stop-opacity="0.55" />
-              <stop offset="100%" stop-color="#0c0e17" stop-opacity="0.9" />
+              <stop offset="0%" stopColor="#0d1b33" stopOpacity="0" />
+              <stop offset="50%" stopColor="#c83e58" stopOpacity="0.5" />
+              <stop offset="75%" stopColor="#f54b64" stopOpacity="0.75" />
+              <stop offset="90%" stopColor="#ff6b6b" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#0c0e17" stopOpacity="0.9" />
             </linearGradient>
 
             {/* Mountain & Ground Gradient */}
             <linearGradient id="hwRockGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#141a26" />
-              <stop offset="40%" stop-color="#0a0e17" />
-              <stop offset="100%" stop-color="#030508" />
+              <stop offset="0%" stopColor="#141a26" />
+              <stop offset="40%" stopColor="#0a0e17" />
+              <stop offset="100%" stopColor="#030508" />
             </linearGradient>
 
             {/* Soft Fog Blur Filter */}
@@ -254,8 +254,8 @@ export const HomescreenWallpaper: React.FC = () => {
 
           {/* 7. Ambient Vignette */}
           <radialGradient id="hwVignette" cx="50%" cy="50%" r="70%">
-            <stop offset="60%" stop-color="#000000" stop-opacity="0" />
-            <stop offset="100%" stop-color="#010205" stop-opacity="0.65" />
+            <stop offset="60%" stopColor="#000000" stopOpacity="0" />
+            <stop offset="100%" stopColor="#010205" stopOpacity="0.65" />
           </radialGradient>
           <rect width="1080" height="1920" fill="url(#hwVignette)" />
         </svg>
