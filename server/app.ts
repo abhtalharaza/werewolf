@@ -48,8 +48,10 @@ export async function startServer() {
   // Serve public directory
   app.use(express.static(path.join(process.cwd(), 'public')));
 
-  // Vite development middleware or static production serving
-  if (process.env.NODE_ENV !== 'production') {
+  // In Cloud Run (K_SERVICE is set) or production, serve pre-built dist assets.
+  // In local development (DEV_MODE=true and not in Cloud Run), use Vite middlewares.
+  const isDev = process.env.DEV_MODE === 'true' && !process.env.K_SERVICE;
+  if (isDev) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

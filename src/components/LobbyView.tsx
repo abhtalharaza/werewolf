@@ -197,7 +197,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     setIsEditingDeck(true);
   };
 
-  const applyDeckPreset = (preset: 'CLASSIC' | 'BALANCED' | 'MYSTIC_AMNESIAC') => {
+  const applyDeckPreset = (preset: 'CLASSIC' | 'BALANCED' | 'MYSTIC_AMNESIAC' | 'CHAOS_EXPANSION') => {
     const base = createDefaultDeckDraft();
     if (preset === 'CLASSIC') {
       setDeckDraft({
@@ -229,6 +229,23 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         DOCTOR: 1,
         HUNTER: 1,
         WITCH: 1,
+      });
+    } else if (preset === 'CHAOS_EXPANSION') {
+      setDeckDraft({
+        ...base,
+        WEREWOLF: 2,
+        VILLAGER: 2,
+        JAILOR: 1,
+        TRANSPORTER: 1,
+        VETERAN: 1,
+        AMNESIAC: 1,
+        SEER: 1,
+        DOCTOR: 1,
+        WITCH: 1,
+        HUNTER: 1,
+        BODYGUARD: 1,
+        JESTER: 1,
+        ARSONIST: 1,
       });
     }
   };
@@ -719,6 +736,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 border border-indigo-500 text-white text-xs font-medium transition cursor-pointer shadow-xs"
               >
                 Amnesiac Special
+              </button>
+              <button
+                type="button"
+                onClick={() => applyDeckPreset('CHAOS_EXPANSION')}
+                className="px-2.5 py-1 rounded-xl bg-violet-600 hover:bg-violet-700 border border-violet-500 text-white text-xs font-medium transition cursor-pointer shadow-xs"
+              >
+                Jailor & Transporter (15)
               </button>
             </div>
 

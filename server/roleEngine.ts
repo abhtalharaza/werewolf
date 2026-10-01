@@ -28,67 +28,81 @@ export function cryptoShuffle<T>(array: T[]): T[] {
 /**
  * Builds the initial raw role pool of exact size playerCount
  * adhering faithfully to host preferences or default village balance.
+ * When more roles are selected in the custom deck than players (e.g. 13 roles selected for 7 players),
+ * ALL selected roles are fully randomized using cryptoShuffle so that every selected role
+ * (including Jailor, Transporter, Veteran, Witch, etc.) has an equal, fair chance to be assigned.
  */
-export function buildRolePool(playerCount: number, customDistribution?: Record<Role, number>): Role[] {
+export function buildRolePool(
+  playerCount: number,
+  customDistribution?: Record<Role, number>,
+  previousRoles?: (Role | undefined)[]
+): Role[] {
   if (customDistribution) {
-    const pool: Role[] = [];
+    const rawPool: Role[] = [];
     for (const [roleKey, count] of Object.entries(customDistribution)) {
       const role = roleKey as Role;
       for (let i = 0; i < count; i++) {
-        pool.push(role);
+        rawPool.push(role);
       }
     }
 
-    if (pool.length > 0) {
+    if (rawPool.length > 0) {
       // Guarantee at least 1 Werewolf or Wolf-team is present so the game functions
-      const hasWolf = pool.some((r) => r === 'WEREWOLF' || r === 'WOLF_CUB' || r === 'WHITE_WOLF');
+      const hasWolf = rawPool.some((r) => r === 'WEREWOLF' || r === 'WOLF_CUB' || r === 'WHITE_WOLF');
       if (!hasWolf) {
-        pool.unshift('WEREWOLF');
+        rawPool.unshift('WEREWOLF');
       }
 
-      // If pool matches player count exactly
-      if (pool.length === playerCount) {
-        return pool;
+      // If pool matches player count exactly, return a crypto-shuffled pool
+      if (rawPool.length === playerCount) {
+        return cryptoShuffle(rawPool);
       }
 
-      // If pool is larger than playerCount, prioritize wolves then active specials
-      if (pool.length > playerCount) {
-        const wolves = pool.filter((r) => r === 'WEREWOLF' || r === 'WOLF_CUB' || r === 'WHITE_WOLF');
-        const specials = pool.filter(
-          (r) => r !== 'WEREWOLF' && r !== 'WOLF_CUB' && r !== 'WHITE_WOLF' && r !== 'VILLAGER'
+      // If pool is larger than playerCount (e.g. host selected 12 or 13 roles for 7 players):
+      // Randomly sample playerCount roles from the custom deck so every selected role has a fair chance to appear!
+      if (rawPool.length > playerCount) {
+        const wolves = rawPool.filter((r) => r === 'WEREWOLF' || r === 'WOLF_CUB' || r === 'WHITE_WOLF');
+        const nonWolves = rawPool.filter((r) => r !== 'WEREWOLF' && r !== 'WOLF_CUB' && r !== 'WHITE_WOLF');
+
+        // Determine target wolves based on player count and available wolves
+        const maxWolves = Math.max(
+          1,
+          Math.min(wolves.length, playerCount < 6 ? 1 : playerCount < 10 ? 2 : Math.floor(playerCount / 3))
         );
-        const villagers = pool.filter((r) => r === 'VILLAGER');
 
-        const maxWolves = Math.max(1, Math.min(wolves.length, Math.floor(playerCount / 3)));
-        const selected: Role[] = [];
+        // Crypto shuffle the wolves so any enabled wolf role (e.g. White Wolf, Wolf Cub) can be chosen
+        const shuffledWolves = cryptoShuffle(wolves);
+        const selected: Role[] = shuffledWolves.slice(0, maxWolves);
 
-        for (let i = 0; i < maxWolves; i++) {
-          selected.push(wolves[i] || 'WEREWOLF');
+        // Fully randomize ALL selected non-wolf roles (including Transporter, Jailor, specials, neutrals, villagers)
+        const shuffledNonWolves = cryptoShuffle(nonWolves);
+
+        // If there were previous roles played, prioritize fresh roles that were NOT in the previous game
+        // so that unplayed roles (e.g. Transporter, Jailor) rotate in and players get maximum variety!
+        let orderedCandidates = shuffledNonWolves;
+        if (previousRoles && previousRoles.some(Boolean)) {
+          const prevRolesSet = new Set(previousRoles.filter((r): r is Role => Boolean(r)));
+          const freshRoles = shuffledNonWolves.filter((r) => !prevRolesSet.has(r));
+          const repeatRoles = shuffledNonWolves.filter((r) => prevRolesSet.has(r));
+          orderedCandidates = [...freshRoles, ...repeatRoles];
         }
 
-        // Add special roles chosen by the host
-        for (const spec of specials) {
+        for (const role of orderedCandidates) {
           if (selected.length < playerCount) {
-            selected.push(spec);
+            selected.push(role);
           }
         }
 
-        // Add villagers if slots remain
-        for (const v of villagers) {
-          if (selected.length < playerCount) {
-            selected.push(v);
-          }
-        }
-
+        // Fallback: If somehow slots still remain, fill with Villager
         while (selected.length < playerCount) {
           selected.push('VILLAGER');
         }
 
-        return selected.slice(0, playerCount);
+        return cryptoShuffle(selected.slice(0, playerCount));
       }
 
       // If pool is smaller than playerCount, allocate all pool roles and pad with Villagers
-      const selected = [...pool];
+      const selected = [...rawPool];
       if (
         playerCount >= 6 &&
         selected.filter((r) => r === 'WEREWOLF').length < 2 &&
@@ -101,7 +115,7 @@ export function buildRolePool(playerCount: number, customDistribution?: Record<R
         selected.push('VILLAGER');
       }
 
-      return selected.slice(0, playerCount);
+      return cryptoShuffle(selected.slice(0, playerCount));
     }
   }
 
@@ -132,7 +146,7 @@ export function buildRolePool(playerCount: number, customDistribution?: Record<R
     roles.push('VILLAGER');
   }
 
-  return roles;
+  return cryptoShuffle(roles);
 }
 
 /**
@@ -184,7 +198,7 @@ export function assignStrictRandomRoles(
   previousRoles?: (Role | undefined)[],
   recentHistories?: Role[][]
 ): Role[] {
-  const rawPool = buildRolePool(playerCount, customDistribution);
+  const rawPool = buildRolePool(playerCount, customDistribution, previousRoles);
 
   // If first game or no previous role history available, pure crypto shuffle!
   if (!previousRoles || previousRoles.length !== playerCount || previousRoles.every((r) => !r)) {
