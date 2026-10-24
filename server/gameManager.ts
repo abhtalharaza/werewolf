@@ -1,6 +1,6 @@
-import { GameRoom } from './gameState.js';
-import { ServerPlayer } from './types.js';
-import { GameSettings, RoomListItem } from '../src/types/game.js';
+import { GameRoom } from './gameState.ts';
+import { ServerPlayer } from './types.ts';
+import { GameSettings, RoomListItem } from '../src/types/game.ts';
 
 class GameManager {
   private rooms: Map<string, GameRoom> = new Map(); // roomCode -> GameRoom

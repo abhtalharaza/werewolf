@@ -1,5 +1,5 @@
-import { Role } from '../src/types/game.js';
-import { ServerPlayer, ServerNightAction } from './types.js';
+import { Role } from '../src/types/game.ts';
+import { ServerPlayer, ServerNightAction } from './types.ts';
 
 const BOT_NAMES = [
   'Rowan',

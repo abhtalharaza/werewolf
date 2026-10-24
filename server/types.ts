@@ -1,4 +1,4 @@
-import { Role, Team, GamePhase, GameSettings, GameEvent, GameDeathRecord } from '../src/types/game.js';
+import { Role, Team, GamePhase, GameSettings, GameEvent, GameDeathRecord } from '../src/types/game.ts';
 
 export interface ServerPlayer {
   id: string;

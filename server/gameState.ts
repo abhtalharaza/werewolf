@@ -10,11 +10,11 @@ import {
   SeerResult,
   WitchPotions,
   WerewolfVoteRecord,
-} from '../src/types/game.js';
-import { ServerRoom, ServerPlayer, ServerNightAction } from './types.js';
-import { assignRoles, getRoleTeam, resolveNightActions, checkWinCondition } from './roleEngine.js';
-import { generateBotPlayer, getBotNightActions, getBotVotes, getBotChatMessage } from './botAI.js';
-import { db } from './db.js';
+} from '../src/types/game.ts';
+import { ServerRoom, ServerPlayer, ServerNightAction } from './types.ts';
+import { assignRoles, getRoleTeam, resolveNightActions, checkWinCondition } from './roleEngine.ts';
+import { generateBotPlayer, getBotNightActions, getBotVotes, getBotChatMessage } from './botAI.ts';
+import { db } from './db.ts';
 
 export class GameRoom {
   public room: ServerRoom;

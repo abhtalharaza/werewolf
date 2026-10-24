@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import { Role, Team, GameSettings } from '../src/types/game.js';
-import { ServerPlayer, ServerNightAction } from './types.js';
+import { Role, Team, GameSettings } from '../src/types/game.ts';
+import { ServerPlayer, ServerNightAction } from './types.ts';
 
 export function getRoleTeam(role: Role): Team {
   if (role === 'WEREWOLF' || role === 'WOLF_CUB' || role === 'MINION') return 'WEREWOLVES';

@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
-import { gameManager } from './gameManager.js';
-import { GameRoom } from './gameState.js';
-import { ChatMessage, ChatChannel } from '../src/types/game.js';
+import { gameManager } from './gameManager.ts';
+import { GameRoom } from './gameState.ts';
+import { ChatMessage, ChatChannel } from '../src/types/game.ts';
 
 // Grace period timers for disconnected human players (playerId -> NodeJS.Timeout)
 // Prevents host or players from being unexpectedly kicked on transient network disconnects

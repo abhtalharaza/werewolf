@@ -1,4 +1,4 @@
-import { Team, Role } from '../src/types/game.js';
+import { Team, Role } from '../src/types/game.ts';
 
 export interface GameRecord {
   id: string;

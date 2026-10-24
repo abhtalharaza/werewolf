@@ -1,11 +1,12 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { Server } from 'socket.io';
 import { createServer as createViteServer } from 'vite';
-import { setupSocketHandlers } from './socketHandler.js';
-import { gameManager } from './gameManager.js';
-import { db } from './db.js';
+import { setupSocketHandlers } from './socketHandler.ts';
+import { gameManager } from './gameManager.ts';
+import { db } from './db.ts';
 
 export async function startServer() {
   const app = express();
@@ -48,9 +49,15 @@ export async function startServer() {
   // Serve public directory
   app.use(express.static(path.join(process.cwd(), 'public')));
 
-  // In Cloud Run (K_SERVICE is set) or production, serve pre-built dist assets.
-  // In local development (DEV_MODE=true and not in Cloud Run), use Vite middlewares.
-  const isDev = process.env.DEV_MODE === 'true' && !process.env.K_SERVICE;
+  const distPath = path.join(process.cwd(), 'dist');
+  const distIndexPath = path.join(distPath, 'index.html');
+
+  // Use Vite development middleware when running in dev mode or if dist/index.html is not built yet
+  const isDev =
+    process.env.DEV_MODE === 'true' ||
+    process.env.npm_lifecycle_event === 'dev' ||
+    !fs.existsSync(distIndexPath);
+
   if (isDev) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -58,10 +65,13 @@ export async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      if (fs.existsSync(distIndexPath)) {
+        res.sendFile(distIndexPath);
+      } else {
+        res.status(503).send('Application is building, please refresh in a moment.');
+      }
     });
   }
 
